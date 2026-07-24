@@ -1,0 +1,43 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+secrets/
+
+# Cloud and CLI credentials
+.aliyun/
+.ossutilconfig
+config.json
+credentials
+credentials.json
+
+# SSH, TLS and signing material
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+
+# Infrastructure state
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Runtime and generated files
+*.log
+logs/
+tmp/
+.cache/
+ossutil_output/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp

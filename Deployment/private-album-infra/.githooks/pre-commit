@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+REPO_DIR="$(git rev-parse --show-toplevel)"
+"${REPO_DIR}/Deployment/private-album-infra/scripts/scan-secrets.sh"
