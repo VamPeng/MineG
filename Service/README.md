@@ -12,4 +12,12 @@
 - 私人原文件下载授权。
 - 家庭相册只读浏览授权。
 
-服务端技术栈、数据库和接口形式尚未确定。
+已确认的服务端基础方案：
+
+- 使用 Go 实现模块化单体后端。
+- 使用 PostgreSQL 保存账号、权限、媒体元数据和任务状态。
+- 对移动端 App 和 Web 管理端提供 HTTPS REST/JSON API。
+- 原文件由客户端经后端授权后直接传输到私有阿里云 OSS，后端原则上不代理完整媒体流量。
+- ECS 内通过实例 RAM 角色和阿里云 Go SDK 获取临时凭据，不保存长期 AccessKey。
+
+HTTP Router 或 Web 框架、PostgreSQL Driver、SQL 代码生成和 Migration 工具继续逐项确定。
