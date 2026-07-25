@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=360, height=800, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#eae1da",
+                    "surface-tint": "#456646",
+                    "on-secondary-fixed-variant": "#743415",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#fbf2eb",
+                    "tertiary-container": "#767471",
+                    "surface": "#fff8f4",
+                    "surface-bright": "#fff8f4",
+                    "primary": "#436444",
+                    "on-background": "#1f1b17",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-surface": "#1f1b17",
+                    "surface-variant": "#eae1da",
+                    "surface-container": "#f5ece5",
+                    "surface-container-lowest": "#ffffff",
+                    "outline-variant": "#c2c8be",
+                    "on-secondary-container": "#773717",
+                    "secondary-fixed-dim": "#ffb596",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "tertiary": "#5d5c58",
+                    "background": "#fff8f4",
+                    "surface-dim": "#e1d8d2",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#fda27a",
+                    "on-primary-container": "#f7fff2",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "primary-fixed": "#c6edc4",
+                    "inverse-primary": "#abd0a9",
+                    "on-primary-fixed": "#012108",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-primary": "#ffffff",
+                    "inverse-on-surface": "#f8efe8",
+                    "surface-container-high": "#f0e7df",
+                    "primary-fixed-dim": "#abd0a9",
+                    "outline": "#737970",
+                    "inverse-surface": "#34302b",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed": "#e5e2dd",
+                    "secondary": "#914b2a",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-container": "#fcffe3",
+                    "on-surface-variant": "#424841",
+                    "on-secondary-fixed": "#360f00",
+                    "on-tertiary": "#ffffff",
+                    "primary-container": "#5b7d5b"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-tablet": "32px",
+                    "sm": "8px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xs": "4px",
+                    "xl": "40px",
+                    "margin-mobile": "20px",
+                    "unit": "4px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "body-md": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fff8f4;
+            color: #1f1b17;
+            font-family: 'Noto Sans', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .login-card {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(194, 200, 190, 0.2);
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(67, 100, 68, 0.1);
+        }
+        .fade-in {
+            animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-right {
+            animation: slideRight 0.3s ease-out;
+        }
+        @keyframes slideRight {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between py-12 px-margin-mobile">
+<!-- Brand Header -->
+<header class="w-full flex flex-col items-center space-y-4 fade-in mt-8">
+<div class="relative">
+<img alt="MineG Logo" class="w-20 h-20 rounded-xl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSBlo-7LTk97wRd-hnuRFhQEXAcWwXaQ9qoe28y_PBarjz-Uzz_uDqRp85QV17a7GyRnid1Xegho2FfeAasTQy6xHrRgD-qu8Z_5e-BP8Q1xn4KsOuj0RRnsxK4dX-0sGt29efOOvUxtc3urC6CYd9W1cS6NsZsGnYN3GMJcTFlpXlklySjM0-CtmoLI8kUBALz9lzE58z-9irJLzfbcx5Q9voFR2vIW5edH-t_ReHpeUUxO2TtL96Z5_PwwMDfN2IICQ9AuM7W-s"/>
+<!-- Subtle glow effect -->
+<div class="absolute -inset-1 bg-primary/5 blur-lg rounded-full -z-10"></div>
+</div>
+<div class="text-center">
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight">MineG</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">只属于家人的私人相册</p>
+</div>
+</header>
+<!-- Login Form -->
+<main class="w-full flex flex-col space-y-6 fade-in" style="animation-delay: 0.1s;">
+<div class="space-y-4">
+<!-- Phone Number Input -->
+<div class="relative group">
+<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[20px]">smartphone</span>
+</div>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入手机号" type="tel"/>
+</div>
+<!-- Password Input -->
+<div class="relative group">
+<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</div>
+<input class="w-full h-14 pl-12 pr-12 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入密码" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors" id="toggle-password" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility_off</span>
+</button>
+</div>
+</div>
+<!-- Primary Action -->
+<button class="w-full h-14 bg-primary text-on-primary font-headline-md text-headline-md-mobile rounded-xl shadow-sm active:scale-[0.98] transition-transform flex items-center justify-center" id="login-btn">
+        登录
+    </button>
+<!-- Secondary Action -->
+<div class="text-center">
+<p class="font-body-md text-body-md text-on-surface-variant">
+            还没有账号？<a class="text-primary font-semibold hover:underline" href="#" id="register-link">立即注册</a>
+</p>
+</div>
+</main>
+<!-- Footer / Privacy -->
+<footer class="w-full flex flex-col items-center space-y-4 fade-in" style="animation-delay: 0.2s;">
+<div class="flex items-center space-x-2">
+<input class="w-4 h-4 rounded-sm border-outline-variant text-primary focus:ring-primary focus:ring-offset-background" id="privacy" type="checkbox"/>
+<label class="font-label-sm text-label-sm text-outline select-none" for="privacy">
+            我已阅读并同意 <a class="text-on-surface-variant underline" href="#">服务协议</a> 与 <a class="text-on-surface-variant underline" href="#">隐私政策</a>
+</label>
+</div>
+<!-- Safety Badge -->
+<div class="flex items-center px-4 py-2 bg-surface-container rounded-full space-x-2">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<span class="font-label-sm text-label-sm text-primary">端到端加密保护</span>
+</div>
+</footer>
+<script>
+    // Simple micro-interaction for password visibility
+    const toggleBtn = document.getElementById('toggle-password');
+    const passInput = document.querySelector('input[type="password"]');
+    let visible = false;
+
+    toggleBtn.addEventListener('click', () => {
+        visible = !visible;
+        passInput.type = visible ? 'text' : 'password';
+        toggleBtn.innerHTML = `<span class="material-symbols-outlined text-[20px]">${visible ? 'visibility' : 'visibility_off'}</span>`;
+    });
+
+    // 1. Login Flow: Login button -> SCREEN_32 (Private Space)
+    document.getElementById('login-btn').addEventListener('click', (e) => {
+        const checkbox = document.getElementById('privacy');
+        if (!checkbox.checked) {
+            alert('请先同意服务协议与隐私政策');
+            return;
+        }
+        // Add a slight loading state
+        const originalText = e.target.innerHTML;
+        e.target.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span>';
+        
+        setTimeout(() => {
+            // Simulated navigation to SCREEN_32
+            window.location.href = '#screen_32'; 
+            console.log('Navigating to Private Space ({{DATA:SCREEN:SCREEN_32}})');
+            e.target.innerHTML = originalText;
+        }, 800);
+    });
+
+    // 1. Login Flow: 立即注册 -> SCREEN_48 (Register)
+    document.getElementById('register-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = '#screen_48';
+        console.log('Navigating to Register ({{DATA:SCREEN:SCREEN_48}})');
+    });
+
+    // Note: The specific screen transitions are simulated here since we are staying on this single HTML file.
+    // In a real environment, these would be direct file links or state changes in a SPA.
+</script>
+</body></html>

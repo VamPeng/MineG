@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG - 审核中</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "surface-variant": "#eae1da",
+                    "primary-fixed": "#c6edc4",
+                    "inverse-on-surface": "#f8efe8",
+                    "on-secondary-fixed": "#360f00",
+                    "on-primary-fixed": "#012108",
+                    "surface-container-low": "#fbf2eb",
+                    "surface-container-high": "#f0e7df",
+                    "error": "#ba1a1a",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#eae1da",
+                    "surface": "#fff8f4",
+                    "on-surface-variant": "#424841",
+                    "on-background": "#1f1b17",
+                    "tertiary-fixed": "#e5e2dd",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "surface-bright": "#fff8f4",
+                    "secondary": "#914b2a",
+                    "error-container": "#ffdad6",
+                    "primary-container": "#5b7d5b",
+                    "outline": "#737970",
+                    "on-error-container": "#93000a",
+                    "surface-tint": "#456646",
+                    "tertiary-container": "#767471",
+                    "primary": "#436444",
+                    "tertiary": "#5d5c58",
+                    "surface-dim": "#e1d8d2",
+                    "outline-variant": "#c2c8be",
+                    "on-secondary-container": "#773717",
+                    "surface-container": "#f5ece5",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-surface": "#1f1b17",
+                    "inverse-primary": "#abd0a9",
+                    "background": "#fff8f4",
+                    "on-primary-container": "#f7fff2",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "inverse-surface": "#34302b",
+                    "secondary-container": "#fda27a",
+                    "secondary-fixed-dim": "#ffb596",
+                    "on-tertiary-container": "#fcffe3",
+                    "on-secondary-fixed-variant": "#743415",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-tablet": "32px",
+                    "xs": "4px",
+                    "unit": "4px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "margin-mobile": "20px",
+                    "xl": "40px",
+                    "sm": "8px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-pulse-slow { animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md text-body-md min-h-screen flex flex-col overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="w-full top-0 z-50 bg-surface dark:bg-surface-dim flex items-center justify-between px-margin-mobile py-md">
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-primary dark:text-primary-fixed-dim hover:bg-surface-variant/20 transition-colors p-2 rounded-full active:scale-95 duration-200">
+                arrow_back
+            </button>
+</div>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-primary-fixed-dim tracking-tight">MineG</h1>
+<div class="w-10"></div> <!-- Spacer for center alignment -->
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col items-center justify-center px-margin-mobile pb-xl relative">
+<!-- Decorative Ambient Background Elements -->
+<div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-primary-container/10 rounded-full blur-3xl -z-10 animate-pulse-slow"></div>
+<div class="absolute bottom-1/4 left-1/4 w-48 h-48 bg-secondary-container/10 rounded-full blur-3xl -z-10 animate-float" style="animation-delay: -2s;"></div>
+<!-- Calm Waiting Graphic Section -->
+<section class="w-full max-w-sm flex flex-col items-center text-center space-y-lg">
+<div class="relative w-64 h-64 flex items-center justify-center mb-md">
+<!-- Central Calm Visual -->
+<div class="absolute inset-0 border-2 border-primary/20 rounded-full animate-pulse-slow"></div>
+<div class="absolute inset-4 border border-primary/10 rounded-full animate-float"></div>
+<div class="relative bg-surface-container-highest rounded-full w-48 h-48 flex items-center justify-center overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover opacity-90" data-alt="A serene and minimalist digital illustration of a family-oriented private cloud. Soft sage green and warm cream colors dominate the scene. In the center, a stylized glowing house icon represents the digital hearth, surrounded by floating soft-edged circles suggesting secure memory storage and family connections. The lighting is diffused and warm, evoking a sense of safety and calm. Minimalist-modern aesthetic with tactile warmth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSrQHeRK6HBvWDqDusAxfT0vahIUcZChpfhmoPb88kDUhgQuMu2WFr-RzufURAMY2oOKht9QJJRxMGcP9Bs_jig6hxbdO3WsNgwkoCXuN_RTrIsqIBosvDsHPyn2n_FTybLMK9QSNF5EPblqSeEFEMjyjifaOZUHmhFHPnR3V_1rBH0ohlZuYcVFjwbOovqqpsT51tQNfv-qiNJS-OkhnMhS4K4d5ekCM5-4u8WNJB3RU677ZsyQ8jNOoRijRopwJNZFAcVNBYQXs"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-highest/60 to-transparent"></div>
+<span class="material-symbols-outlined text-[64px] text-primary absolute" style="font-variation-settings: 'FILL' 1;">
+                        shield_person
+                    </span>
+</div>
+<!-- Status Tag -->
+<div class="absolute bottom-0 right-4 bg-primary text-on-primary px-4 py-1.5 rounded-full flex items-center gap-2 shadow-md animate-float">
+<span class="material-symbols-outlined text-[16px] animate-spin" style="animation-duration: 3s">refresh</span>
+<span class="font-label-sm text-label-sm">实时同步中</span>
+</div>
+</div>
+<!-- Typography Content -->
+<div class="space-y-sm">
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">注册申请正在审核</h2>
+<p class="text-on-surface-variant max-w-[280px] mx-auto">
+                    家庭管理员通过后，你就可以使用 MineG
+                </p>
+</div>
+<!-- Admin Indicators -->
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span class="text-label-sm font-label-sm">已通知家庭创建者</span>
+</div>
+</section>
+<!-- Action Section -->
+<section class="w-full max-w-sm mt-xl space-y-md">
+<!-- Primary Refresh Button -->
+<button class="w-full bg-primary text-on-primary py-4 rounded-xl flex items-center justify-center gap-md font-bold hover:brightness-110 active:scale-95 transition-all shadow-sm" id="refreshBtn">
+<span class="material-symbols-outlined" id="refreshIcon">refresh</span>
+<span>刷新审核状态</span>
+</button>
+<!-- Secondary Actions Card -->
+<div class="glass-card rounded-2xl p-sm flex flex-col items-center">
+<button class="w-full py-3 text-secondary font-semibold hover:bg-secondary/5 rounded-lg active:scale-95 transition-all text-body-md flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[20px]">login</span>
+                    重新登录
+                </button>
+<div class="w-10/12 h-[1px] bg-outline-variant/30 my-1"></div>
+<button class="w-full py-3 text-on-surface-variant font-medium hover:bg-surface-variant/20 rounded-lg active:scale-95 transition-all text-body-md flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+                    退出当前账号
+                </button>
+</div>
+</section>
+<!-- Footer Privacy Reassurance -->
+<footer class="mt-xl text-center">
+<p class="text-label-sm font-label-sm text-outline flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+                MineG 承诺保护您的家庭隐私安全
+            </p>
+</footer>
+</main>
+<script>
+        // Micro-interaction for the refresh button
+        const refreshBtn = document.getElementById('refreshBtn');
+        const refreshIcon = document.getElementById('refreshIcon');
+
+        refreshBtn.addEventListener('click', () => {
+            refreshIcon.classList.add('animate-spin');
+            refreshBtn.classList.add('opacity-80', 'pointer-events-none');
+            
+            // Simulate a network check
+            setTimeout(() => {
+                refreshIcon.classList.remove('animate-spin');
+                refreshBtn.classList.remove('opacity-80', 'pointer-events-none');
+                
+                // Show a brief feedback toast or status change logic would go here
+            }, 1500);
+        });
+
+        // Subtle parallax effect on floating elements
+        document.addEventListener('mousemove', (e) => {
+            const moveX = (e.clientX - window.innerWidth / 2) / 50;
+            const moveY = (e.clientY - window.innerHeight / 2) / 50;
+            const floatingElements = document.querySelectorAll('.animate-float');
+            
+            floatingElements.forEach(el => {
+                el.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            });
+        });
+    </script>
+</body></html>

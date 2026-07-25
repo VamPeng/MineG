@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG - 回收站</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .headline-anchor {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                "tertiary-fixed": "#e5e2dd",
+                "on-tertiary": "#ffffff",
+                "error-container": "#ffdad6",
+                "on-primary": "#ffffff",
+                "primary": "#436444",
+                "outline": "#737970",
+                "surface-container-high": "#f0e7df",
+                "on-tertiary-container": "#fcffe3",
+                "surface-container": "#f5ece5",
+                "surface-variant": "#eae1da",
+                "surface-dim": "#e1d8d2",
+                "on-primary-fixed": "#012108",
+                "inverse-on-surface": "#f8efe8",
+                "surface-container-lowest": "#ffffff",
+                "primary-fixed-dim": "#abd0a9",
+                "on-tertiary-fixed-variant": "#474743",
+                "on-secondary": "#ffffff",
+                "on-background": "#1f1b17",
+                "on-primary-fixed-variant": "#2e4e30",
+                "secondary-container": "#fda27a",
+                "on-error": "#ffffff",
+                "tertiary-container": "#767471",
+                "inverse-primary": "#abd0a9",
+                "primary-fixed": "#c6edc4",
+                "on-secondary-container": "#773717",
+                "on-error-container": "#93000a",
+                "tertiary-fixed-dim": "#c9c6c2",
+                "on-secondary-fixed": "#360f00",
+                "on-surface": "#1f1b17",
+                "tertiary": "#5d5c58",
+                "surface": "#fff8f4",
+                "surface-bright": "#fff8f4",
+                "on-tertiary-fixed": "#1c1c19",
+                "on-primary-container": "#f7fff2",
+                "secondary": "#914b2a",
+                "background": "#fff8f4",
+                "secondary-fixed-dim": "#ffb596",
+                "inverse-surface": "#34302b",
+                "secondary-fixed": "#ffdbcd",
+                "primary-container": "#5b7d5b",
+                "outline-variant": "#c2c8be",
+                "on-secondary-fixed-variant": "#743415",
+                "surface-container-highest": "#eae1da",
+                "surface-tint": "#456646",
+                "surface-container-low": "#fbf2eb",
+                "on-surface-variant": "#424841",
+                "error": "#ba1a1a"
+              },
+              "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+              },
+              "spacing": {
+                "xl": "40px",
+                "gutter": "12px",
+                "lg": "24px",
+                "sm": "8px",
+                "margin-tablet": "32px",
+                "md": "16px",
+                "margin-mobile": "20px",
+                "xs": "4px",
+                "unit": "4px"
+              },
+              "fontFamily": {
+                "label-sm": ["Noto Sans"],
+                "body-lg": ["Noto Sans"],
+                "body-md": ["Noto Sans"],
+                "display-lg-mobile": ["Plus Jakarta Sans"],
+                "display-lg": ["Plus Jakarta Sans"],
+                "headline-md": ["Plus Jakarta Sans"]
+              },
+              "fontSize": {
+                "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500" }],
+                "body-lg": ["17px", { "lineHeight": "26px", "fontWeight": "400" }],
+                "body-md": ["15px", { "lineHeight": "22px", "fontWeight": "400" }],
+                "display-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                "display-lg": ["30px", { "lineHeight": "40px", "fontWeight": "700" }],
+                "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 bg-surface dark:bg-surface-dim shadow-sm flex justify-between items-center px-margin-mobile h-16">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="shield">shield</span>
+<h1 class="headline-anchor font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">MineG</h1>
+</div>
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer active:scale-95 transition-transform" data-icon="settings">settings</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center px-margin-mobile pt-16 pb-32">
+<div class="w-full max-w-md flex flex-col items-center text-center">
+<!-- Dynamic Headline Section -->
+<div class="w-full text-left mb-xl">
+<h2 class="font-display-lg-mobile text-display-lg-mobile md:text-display-lg text-on-surface">回收站</h2>
+</div>
+<!-- Empty State Illustration & Content -->
+<div class="relative w-64 h-64 mb-lg group">
+<!-- Tonal Layering Background Circle -->
+<div class="absolute inset-0 bg-surface-container rounded-full scale-90 opacity-50 blur-xl"></div>
+<!-- Central Illustration -->
+<div class="relative z-10 w-full h-full flex items-center justify-center animate-float">
+<img class="w-48 h-48 object-contain" data-alt="A minimalist, warm digital illustration of a peaceful Sage Green colored cloud with a small, friendly recycle symbol on its side. The scene is set against a soft cream background with gentle, diffused ambient lighting. The style is tactile and nostalgic, avoiding sharp edges, and emphasizing a sense of calm and private security for family memories." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPylMicdjTq_JvpEyoDw8YGgxnHW9b18tAGFgm4-HG1LdEua73hVBdaPgR_rUdh-9U574aNfG3ZkxsR3YXNLUtpxEE9nC7PRsh7eToAIh9Ge6vxGe-PhGvacAHTUsqrITvIf4Ewe4KThRuMvnte1I_sI9N7zX32SVYUPOfs06-bw_bPT7oQwVQBsT2KlghTo9rmimnJOXFfx1lrQApJQZM_sEK_pQNe9gcb80dxfUQMcvVxPja7ndy4RXtselHa9ybq7G_Sn3KRSg"/>
+</div>
+<!-- Decorative Elements -->
+<div class="absolute top-4 right-4 text-primary opacity-20 transform rotate-12">
+<span class="material-symbols-outlined text-4xl" data-icon="photo">photo</span>
+</div>
+<div class="absolute bottom-8 left-4 text-primary opacity-20 transform -rotate-12">
+<span class="material-symbols-outlined text-3xl" data-icon="videocam">videocam</span>
+</div>
+</div>
+<!-- Empty State Text -->
+<h3 class="font-headline-md text-headline-md text-on-surface-variant mb-sm">暂无删除内容</h3>
+<p class="font-body-md text-body-md text-outline px-lg max-w-xs leading-relaxed">
+                你删除的照片和视频会出现在这里，可随时恢复。
+            </p>
+<!-- CTA for Context -->
+<button class="mt-xl px-xl py-md bg-primary text-on-primary rounded-xl font-body-md shadow-sm active:scale-95 transition-all duration-150 flex items-center gap-sm">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+<span>查看详情</span>
+</button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 bg-surface-container/80 backdrop-blur-md shadow-[0_-4px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
+<!-- Space -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm">Space</span>
+</a>
+<!-- Album -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="photo_album">photo_album</span>
+<span class="font-label-sm text-label-sm">Album</span>
+</a>
+<!-- Backup -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+<span class="font-label-sm text-label-sm">Backup</span>
+</a>
+<!-- Bin (ACTIVE) -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="delete" style="font-variation-settings: 'FILL' 1;">delete</span>
+<span class="font-label-sm text-label-sm">Bin</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</a>
+</nav>
+<!-- Subtle atmospheric micro-interaction -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.querySelector('main');
+            container.addEventListener('mousemove', (e) => {
+                const moveX = (e.clientX - window.innerWidth / 2) / 40;
+                const moveY = (e.clientY - window.innerHeight / 2) / 40;
+                const illustration = document.querySelector('.animate-float');
+                if(illustration) {
+                    illustration.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                }
+            });
+        });
+    </script>
+</body></html>

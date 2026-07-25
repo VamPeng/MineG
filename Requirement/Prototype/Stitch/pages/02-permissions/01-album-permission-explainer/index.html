@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG - 相册权限说明</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Shared Tailwind Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#436444",
+                    "surface-bright": "#fff8f4",
+                    "surface-container-low": "#fbf2eb",
+                    "surface-container-highest": "#eae1da",
+                    "surface": "#fff8f4",
+                    "outline-variant": "#c2c8be",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-secondary-fixed-variant": "#743415",
+                    "surface-container-high": "#f0e7df",
+                    "primary-container": "#5b7d5b",
+                    "inverse-primary": "#abd0a9",
+                    "background": "#fff8f4",
+                    "secondary-fixed-dim": "#ffb596",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "tertiary": "#5d5c58",
+                    "secondary": "#914b2a",
+                    "on-primary-container": "#f7fff2",
+                    "inverse-surface": "#34302b",
+                    "on-secondary-fixed": "#360f00",
+                    "tertiary-fixed": "#e5e2dd",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-primary-fixed": "#012108",
+                    "on-background": "#1f1b17",
+                    "inverse-on-surface": "#f8efe8",
+                    "surface-dim": "#e1d8d2",
+                    "on-tertiary-container": "#fcffe3",
+                    "on-surface-variant": "#424841",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed": "#c6edc4",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "error": "#ba1a1a",
+                    "surface-variant": "#eae1da",
+                    "outline": "#737970",
+                    "on-surface": "#1f1b17",
+                    "on-error": "#ffffff",
+                    "surface-container": "#f5ece5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#767471",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "surface-tint": "#456646",
+                    "secondary-container": "#fda27a",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-secondary-container": "#773717"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "24px",
+                    "margin-tablet": "32px",
+                    "margin-mobile": "20px",
+                    "gutter": "12px",
+                    "xs": "4px",
+                    "unit": "4px",
+                    "sm": "8px",
+                    "xl": "40px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "body-md": ["Noto Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        display: inline-block;
+        vertical-align: middle;
+      }
+      body {
+        -webkit-tap-highlight-color: transparent;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md text-body-md min-h-screen flex flex-col items-center overflow-x-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Top AppBar (Internal Only - No Nav Cluster per instruction for Task-Focused screen) -->
+<header class="w-full top-0 sticky z-40 bg-surface/80 backdrop-blur-sm shadow-sm flex items-center justify-between px-margin-mobile py-sm">
+<button class="flex items-center justify-center p-sm rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-on-surface">close</span>
+</button>
+<span class="font-headline-md text-headline-md-mobile text-primary tracking-tight">MineG</span>
+<div class="w-10"></div> <!-- Spacer for balance -->
+</header>
+<main class="flex-1 w-full max-w-md px-margin-mobile pt-lg pb-xl flex flex-col">
+<!-- Hero Section: Warm Family Visual with Privacy Emphasis -->
+<div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden mb-xl shadow-sm group">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="A warm, nostalgic photograph of a multi-generational family laughing together in a sun-drenched living room. The lighting is soft and golden, emphasizing a cozy, intimate atmosphere. The visual style is modern yet tactile, with a color palette of sage green and warm cream that matches the MineG brand identity. In the foreground, a subtle glass-like shield icon is overlaid, symbolizing privacy and secure digital protection." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDb4pyswFVc4dQfgxQ8RAVUw3tbRb9Ax6PkKXtQU2zN7dovEzLm0yOMow7MWJlntdzDkuFE6598Gc6ZjmDKCckwNWQQ3MIMHm2wbtmzBaLLHl3rHUadAFKUhYJsH5GANEH53TcfEE6tv29j8HWLZXSDurt3H2FFs0J5hzwc0AFbmVlf190iW2Tyut7zgSAvq_SaQP_hMCM9rY6h_B4jjUGhyhLfWRu8mKxt4-G3Bc6cqn8g_S7IaXNZBAtp8BXy4X_VrTPICOs6CIs')">
+</div>
+<!-- Privacy Badge Overlay -->
+<div class="absolute bottom-md left-md glass-card px-md py-sm rounded-full flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">shield</span>
+<span class="font-label-sm text-label-sm text-primary">端到端加密保护</span>
+</div>
+</div>
+<!-- Content Section -->
+<div class="flex-1 space-y-lg text-center px-sm">
+<div class="space-y-sm">
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-on-surface tracking-tight">
+                    允许 MineG 访问你的相册
+                </h1>
+<p class="text-on-surface-variant font-body-lg text-body-lg leading-relaxed">
+                    为了实现自动备份，MineG 需要访问你的相册。我们会扫描照片、视频、GIF 和实况照片。
+                </p>
+</div>
+<!-- Privacy Feature List (Bento-lite style) -->
+<div class="grid grid-cols-1 gap-md text-left">
+<div class="p-md bg-surface-container rounded-xl border border-outline-variant/30 flex items-start gap-md">
+<div class="w-10 h-10 rounded-lg bg-primary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-primary-fixed-variant">lock</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md-mobile text-on-surface text-[16px] mb-xs">私人空间默认保存</h3>
+<p class="text-on-surface-variant text-label-sm font-label-sm">备份内容默认仅保存在你的「私人空间」，完全私密且安全。</p>
+</div>
+</div>
+<div class="p-md bg-surface-container rounded-xl border border-outline-variant/30 flex items-start gap-md">
+<div class="w-10 h-10 rounded-lg bg-secondary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-fixed-variant">family_history</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md-mobile text-on-surface text-[16px] mb-xs">家庭共享由你控制</h3>
+<p class="text-on-surface-variant text-label-sm font-label-sm">只有你主动共享的内容才会出现在「家庭相册」中。</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<footer class="mt-xl space-y-md safe-area-bottom">
+<button class="w-full bg-primary text-on-primary py-lg rounded-xl font-headline-md text-headline-md-mobile shadow-md active:scale-[0.98] transition-all duration-200">
+                继续授权
+            </button>
+<button class="w-full bg-surface-container-high text-on-surface-variant py-lg rounded-xl font-headline-md text-headline-md-mobile hover:bg-surface-container-highest active:scale-[0.98] transition-all duration-200">
+                暂不开启
+            </button>
+<p class="text-center text-label-sm font-label-sm text-outline px-lg">
+                我们重视你的隐私，MineG 永远不会在未经授权的情况下将你的数据用于训练或出售。
+            </p>
+</footer>
+</main>
+<!-- Subtle atmospheric background effect -->
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden opacity-50">
+<div class="absolute -top-1/4 -right-1/4 w-96 h-96 bg-primary-container/20 rounded-full blur-[100px]"></div>
+<div class="absolute top-1/2 -left-1/4 w-64 h-64 bg-secondary-container/10 rounded-full blur-[80px]"></div>
+</div>
+<script>
+        // Simple Micro-interaction for the Privacy Badge
+        document.addEventListener('DOMContentLoaded', () => {
+            const badge = document.querySelector('.glass-card');
+            if (badge) {
+                badge.style.opacity = '0';
+                badge.style.transform = 'translateY(10px)';
+                setTimeout(() => {
+                    badge.style.transition = 'all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    badge.style.opacity = '1';
+                    badge.style.transform = 'translateY(0)';
+                }, 500);
+            }
+        });
+    </script>
+</body></html>

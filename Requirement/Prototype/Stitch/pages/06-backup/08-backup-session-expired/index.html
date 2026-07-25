@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG - 登录已过期</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Apply Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#ffffff",
+                    "secondary-fixed-dim": "#ffb596",
+                    "secondary-fixed": "#ffdbcd",
+                    "secondary": "#914b2a",
+                    "primary-fixed": "#c6edc4",
+                    "background": "#fff8f4",
+                    "on-secondary-fixed": "#360f00",
+                    "surface-container-low": "#fbf2eb",
+                    "tertiary-container": "#767471",
+                    "surface-container-highest": "#eae1da",
+                    "on-secondary-fixed-variant": "#743415",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "tertiary": "#5d5c58",
+                    "surface-container-high": "#f0e7df",
+                    "primary": "#436444",
+                    "on-primary-container": "#f7fff2",
+                    "inverse-on-surface": "#f8efe8",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "inverse-surface": "#34302b",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#456646",
+                    "secondary-container": "#fda27a",
+                    "on-background": "#1f1b17",
+                    "tertiary-fixed": "#e5e2dd",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#abd0a9",
+                    "on-surface": "#1f1b17",
+                    "on-surface-variant": "#424841",
+                    "on-tertiary": "#ffffff",
+                    "surface-variant": "#eae1da",
+                    "surface-dim": "#e1d8d2",
+                    "surface-bright": "#fff8f4",
+                    "surface": "#fff8f4",
+                    "primary-container": "#5b7d5b",
+                    "outline-variant": "#c2c8be",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-secondary": "#ffffff",
+                    "outline": "#737970",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "error": "#ba1a1a",
+                    "on-secondary-container": "#773717",
+                    "surface-container": "#f5ece5",
+                    "on-tertiary-container": "#fcffe3",
+                    "on-primary-fixed": "#012108"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "lg": "24px",
+                    "unit": "4px",
+                    "xl": "40px",
+                    "gutter": "12px",
+                    "sm": "8px",
+                    "md": "16px",
+                    "margin-tablet": "32px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "body-lg": ["Noto Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F5F2ED; /* As per Style Guidance: Base Layer warm cream */
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-overlay {
+            backdrop-filter: blur(8px);
+            background: rgba(255, 248, 244, 0.6);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen font-body-md text-on-surface">
+<!-- Top App Bar (Shared Component) -->
+<header class="w-full top-0 sticky bg-surface/80 backdrop-blur-md shadow-sm z-40 flex justify-between items-center px-margin-mobile py-md w-full">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-headline-md-mobile" data-icon="shield_with_heart">shield_with_heart</span>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-tight">MineG</h1>
+</div>
+<div class="flex items-center">
+<button class="p-xs text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-full active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</header>
+<!-- Background Content Canvas (Simulated Blurred UI for Context) -->
+<main class="px-margin-mobile pt-lg pb-xl space-y-lg opacity-40 select-none pointer-events-none">
+<section class="grid grid-cols-2 gap-gutter">
+<div class="aspect-square bg-surface-container rounded-xl overflow-hidden shadow-sm">
+<div class="w-full h-full bg-cover bg-center" data-alt="A warm family photograph showing a grandparent and child gardening together in a sun-drenched backyard. The lighting is soft and golden, characteristic of late afternoon. The aesthetic is tactile and nostalgic, with muted earthy tones like sage green and cream, perfectly aligned with a minimalist family cloud storage theme." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAGcw0pZ_IlJQMk_26NToZgJ-oKu8GAH7GB3r-2TZL3CWUIpJIWPpIN7jfqRXqk1Hor6HEe-o45pjaMTNPKBz42NMbdBnxSfAguiNj3vyzoH7ieN8XM06ge67kVU65AnHhr0qWHeaDDggsk7cjf_795fG4i9-9EMvDEgZZotBBekbS4jefL_dyuACMvdzAlU8ji6fy1MI7HwzGGvyzS7nzhKhZZH37he-DqgIgoX-YnHydoI8-B13KbiPbwOF9BA6DqBXbtvFJkShM')"></div>
+</div>
+<div class="aspect-square bg-surface-container rounded-xl overflow-hidden shadow-sm">
+<div class="w-full h-full bg-cover bg-center" data-alt="A macro photograph of an old physical photo album with worn linen textures and sepia-toned edges. The scene is shot in a minimalist-modern studio with high-key lighting, creating a digital hearth feel. Soft cream and sage green accents provide a sense of security and domestic warmth." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD8eFlBo7FxPWVZC2Lx5YBEPQYvXrfHxZxTnMhK1BvxgUo_ZgrYfa2vQXpsbFMehronZ9z4ht4htNLXbB2EPeB7Pwju6mcrBLUuPzzsP7he7gmQ-2mNMNE66ca5O2JkWpQLGz_1pcomAqJmM2oIeHX-W6JEGfePE5u3-Eb8tyqFjetobkQ-ESsDRV-I0Hpuc7v0adzUPrAyHrIC6VJmVtJs62aGhfJ7C8rzdXyNT1pUQryj70F4qoe3Wfxuz4VeYaWmA5ZxUWVuUJw')"></div>
+</div>
+</section>
+<div class="space-y-sm">
+<div class="h-6 w-1/3 bg-surface-container-highest rounded-full"></div>
+<div class="space-y-xs">
+<div class="h-4 w-full bg-surface-container-high rounded-full"></div>
+<div class="h-4 w-5/6 bg-surface-container-high rounded-full"></div>
+</div>
+</div>
+<div class="p-lg bg-surface rounded-xl border border-outline-variant space-y-md">
+<div class="flex justify-between">
+<div class="h-6 w-1/4 bg-primary-fixed rounded-full"></div>
+<div class="h-6 w-12 bg-secondary-fixed rounded-full"></div>
+</div>
+<div class="grid grid-cols-4 gap-sm">
+<div class="aspect-square bg-surface-container-low rounded-lg"></div>
+<div class="aspect-square bg-surface-container-low rounded-lg"></div>
+<div class="aspect-square bg-surface-container-low rounded-lg"></div>
+<div class="aspect-square bg-surface-container-low rounded-lg"></div>
+</div>
+</div>
+</main>
+<!-- Session Expired Overlay (The Main Content) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center glass-overlay px-margin-mobile">
+<div class="w-full max-w-sm bg-surface shadow-[0_12px_40px_rgba(0,0,0,0.08)] rounded-xl p-xl flex flex-col items-center text-center space-y-lg animate-in fade-in zoom-in duration-500">
+<!-- Animated Icon Area -->
+<div class="relative w-24 h-24 mb-md">
+<div class="absolute inset-0 bg-secondary-container/20 rounded-full animate-ping opacity-25"></div>
+<div class="relative flex items-center justify-center w-full h-full bg-secondary-container rounded-full text-on-secondary-container">
+<span class="material-symbols-outlined text-[48px]" data-icon="lock_clock">lock_clock</span>
+</div>
+</div>
+<!-- Content -->
+<div class="space-y-sm">
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">登录已过期</h2>
+<p class="font-body-md text-on-surface-variant px-sm leading-relaxed">为了您的账户安全，请重新登录以继续管理您的珍贵回忆。</p>
+</div>
+<!-- Action Button -->
+<div class="w-full pt-md">
+<button class="w-full bg-primary py-md px-lg rounded-xl text-on-primary font-headline-md flex items-center justify-center gap-sm active:scale-95 transition-all duration-200 shadow-md hover:bg-primary-container" onclick="handleRelogin()">
+<span>重新登录</span>
+<span class="material-symbols-outlined text-[20px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="mt-md w-full py-sm text-on-surface-variant font-label-sm hover:text-primary transition-colors">
+                    返回首页
+                </button>
+</div>
+<!-- Privacy Indicator -->
+<div class="flex items-center gap-xs opacity-60">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified_user">verified_user</span>
+<span class="text-label-sm font-label-sm uppercase tracking-wider">End-to-End Encrypted</span>
+</div>
+</div>
+</div>
+<!-- Bottom Nav Bar (Shared Component - Hidden in focused state but part of shell) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-xs pb-safe pt-sm bg-surface/80 backdrop-blur-lg border-t border-surface-container-highest shadow-[0_-2px_12px_rgba(0,0,0,0.05)] z-30 opacity-40 pointer-events-none">
+<div class="flex flex-col items-center justify-center text-on-surface-variant opacity-70">
+<span class="material-symbols-outlined" data-icon="cloud_circle">cloud_circle</span>
+<span class="font-label-sm text-label-sm mt-xs">私人空间</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant opacity-70">
+<span class="material-symbols-outlined" data-icon="group_work">group_work</span>
+<span class="font-label-sm text-label-sm mt-xs">家庭相册</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant opacity-70">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+<span class="font-label-sm text-label-sm mt-xs">备份</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant opacity-70">
+<span class="material-symbols-outlined" data-icon="delete_outline">delete_outline</span>
+<span class="font-label-sm text-label-sm mt-xs">回收站</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm">我的</span>
+</div>
+</nav>
+<script>
+        function handleRelogin() {
+            // Simple visual feedback for the button interaction
+            const btn = event.currentTarget;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin" data-icon="refresh">refresh</span> 正在重定向...';
+            setTimeout(() => {
+                alert('正在跳转到安全登录中心...');
+            }, 500);
+        }
+
+        // Detect touch for active states on mobile
+        document.addEventListener('touchstart', function(){}, true);
+    </script>
+</body></html>

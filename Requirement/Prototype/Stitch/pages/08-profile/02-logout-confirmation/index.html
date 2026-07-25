@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG - 确认退出</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "on-tertiary-container": "#fcffe3",
+                    "surface-container-high": "#f0e7df",
+                    "on-background": "#1f1b17",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "secondary-fixed": "#ffdbcd",
+                    "tertiary": "#5d5c58",
+                    "surface-bright": "#fff8f4",
+                    "surface-dim": "#e1d8d2",
+                    "on-primary-container": "#f7fff2",
+                    "tertiary-container": "#767471",
+                    "inverse-primary": "#abd0a9",
+                    "tertiary-fixed": "#e5e2dd",
+                    "primary": "#436444",
+                    "on-error": "#ffffff",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "secondary-fixed-dim": "#ffb596",
+                    "primary-container": "#5b7d5b",
+                    "outline": "#737970",
+                    "on-secondary-fixed": "#360f00",
+                    "outline-variant": "#c2c8be",
+                    "on-primary-fixed": "#012108",
+                    "primary-fixed": "#c6edc4",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "primary-fixed-dim": "#abd0a9",
+                    "surface-variant": "#eae1da",
+                    "secondary": "#914b2a",
+                    "background": "#fff8f4",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-container": "#773717",
+                    "surface-container-highest": "#eae1da",
+                    "surface-tint": "#456646",
+                    "surface-container-low": "#fbf2eb",
+                    "on-tertiary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-surface": "#1f1b17",
+                    "inverse-surface": "#34302b",
+                    "error-container": "#ffdad6",
+                    "surface-container": "#f5ece5",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-container": "#fda27a",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#f8efe8",
+                    "on-surface-variant": "#424841",
+                    "on-secondary-fixed-variant": "#743415",
+                    "surface": "#fff8f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xl": "40px",
+                    "margin-mobile": "20px",
+                    "sm": "8px",
+                    "gutter": "12px",
+                    "unit": "4px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "margin-tablet": "32px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "body-md": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "label-sm": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"]
+            },
+            "fontSize": {
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Noto Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .blur-backdrop {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .profile-mesh {
+            background: radial-gradient(circle at 20% 30%, #abd0a9 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, #ffdbcd 0%, transparent 50%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim w-full top-0 sticky z-40">
+<div class="flex items-center justify-between px-margin-mobile py-md w-full">
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-primary dark:text-primary-fixed-dim hover:bg-surface-variant/20 transition-colors active:scale-95 duration-200 p-xs rounded-full">arrow_back</button>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-primary-fixed-dim">MineG</h1>
+</div>
+<div class="flex items-center gap-sm">
+<button class="material-symbols-outlined text-on-surface-variant p-sm hover:bg-surface-variant/20 rounded-full transition-colors">settings</button>
+</div>
+</div>
+</header>
+<!-- Main Content (Blurred Context) -->
+<main class="filter blur-md transition-all duration-300">
+<!-- User Profile Header -->
+<section class="px-margin-mobile pt-lg pb-xl">
+<div class="flex items-center gap-lg">
+<div class="w-20 h-20 rounded-full overflow-hidden border-2 border-surface-container-high shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A warm, professional portrait of an elderly man with a kind smile, set against a soft Sage Green background. The lighting is gentle and natural, emphasizing a sense of wisdom and family warmth. The overall aesthetic is minimalist and high-quality, mirroring the digital hearth brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCytintaZjFsWgOioESXqYTd_jaZoYQxHNHZzjgiRnJOBDpExUZuHeU3zmmdv3qSAGEtQv6AdBRG6xKL6qhVgcqEkeJmvZ20Ot_gE8MfHNV4jpnkxCdxRaSaDiZVXJA_J58a3cNC2qY7DSNaGlCANyHCo3sidv7qNc0ZloR1k4hjYOjvpReBqMStIX-nln1u_R2_KMphsmvFisEic-GflDARMGZsw-hcYMux71MCRTXTLSx93gwxspyl3d4ZmI6tMSYul2VZTgRXn8"/>
+</div>
+<div class="flex-1">
+<h2 class="font-headline-md text-headline-md-mobile text-on-background">林建国</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">超级管理员 · 已加入 126 天</p>
+</div>
+</div>
+</section>
+<!-- Stats Bento Grid -->
+<section class="px-margin-mobile grid grid-cols-2 gap-gutter mb-lg">
+<div class="bg-surface-container-low p-md rounded-xl flex flex-col gap-xs">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">cloud_done</span>
+<span class="font-display-lg-mobile text-display-lg-mobile text-primary">1,284</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">云端照片总数</span>
+</div>
+<div class="bg-surface-container-low p-md rounded-xl flex flex-col gap-xs">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">family_history</span>
+<span class="font-display-lg-mobile text-display-lg-mobile text-secondary">12</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">关联家庭成员</span>
+</div>
+</section>
+<!-- Menu List -->
+<section class="px-margin-mobile space-y-xs">
+<div class="bg-surface-container p-md rounded-xl flex items-center justify-between group active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary">photo_album</span>
+<span class="font-body-lg text-body-lg text-on-surface">照片同步设置</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant">chevron_right</span>
+</div>
+<div class="bg-surface-container p-md rounded-xl flex items-center justify-between active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary">shield_person</span>
+<span class="font-body-lg text-body-lg text-on-surface">隐私与安全中心</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant">chevron_right</span>
+</div>
+<div class="bg-surface-container p-md rounded-xl flex items-center justify-between active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary">help_center</span>
+<span class="font-body-lg text-body-lg text-on-surface">常见问题与反馈</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant">chevron_right</span>
+</div>
+</section>
+</main>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-lg">
+<!-- Backdrop Scrim -->
+<div class="absolute inset-0 bg-on-background/20 blur-backdrop"></div>
+<!-- Confirmation Dialog -->
+<div class="relative bg-surface-container-lowest w-full max-w-sm rounded-xl shadow-xl overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300">
+<div class="p-lg">
+<div class="flex flex-col items-center text-center">
+<div class="bg-error-container text-on-error-container p-md rounded-full mb-md">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 600;">logout</span>
+</div>
+<h3 class="font-headline-md text-headline-md-mobile text-on-surface mb-sm">确定退出登录？</h3>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                        退出后，当前账号尚未完成的备份任务将停止。
+                    </p>
+</div>
+</div>
+<div class="flex flex-col border-t border-surface-container">
+<button class="w-full py-md font-body-lg text-body-lg text-error hover:bg-error-container/20 transition-colors active:bg-error-container/40">
+                    确认退出
+                </button>
+<button class="w-full py-md font-body-lg text-body-lg text-on-surface-variant hover:bg-surface-variant/20 transition-colors active:bg-surface-variant/40 border-t border-surface-container">
+                    取消
+                </button>
+</div>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-30 flex justify-around items-center px-margin-mobile py-sm bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md rounded-t-xl shadow-sm filter blur-md pointer-events-none">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-tertiary-fixed-dim hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+<span class="font-label-sm text-label-sm">刷新状态</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary-fixed-variant text-on-primary-container dark:text-on-primary-fixed-variant rounded-full px-6 py-1 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-label-sm text-label-sm">退出登录</span>
+</a>
+</nav>
+<script>
+        // Simple logic to simulate modal handling
+        document.addEventListener('DOMContentLoaded', () => {
+            const cancelButton = document.querySelectorAll('button')[document.querySelectorAll('button').length - 1];
+            const confirmButton = document.querySelectorAll('button')[document.querySelectorAll('button').length - 2];
+            const mainContent = document.querySelector('main');
+            const nav = document.querySelector('nav');
+            const modal = document.querySelector('.fixed.inset-0.z-50');
+
+            cancelButton.addEventListener('click', () => {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                mainContent.classList.remove('blur-md');
+                nav.classList.remove('blur-md');
+                nav.classList.remove('pointer-events-none');
+            });
+
+            confirmButton.addEventListener('click', () => {
+                alert('正在退出...');
+                // In a real app, redirect to login
+            });
+        });
+    </script>
+</body></html>

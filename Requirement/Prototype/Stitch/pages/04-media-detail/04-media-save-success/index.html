@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@100..900&family=Plus+Jakarta+Sans:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        @keyframes slideUpFade {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-toast {
+            animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#eae1da",
+                        "on-tertiary-container": "#fcffe3",
+                        "surface-variant": "#eae1da",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#012108",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#360f00",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#5b7d5b",
+                        "on-background": "#1f1b17",
+                        "tertiary-container": "#767471",
+                        "primary-fixed-dim": "#abd0a9",
+                        "error": "#ba1a1a",
+                        "outline": "#737970",
+                        "on-surface-variant": "#424841",
+                        "secondary-fixed-dim": "#ffb596",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#743415",
+                        "on-tertiary-fixed": "#1c1c19",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#436444",
+                        "on-surface": "#1f1b17",
+                        "tertiary": "#5d5c58",
+                        "surface-container-low": "#fbf2eb",
+                        "surface-bright": "#fff8f4",
+                        "surface-container": "#f5ece5",
+                        "surface": "#fff8f4",
+                        "secondary": "#914b2a",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#2e4e30",
+                        "on-primary-container": "#f7fff2",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f8efe8",
+                        "surface-tint": "#456646",
+                        "secondary-container": "#fda27a",
+                        "inverse-surface": "#34302b",
+                        "surface-container-high": "#f0e7df",
+                        "tertiary-fixed-dim": "#c9c6c2",
+                        "on-tertiary-fixed-variant": "#474743",
+                        "on-secondary-container": "#773717",
+                        "background": "#fff8f4",
+                        "tertiary-fixed": "#e5e2dd",
+                        "inverse-primary": "#abd0a9",
+                        "outline-variant": "#c2c8be",
+                        "primary-fixed": "#c6edc4",
+                        "surface-dim": "#e1d8d2",
+                        "secondary-fixed": "#ffdbcd"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "sm": "8px",
+                        "gutter": "12px",
+                        "xs": "4px",
+                        "margin-tablet": "32px",
+                        "lg": "24px",
+                        "xl": "40px",
+                        "margin-mobile": "20px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Noto Sans"],
+                        "body-lg": ["Noto Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Noto Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                        "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                        "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top AppBar -->
+<header class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center w-full px-margin-mobile py-sm">
+<button class="text-primary dark:text-primary-fixed-dim flex items-center justify-center p-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-full Active: scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim">Memory</h1>
+<button class="text-primary dark:text-primary-fixed-dim flex items-center justify-center p-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-full Active: scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">lock</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="min-h-[calc(100vh-140px)] px-margin-mobile pb-32">
+<!-- Media Focus View (Asymmetric Layout) -->
+<div class="mt-lg flex flex-col gap-lg">
+<!-- Primary Image Card -->
+<div class="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-sm bg-surface-container-low group">
+<img class="w-full h-full object-cover" data-alt="A warm and nostalgic high-quality photograph of a multi-generational family gathering around a weathered wooden table in a sun-drenched rustic dining room. The lighting is soft and golden, highlighting the textures of home-cooked food and the genuine smiles of elderly grandparents and young children. The color palette is composed of soft creams, sage greens, and warm earthy browns, reflecting a modern minimalist but tactile family atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFtdUkpTciADLo7Fcd0M2odBpoxEnfF2MBtQAsHCs48vcUrOlV58-vn2mkPi-7OrvH01r4Oh71F9F9-Fx9EXDs4w9qsGt_ryCxyKqm6QOCJLEJxL-9bzbzKO-n94m3Apf8A8HidEdS3hgWmTRYUvJXzCWiig5U66eX3x5s_wPyYJSx11V-cJye9zBF5CYxRaWU-3CCk3WSpGtEjOk_mI0VuyPGEf8A4kI9vpwF865v-ESzsXm5tEk1dqI2O2xzsQZK71PvP-MGT6M"/>
+<!-- Metadata Overlay -->
+<div class="absolute top-md left-md bg-white/60 glass-effect px-sm py-xs rounded-lg flex items-center gap-xs">
+<span class="font-label-sm text-label-sm text-on-surface">2023年10月12日</span>
+</div>
+<div class="absolute bottom-md right-md">
+<div class="w-10 h-10 rounded-full border-2 border-white overflow-hidden shadow-md">
+<img class="w-full h-full object-cover" data-alt="A small, soft-focus circular avatar portrait of a smiling middle-aged woman with kind eyes, reflecting a warm family vibe. The background is a blurred garden scene with soft green and cream tones, maintaining the design's natural and peaceful color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcgijPiQciTqbIgZU9g9bsrWvbZpdZdMAcXlJKBi6nf3vLAdPF5rjg8kC8s8CoxwUJJcpO0aV_vQTddWgR4jsx4fQO7ONBWBWViVOc0KZc4ODOrZ28G0s6Pg6uEQQSvmJ5b1AiGgb8BQ6mcsh7eIi6kXPYWrQUjOwL3sA2HHllSI33bkZXShNqRybhzJr3JsRLGdL-FC0TPS5uWC-lxPBD-8rAzEqKPP_jViyrqdqoVKo7Tcg2S-O2qqmDSzdHuCIWlSTySXLI3wU"/>
+</div>
+</div>
+</div>
+<!-- Description & Details -->
+<div class="bg-surface-container-low p-lg rounded-xl flex flex-col gap-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-[20px]">verified_user</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">外婆的八十岁生日</h2>
+</div>
+<p class="text-on-surface-variant font-body-md leading-relaxed">
+                    这是在老家院子里拍的。阳光正好，外婆笑得很开心。全家人难得聚得这么齐，这可能是今年最珍贵的一张照片了。
+                </p>
+<div class="flex flex-wrap gap-sm mt-sm">
+<span class="bg-surface-container px-md py-xs rounded-full text-label-sm font-label-sm text-outline">#家庭聚会</span>
+<span class="bg-surface-container px-md py-xs rounded-full text-label-sm font-label-sm text-outline">#老家</span>
+<span class="bg-surface-container px-md py-xs rounded-full text-label-sm font-label-sm text-outline">#外婆</span>
+</div>
+</div>
+<!-- Subtle Grid of Related Moments -->
+<div class="grid grid-cols-2 gap-gutter mt-sm">
+<div class="aspect-square rounded-lg overflow-hidden bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A close-up photograph of a delicious, handcrafted birthday cake topped with fresh berries and a single glowing candle. The shot is taken from a low angle with a shallow depth of field, blurring the warm, cozy interior of a family home in the background. The aesthetic is clean, modern, and filled with the warm, safe feeling of a digital hearth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWCCR_0E8GQy7PpBxtKgSuRWHqPaXB3rrOLB3XqHmj_-ZGpOsXEDOOZ2JWNyXMPBcXt3JmXO7aKe0TTm8uRBQURaSqY5_NPoQLh1dsq5LyqiluzkMSnTpBEBwe1DdexuUotuRNzI02tSh1WFTwSl_zkLmB810c_sox4zLHe5gxPPv6nbxxajxLg2r1ndGMGDvet8BPl-B7Z71SLJlUyvCWTAdvHOIadUXVxyCUV-2OnpeH4B7F81FulInwk3mLhW-35b0f-NzUIE8"/>
+</div>
+<div class="aspect-square rounded-lg overflow-hidden bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A heartwarming, candid shot of two young children laughing while playing with a small dog on a sun-dappled porch. The colors are muted and natural, featuring soft sage greens and warm wood tones. The lighting is bright but diffused, creating a serene and safe family environment consistent with a premium private memory cloud." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAv9pR77rVqY_mYFxqd5tvMPcuVtq7d5NKr2IxbfmnE3XOMBT3RmGgPCJgL4dn1DJVoZXn4PXE0cNRXhndr_SYRHfI1_tzolVA8-CEt_P87LATbKJNxSgIBBXiOKMG7N0TSsOMd7Z_1FXFAahdDoaxknoAt7ozWt_a2fKkQpPxcaN5IID1C7BWyR-HrcRpDXd0K1OspdEiiqp81mglHJYoymDoYYjybBl3iQ9e8-y_fQEbGWHbLqfFhg4gGOdBMG5VknDaY7TH1x9E"/>
+</div>
+</div>
+</div>
+</main>
+<!-- Success Toast Notification (User Requested) -->
+<div class="fixed bottom-32 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-sm">
+<div class="bg-inverse-surface text-inverse-on-surface px-lg py-md rounded-xl shadow-lg flex items-center justify-center gap-sm animate-toast glass-effect">
+<span class="material-symbols-outlined text-primary-fixed" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-label-sm">已成功保存到系统相册</span>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest dark:hover:bg-on-surface-variant transition-all Active: scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">download</span>
+<span class="font-label-sm text-label-sm mt-1">Download</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest dark:hover:bg-on-surface-variant transition-all Active: scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">share</span>
+<span class="font-label-sm text-label-sm mt-1">Share</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest dark:hover:bg-on-surface-variant transition-all Active: scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">delete</span>
+<span class="font-label-sm text-label-sm mt-1">Delete</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest dark:hover:bg-on-surface-variant transition-all Active: scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">more_horiz</span>
+<span class="font-label-sm text-label-sm mt-1">More</span>
+</button>
+</nav>
+<script>
+        // Simple micro-interaction for toast disappearance
+        document.addEventListener('DOMContentLoaded', () => {
+            const toast = document.querySelector('.animate-toast').parentElement;
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, 20px)';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        });
+
+        // Interactive hover states for cards
+        document.querySelectorAll('.aspect-[4/5]').forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.transform = 'scale(0.98)';
+                card.style.transition = 'transform 0.2s ease';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body></html>

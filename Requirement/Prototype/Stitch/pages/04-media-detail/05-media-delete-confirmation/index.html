@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Memory - Media Detail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .modal-overlay {
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease-out;
+        }
+        .modal-enter {
+            transform: scale(0.95);
+            opacity: 0;
+        }
+        .modal-enter-active {
+            transform: scale(1);
+            opacity: 1;
+        }
+        .shimmer {
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#eae1da",
+                        "on-tertiary-container": "#fcffe3",
+                        "surface-variant": "#eae1da",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#012108",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#360f00",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#5b7d5b",
+                        "on-background": "#1f1b17",
+                        "tertiary-container": "#767471",
+                        "primary-fixed-dim": "#abd0a9",
+                        "error": "#ba1a1a",
+                        "outline": "#737970",
+                        "on-surface-variant": "#424841",
+                        "secondary-fixed-dim": "#ffb596",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#743415",
+                        "on-tertiary-fixed": "#1c1c19",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#436444",
+                        "on-surface": "#1f1b17",
+                        "tertiary": "#5d5c58",
+                        "surface-container-low": "#fbf2eb",
+                        "surface-bright": "#fff8f4",
+                        "surface-container": "#f5ece5",
+                        "surface": "#fff8f4",
+                        "secondary": "#914b2a",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#2e4e30",
+                        "on-primary-container": "#f7fff2",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f8efe8",
+                        "surface-tint": "#456646",
+                        "secondary-container": "#fda27a",
+                        "inverse-surface": "#34302b",
+                        "surface-container-high": "#f0e7df",
+                        "tertiary-fixed-dim": "#c9c6c2",
+                        "on-tertiary-fixed-variant": "#474743",
+                        "on-secondary-container": "#773717",
+                        "background": "#fff8f4",
+                        "tertiary-fixed": "#e5e2dd",
+                        "inverse-primary": "#abd0a9",
+                        "outline-variant": "#c2c8be",
+                        "primary-fixed": "#c6edc4",
+                        "surface-dim": "#e1d8d2",
+                        "secondary-fixed": "#ffdbcd"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "sm": "8px",
+                        "gutter": "12px",
+                        "xs": "4px",
+                        "margin-tablet": "32px",
+                        "lg": "24px",
+                        "xl": "40px",
+                        "margin-mobile": "20px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Noto Sans"],
+                        "body-lg": ["Noto Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Noto Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                        "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                        "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-hidden">
+<!-- Top App Bar -->
+<header class="bg-surface/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-margin-mobile py-sm">
+<div class="flex items-center gap-md">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md-mobile text-primary">Memory</h1>
+</div>
+<div class="flex items-center gap-sm">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-primary">lock</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 relative flex flex-col overflow-y-auto pb-32">
+<!-- Media Detail Content -->
+<div class="px-margin-mobile pt-md">
+<!-- Metadata Row -->
+<div class="flex justify-between items-center mb-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">2024年5月12日</span>
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">家庭野餐日</h2>
+</div>
+<div class="flex items-center gap-xs">
+<div class="w-8 h-8 rounded-full border-2 border-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A soft-focus portrait of a smiling grandmother in a sunlit garden, styled with warm cream and sage green tones to match the family memory cloud aesthetic. The lighting is golden and natural, emphasizing a nostalgic, secure family atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNFp5GRGVMyDw7hrqUTQI8sjbsteQ1tJK-daut9wau8EBfHYQObEU10FLATCCsOxSoLdkHAdlbzxNjf5pDeXGSCJbRrQ2ocDYWtBR9BMOagqiDnvO5Fs7bsNuZy6ucPW-sA1iI45bLPhmlTUBnTDl-W1r6fAO5ksuqrETnblTXVsljWqkf2CO-ritQHGH2AXlfZhFAv67cfKJEN-ebOIrZsSMbNUyYhA0nCQYFF73WCTPv55eAtXriFXpKiGDI-7MhWqRgcNg8TfI"/>
+</div>
+</div>
+</div>
+<!-- Immersive Image View -->
+<div class="relative group rounded-xl overflow-hidden shadow-md bg-surface-container aspect-[4/5] mb-lg">
+<img class="w-full h-full object-cover" data-alt="A beautiful, high-quality photograph of a multi-generational family having a picnic on a lush green lawn under a large oak tree. The scene is filled with warm, soft sunlight, capturing authentic moments of joy. The overall color palette is dominated by sage greens, warm creams, and earthy browns, creating a sense of privacy and peace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrqfEOUBLb469MsUVmBUNs9lmC8apr7wStMZE7JFaWjuFf6TBEkFxa5Z5Ql9g1t4cAtizH75vmIePKGXbb6Rs9-5Am_VAsxSaIrQ22DLxZaYirzu2UQXmZXfTB-geTUdPEpkFmOd1CGRzrwTvbXexBxDzPHGC4c0L40X88k9cVPcml3GR96REsLDoU-raYh1Y3yBj4Yn2RDVRpZSOakmyJvftgx75rWBh-mGEhCNmWHG2UYKdiCauvUlCXRDhuTuTu7tJpR5u-BGA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
+</div>
+<!-- Description/Captions -->
+<div class="bg-surface-container-low p-md rounded-xl mb-xl border border-surface-container-high">
+<p class="font-body-md text-on-surface-variant leading-relaxed">
+                    这是我们在南山公园野餐的照片。那天阳光很好，爷爷教孩子们如何制作风筝，大家都很开心。
+                </p>
+</div>
+</div>
+</main>
+<!-- Bottom Nav Bar (Simulated Active State for Detail) -->
+<nav class="fixed bottom-0 left-0 w-full z-30 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150">
+<span class="material-symbols-outlined">download</span>
+<span class="font-label-sm text-label-sm">Download</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150">
+<span class="material-symbols-outlined">share</span>
+<span class="font-label-sm text-label-sm">Share</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150" onclick="openDeleteModal()">
+<span class="material-symbols-outlined">delete</span>
+<span class="font-label-sm text-label-sm">Delete</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150">
+<span class="material-symbols-outlined">more_horiz</span>
+<span class="font-label-sm text-label-sm">More</span>
+</button>
+</nav>
+<!-- Confirmation Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center px-margin-mobile pointer-events-none opacity-0 transition-opacity duration-300" id="deleteModal">
+<!-- Background Dim -->
+<div class="absolute inset-0 bg-black/40 modal-overlay pointer-events-auto" onclick="closeDeleteModal()"></div>
+<!-- Modal Dialog -->
+<div class="relative w-full max-w-sm bg-surface rounded-xl shadow-xl overflow-hidden transform scale-95 transition-transform duration-300 pointer-events-auto">
+<div class="p-lg">
+<!-- Icon/Header -->
+<div class="flex items-center gap-md mb-md">
+<div class="w-12 h-12 rounded-full bg-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-error-container" style="font-variation-settings: 'FILL' 1;">delete</span>
+</div>
+<h3 class="font-headline-md text-on-surface">移入回收站？</h3>
+</div>
+<!-- Description -->
+<p class="font-body-md text-on-surface-variant mb-xl">
+                    移入后媒体将在私人空间和家庭相册中隐藏。你可以在30天内从回收站恢复。
+                </p>
+<!-- Actions -->
+<div class="flex flex-col gap-sm">
+<button class="w-full bg-error text-on-error py-md rounded-lg font-label-sm text-label-sm font-semibold hover:bg-opacity-90 transition-colors active:scale-95 duration-150" onclick="confirmDelete()">
+                        移入回收站
+                    </button>
+<button class="w-full bg-transparent text-primary py-md rounded-lg font-label-sm text-label-sm font-semibold hover:bg-surface-container-high transition-colors active:scale-95 duration-150 border border-outline-variant" onclick="closeDeleteModal()">
+                        取消
+                    </button>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function openDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            const dialog = modal.querySelector('div.relative');
+            
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('pointer-events-auto', 'opacity-100');
+            dialog.classList.remove('scale-95');
+            dialog.classList.add('scale-100');
+            
+            // Prevent scrolling on body
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            const dialog = modal.querySelector('div.relative');
+            
+            modal.classList.add('opacity-0');
+            modal.classList.remove('opacity-100');
+            dialog.classList.add('scale-95');
+            dialog.classList.remove('scale-100');
+            
+            setTimeout(() => {
+                modal.classList.add('pointer-events-none');
+                modal.classList.remove('pointer-events-auto');
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+
+        function confirmDelete() {
+            // Logic for deletion would go here
+            console.log('Media moved to trash');
+            closeDeleteModal();
+            // Simulate navigation back or toast
+        }
+
+        // Auto-open modal for demonstration since that's the prompt requirement
+        window.onload = () => {
+            setTimeout(openDeleteModal, 500);
+        };
+    </script>
+</body></html>

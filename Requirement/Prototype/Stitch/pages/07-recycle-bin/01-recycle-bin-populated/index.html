@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#e5e2dd",
+                    "on-tertiary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "on-primary": "#ffffff",
+                    "primary": "#436444",
+                    "outline": "#737970",
+                    "surface-container-high": "#f0e7df",
+                    "on-tertiary-container": "#fcffe3",
+                    "surface-container": "#f5ece5",
+                    "surface-variant": "#eae1da",
+                    "surface-dim": "#e1d8d2",
+                    "on-primary-fixed": "#012108",
+                    "inverse-on-surface": "#f8efe8",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "on-secondary": "#ffffff",
+                    "on-background": "#1f1b17",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "secondary-container": "#fda27a",
+                    "on-error": "#ffffff",
+                    "tertiary-container": "#767471",
+                    "inverse-primary": "#abd0a9",
+                    "primary-fixed": "#c6edc4",
+                    "on-secondary-container": "#773717",
+                    "on-error-container": "#93000a",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-secondary-fixed": "#360f00",
+                    "on-surface": "#1f1b17",
+                    "tertiary": "#5d5c58",
+                    "surface": "#fff8f4",
+                    "surface-bright": "#fff8f4",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-primary-container": "#f7fff2",
+                    "secondary": "#914b2a",
+                    "background": "#fff8f4",
+                    "secondary-fixed-dim": "#ffb596",
+                    "inverse-surface": "#34302b",
+                    "secondary-fixed": "#ffdbcd",
+                    "primary-container": "#5b7d5b",
+                    "outline-variant": "#c2c8be",
+                    "on-secondary-fixed-variant": "#743415",
+                    "surface-container-highest": "#eae1da",
+                    "surface-tint": "#456646",
+                    "surface-container-low": "#fbf2eb",
+                    "on-surface-variant": "#424841",
+                    "error": "#ba1a1a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xl": "40px",
+                    "gutter": "12px",
+                    "lg": "24px",
+                    "sm": "8px",
+                    "margin-tablet": "32px",
+                    "md": "16px",
+                    "margin-mobile": "20px",
+                    "xs": "4px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .fill-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+        body {
+            background-color: #fff8f4;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        @media (min-width: 768px) {
+            .bento-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen text-on-surface font-body-md">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface dark:bg-surface-dim shadow-sm flex justify-between items-center px-margin-mobile h-16">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" style="font-variation-settings: 'FILL' 1;">shield</span>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">MineG</h1>
+</div>
+<div class="text-primary font-bold">回收站</div>
+<div class="w-8"></div> <!-- Spacer for centering -->
+</header>
+<main class="pt-20 pb-32 px-margin-mobile max-w-5xl mx-auto">
+<!-- Privacy Info Card -->
+<section class="mb-lg bg-surface-container-low rounded-xl p-md flex items-start gap-md border border-outline-variant/30">
+<span class="material-symbols-outlined text-secondary mt-1">info</span>
+<div>
+<p class="font-body-md text-on-surface font-semibold mb-1">私密存储提示</p>
+<p class="text-label-sm text-on-surface-variant leading-relaxed">
+                    回收站内的照片和视频仅您个人可见。项目将在被删除 30 天后永久清除。您可以随时在此处恢复误删的内容。
+                </p>
+</div>
+</section>
+<!-- Media Grid -->
+<div class="bento-grid">
+<!-- Item 1 -->
+<div class="group relative bg-white rounded-lg overflow-hidden shadow-sm aspect-square transition-transform active:scale-95 duration-150">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A warm, sun-drenched family picnic scene in a lush green meadow, captured with a soft cinematic lens. The image features a wicker basket and a spread of fruits under a large oak tree, evoking nostalgia and safety. The color palette is rich in sage greens and soft creams, maintaining the MineG minimalist-modern brand aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB5pvngCa4xZFsd13-82Cg64H0RdjQxJdSLvnTluwyoZN2nbVtBNc40gaMvuaefy2ond90nmPQQahtwVoC8LMs8QC7UEB2_CrkUHdW-YWZomDF5x7GE8i7cGDMz1iWZjbb7hhCxPRm1Ia_3Vgb11l4OjG3zqYkPFS9euu3dwtk5xsCvFO--I-JPGRfrvHGZK0aVpfPouTXP3dQrVQXvxs675RVyfvyHPbHDn_3YNdSofJYtPYfVjegOJs1VTgvCTbYtIDyzCFsxcPk')"></div>
+<div class="absolute top-2 left-2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full">
+<span class="text-[10px] text-white font-medium">已删除 3天前</span>
+</div>
+<div class="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-end p-2">
+<button class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-sm">settings_backup_restore</span>
+</button>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="group relative bg-white rounded-lg overflow-hidden shadow-sm aspect-square transition-transform active:scale-95 duration-150">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A macro photograph of a toddler's hand reaching for an elderly person's wrinkled hand, symbolizing multi-generational connection and warmth. The lighting is soft and natural, coming from a nearby window, creating gentle shadows. The aesthetic is tactile and minimalist, with a focused depth of field on the hands against a creamy white background." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCV1waD3T70XZhejsH39FVA4ZeDZkU7hmmx2F4mVo_rJUuvdaLnne_1WBKCyGdoKqM717q-ueiEUeGF6nj3gYDe0Luezs_U_Nne3kQOlDPxBenBsQRmrBMnOcNlgFaHy3hyksk-oVfVcc2ebkvcol0CMJLpFAafxKO0arBI9QfWN1TtYeVZmicx9HHEZ-S0gwdobfQkehzFyays1lFCcSb-kVp5oFL99IoL_pT2gGqyifgGa-HcXiWgbOX7IO33ATknvBirT_gWQAo')"></div>
+<div class="absolute top-2 left-2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full">
+<span class="text-[10px] text-white font-medium">已删除 5天前</span>
+</div>
+<div class="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-end p-2">
+<button class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-sm">settings_backup_restore</span>
+</button>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="group relative bg-white rounded-lg overflow-hidden shadow-sm aspect-square transition-transform active:scale-95 duration-150">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A serene landscape of a wooden cabin by a calm lake at dawn. The sky is a soft lavender and pink, reflecting perfectly on the still water surface. This peaceful memory suggests a digital hearth environment, emphasizing privacy and calm. The style is clean and modern, following the Sage Green and warm cream palette of MineG." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuClR7KtxT_5-X1hjENkuhu90dGl-q9c73nJioWRrTzpLaIU4l9kc6Kkr4XB4htWJT3CaqFyecxFIEhIEFdO6i_PWQ3CzyGx7QZpyICMjmpnU9hvxfqdOttuSG9xl24Az__HeMpbz2hRLqCMd_Y5rjGijwwN9l5fgm0Vd-SD45ACf-RxzRiulBjXRz5ie4Ulj8aHHPsYHCwOhtd3re8KGOuAC_T0zeQb-7WWWQbmCFmky3mYaegUbF_LHq2nq0Cu9jTzxVg3RMFe3Uk')"></div>
+<div class="absolute top-2 left-2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full">
+<span class="text-[10px] text-white font-medium">已删除 12天前</span>
+</div>
+<div class="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-end p-2">
+<button class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-sm">settings_backup_restore</span>
+</button>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="group relative bg-white rounded-lg overflow-hidden shadow-sm aspect-square transition-transform active:scale-95 duration-150">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A cozy indoor shot of a messy bookshelf filled with old journals and framed family photos, illuminated by the warm glow of a desk lamp. The image feels intimate and lived-in, representing a secure space for memories. High-contrast details are softened by a gentle ambient blur, maintaining a high-end minimalist digital cloud vibe." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_ojFsnmYeh2_38Wx4d6hgPue4xFyAC5ltexw-iR5A-2CnTAj7TSPxawu4qn1k0TdVnvQbKvfZ_mUlLdVH87ry8Rrd9-9gdrvddEvTe0aA1Ov75fojy6MOsEr2OZG__Gx8TX1VOKLNAZWtKMoXKDMd1m0yokOR3PYzgW-dML6IjB3unmU4c8srolgj5cPOOhtkSmRSNPoXKSQTlTri2u7Wm51FWIL4jEIVSOE5vt1g-dftkEHUKbn8XbiUqKlbV3prRm-VjSQXFNY')"></div>
+<div class="absolute top-2 left-2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full">
+<span class="text-[10px] text-white font-medium">已删除 15天前</span>
+</div>
+<div class="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-end p-2">
+<button class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-sm">settings_backup_restore</span>
+</button>
+</div>
+</div>
+<!-- Item 5 -->
+<div class="group relative bg-white rounded-lg overflow-hidden shadow-sm aspect-square transition-transform active:scale-95 duration-150">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A celebratory moment captured candidly: a birthday cake with glowing candles in a dim room. The light from the candles illuminates smiling faces in the background with a soft, warm bokeh effect. The overall mood is festive yet private, aligned with MineG's promise of a safe digital space for family nostalgia and heritage." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB9LgXCafP9_EJIoGWB8RnIK7dSL58nSYDw1Tsz9SYasUl78use3ej5yEyt61LNPVoOBjwOHqfYUv79_OOfy1QZa1ov00L1ag8MxgpqmmjBYfHsqA9kq_Z4CDpLSkLG2akQ8oBNB_fK-wSLlZ7GcP8M47_FSsiNlmqxwuB86eozwAme-9-q0hU1i7CfNKTLLDzs000v0W37wgKZL2lcY1qjUcxaSHRCENNachcpVPB7zCr4QjUgisvEqxW-IekmATfGzACbnCKmojc')"></div>
+<div class="absolute top-2 left-2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full">
+<span class="text-[10px] text-white font-medium">已删除 21天前</span>
+</div>
+<div class="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-end p-2">
+<button class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-sm">settings_backup_restore</span>
+</button>
+</div>
+</div>
+<!-- Item 6 -->
+<div class="group relative bg-white rounded-lg overflow-hidden shadow-sm aspect-square transition-transform active:scale-95 duration-150">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A vintage-style shot of a family dog running through autumn leaves in a park. The colors are vibrant yet grounded, with deep ochre and sienna tones. The lighting is golden hour, creating a warm, nostalgic atmosphere that resonates with family history. The composition is dynamic yet clean, suitable for a modern memory grid." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBEQ4KMRrUh30zWHimphscU_SDjOtyinAGOtkDGKc7IUFjd8ntU6XlieyGDv1DCjF3E9AEpu5MaCOap50ka8v23juG_gYSodS4YGXVT8osuzI3xOS5vPOn_KBgIqqJr1ENtfeOeK7oAJ5RSEKGe03MvPJ4wx7w1eXRP16mARaU8RHg4g57MGXtvgEbBhG0lHFBKjW9slzOCWrrdoaJv9a7DsNIYeRrUyxbXTVsN5uhmDQI8pBTN1DUpJ5KbVmmSq3AxMe5jVRXYIYY')"></div>
+<div class="absolute top-2 left-2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full">
+<span class="text-[10px] text-white font-medium">已删除 28天前</span>
+</div>
+<div class="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-end p-2">
+<button class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-sm">settings_backup_restore</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Empty State Logic could go here, but prompt asks for a grid -->
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 bg-surface-container/80 dark:bg-surface-container-high/80 backdrop-blur-md shadow-[0_-4px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
+<!-- Space -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-4 py-1 hover:bg-surface-variant/50 dark:hover:bg-surface-variant/20 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">Space</span>
+</a>
+<!-- Album -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-4 py-1 hover:bg-surface-variant/50 dark:hover:bg-surface-variant/20 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">photo_album</span>
+<span class="font-label-sm text-label-sm">Album</span>
+</a>
+<!-- Backup -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-4 py-1 hover:bg-surface-variant/50 dark:hover:bg-surface-variant/20 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">cloud_upload</span>
+<span class="font-label-sm text-label-sm">Backup</span>
+</a>
+<!-- Bin (Active) -->
+<a class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary text-on-primary-container dark:text-on-primary rounded-full px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined fill-icon">delete</span>
+<span class="font-label-sm text-label-sm">Bin</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-4 py-1 hover:bg-surface-variant/50 dark:hover:bg-surface-variant/20 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for the restore buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                const card = this.closest('.group');
+                card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.8) translateY(-20px)';
+                
+                setTimeout(() => {
+                    card.remove();
+                    // Check if grid is empty to show empty state if needed
+                    const grid = document.querySelector('.bento-grid');
+                    if (grid.children.length === 0) {
+                        grid.innerHTML = `
+                            <div class="col-span-full py-20 flex flex-col items-center text-center">
+                                <span class="material-symbols-outlined text-outline-variant text-6xl mb-4">delete_outline</span>
+                                <p class="text-on-surface-variant font-body-md">回收站是空的</p>
+                            </div>
+                        `;
+                    }
+                }, 400);
+            });
+        });
+    </script>
+</body></html>

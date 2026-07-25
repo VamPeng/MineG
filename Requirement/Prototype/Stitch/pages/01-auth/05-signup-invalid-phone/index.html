@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG - 注册</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "surface-variant": "#eae1da",
+                    "primary-fixed": "#c6edc4",
+                    "inverse-on-surface": "#f8efe8",
+                    "on-secondary-fixed": "#360f00",
+                    "on-primary-fixed": "#012108",
+                    "surface-container-low": "#fbf2eb",
+                    "surface-container-high": "#f0e7df",
+                    "error": "#ba1a1a",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#eae1da",
+                    "surface": "#fff8f4",
+                    "on-surface-variant": "#424841",
+                    "on-background": "#1f1b17",
+                    "tertiary-fixed": "#e5e2dd",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "surface-bright": "#fff8f4",
+                    "secondary": "#914b2a",
+                    "error-container": "#ffdad6",
+                    "primary-container": "#5b7d5b",
+                    "outline": "#737970",
+                    "on-error-container": "#93000a",
+                    "surface-tint": "#456646",
+                    "tertiary-container": "#767471",
+                    "primary": "#436444",
+                    "tertiary": "#5d5c58",
+                    "surface-dim": "#e1d8d2",
+                    "outline-variant": "#c2c8be",
+                    "on-secondary-container": "#773717",
+                    "surface-container": "#f5ece5",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-surface": "#1f1b17",
+                    "inverse-primary": "#abd0a9",
+                    "background": "#fff8f4",
+                    "on-primary-container": "#f7fff2",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "inverse-surface": "#34302b",
+                    "secondary-container": "#fda27a",
+                    "secondary-fixed-dim": "#ffb596",
+                    "on-tertiary-container": "#fcffe3",
+                    "on-secondary-fixed-variant": "#743415",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-tablet": "32px",
+                    "xs": "4px",
+                    "unit": "4px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "margin-mobile": "20px",
+                    "xl": "40px",
+                    "sm": "8px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fff8f4;
+            color: #1f1b17;
+        }
+        .form-shadow {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.03);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col font-body-md text-body-md">
+<!-- Top AppBar (JSON Derived) -->
+<header class="w-full top-0 bg-surface dark:bg-surface-dim flex items-center justify-between px-margin-mobile py-md w-full z-10">
+<button class="active:scale-95 duration-200 hover:bg-surface-variant/20 transition-colors p-2 rounded-full">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim">arrow_back</span>
+</button>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-primary-fixed-dim">MineG</h1>
+<div class="w-10"></div> <!-- Spacer for centering -->
+</header>
+<main class="flex-grow flex items-center justify-center px-margin-mobile py-xl">
+<div class="w-full max-w-md bg-surface-container-lowest p-lg rounded-xl form-shadow border border-surface-variant/30">
+<div class="mb-xl text-center">
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface mb-sm">创建您的数字壁炉</h2>
+<p class="text-on-surface-variant font-body-md">为家人守护每一份珍贵记忆</p>
+</div>
+<form class="space-y-lg">
+<!-- Username Field -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1">用户名</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">person</span>
+<input class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" placeholder="设置您的昵称" type="text"/>
+</div>
+</div>
+<!-- Phone Field (Error State) -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1">手机号</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-error">smartphone</span>
+<input class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-2 border-error focus:ring-0 text-on-surface placeholder:text-outline-variant transition-all" placeholder="请输入手机号" type="tel" value="123456"/>
+</div>
+<!-- Error Message -->
+<div class="flex items-center gap-1 mt-1 ml-1 text-error">
+<span class="material-symbols-outlined text-[16px]">error</span>
+<span class="font-label-sm text-label-sm">手机号格式不正确</span>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1">设置密码</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">lock</span>
+<input class="w-full pl-12 pr-12 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" placeholder="请输入密码" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</div>
+<!-- Register Button -->
+<button class="w-full bg-primary-container text-on-primary-container font-headline-md text-headline-md-mobile py-md rounded-lg active:scale-[0.98] transition-transform duration-150 shadow-sm mt-md" type="submit">
+                    开启私密云空间
+                </button>
+<div class="pt-lg flex items-center justify-center gap-md">
+<div class="h-[1px] flex-grow bg-outline-variant/30"></div>
+<span class="font-label-sm text-label-sm text-outline">或者</span>
+<div class="h-[1px] flex-grow bg-outline-variant/30"></div>
+</div>
+<div class="flex justify-center gap-xl mt-lg">
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-surface-variant/40 transition-colors" type="button">
+<img class="w-6 h-6" data-alt="A minimalist green and white WeChat logo icon, professionally designed for a modern UI, high-key lighting, centered in a circular frame." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-Bbg0gdm9_ZiBvXioPZqN2sAq_iWw-nOdSZE9vGzf-BLtawqZSSZuz7TMoLULxkx3YzUKgAa8crkoQrwNTNBowVF03ZJmVvxTPbMBdkDs74rMJOpaFVJHu2u-d4eWYpXliLFXfsiUf0XWwZM7VeIIPl5J74xPGqoB-6x1fgids5h9WPfhETud1m5IZITIL7-6IG8rjqqiCXer67JC7bCC2bjOkKFbf_ZQkUZAKeO-8OkuIwHz3TCz9zFJuenJhiAMemnodnyfiO0"/>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-surface-variant/40 transition-colors" type="button">
+<img class="w-6 h-6" data-alt="A stylized minimalist golden-orange cloud icon representing a generic secure cloud storage provider, clean lines, high-contrast digital illustration." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtknvcDv_zahuFGrlkWTUXdihQUV2-ImhpNNZACoF0Ejr1v6OQMmH5c7rvUg5WktT9xrND8YjKpzY9kSN_Eq15TvqYjxZCFMOoYxbYE3TVTOgrt0lN7sHRPuAY9FkQLRRgmPBiNaEHugFXtu__Zxht3YREEcNVwdyaqwQKBPA6nmRxKPkGParw_T0pAFLGcABtiSFB5KDEENo7b1AVBXupMZGGcgrtSd0wTFAYSFd0GV9aalnw143MIFgbDCmyXkgxvWiJ6cU0lWs"/>
+</button>
+</div>
+</form>
+<p class="text-center mt-xl font-body-md text-on-surface-variant">
+                已有账号？ <a class="text-primary font-semibold hover:underline" href="#">立即登录</a>
+</p>
+</div>
+</main>
+<!-- Bottom Decorative Content / Branding -->
+<footer class="px-margin-mobile py-lg text-center opacity-60">
+<div class="flex items-center justify-center gap-sm mb-xs">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span class="font-label-sm text-label-sm">端到端加密技术守护家庭隐私</span>
+</div>
+<p class="font-label-sm text-label-sm">© 2024 MineG Digital Hearth. All rights reserved.</p>
+</footer>
+<!-- Background Atmospheric Effect -->
+<div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+<div class="absolute top-[-10%] right-[-10%] w-96 h-96 rounded-full bg-primary-fixed/20 blur-[100px]"></div>
+<div class="absolute bottom-[-10%] left-[-10%] w-80 h-80 rounded-full bg-secondary-fixed/20 blur-[80px]"></div>
+</div>
+<!-- Navigation suppression check: As per "Semantic Shell Mandate", BottomNavBar is suppressed on transactional screens like Sign-up -->
+<script>
+        // Micro-interaction for input focus
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.parentElement.classList.add('scale-[1.01]');
+                input.parentElement.parentElement.classList.add('transition-transform');
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.parentElement.classList.remove('scale-[1.01]');
+            });
+        });
+    </script>
+</body></html>

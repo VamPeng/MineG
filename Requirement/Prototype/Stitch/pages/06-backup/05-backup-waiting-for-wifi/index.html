@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>MineG 备份中心</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#ffffff",
+                    "secondary-fixed-dim": "#ffb596",
+                    "secondary-fixed": "#ffdbcd",
+                    "secondary": "#914b2a",
+                    "primary-fixed": "#c6edc4",
+                    "background": "#fff8f4",
+                    "on-secondary-fixed": "#360f00",
+                    "surface-container-low": "#fbf2eb",
+                    "tertiary-container": "#767471",
+                    "surface-container-highest": "#eae1da",
+                    "on-secondary-fixed-variant": "#743415",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "tertiary": "#5d5c58",
+                    "surface-container-high": "#f0e7df",
+                    "primary": "#436444",
+                    "on-primary-container": "#f7fff2",
+                    "inverse-on-surface": "#f8efe8",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "inverse-surface": "#34302b",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#456646",
+                    "secondary-container": "#fda27a",
+                    "on-background": "#1f1b17",
+                    "tertiary-fixed": "#e5e2dd",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#abd0a9",
+                    "on-surface": "#1f1b17",
+                    "on-surface-variant": "#424841",
+                    "on-tertiary": "#ffffff",
+                    "surface-variant": "#eae1da",
+                    "surface-dim": "#e1d8d2",
+                    "surface-bright": "#fff8f4",
+                    "surface": "#fff8f4",
+                    "primary-container": "#5b7d5b",
+                    "outline-variant": "#c2c8be",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-secondary": "#ffffff",
+                    "outline": "#737970",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "error": "#ba1a1a",
+                    "on-secondary-container": "#773717",
+                    "surface-container": "#f5ece5",
+                    "on-tertiary-container": "#fcffe3",
+                    "on-primary-fixed": "#012108"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "lg": "24px",
+                    "unit": "4px",
+                    "xl": "40px",
+                    "gutter": "12px",
+                    "sm": "8px",
+                    "md": "16px",
+                    "margin-tablet": "32px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "body-lg": ["Noto Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fff8f4;
+            color: #1f1b17;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .bento-card {
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .bento-card:active {
+            transform: scale(0.98);
+        }
+        @keyframes subtle-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .float-animation {
+            animation: subtle-float 4s ease-in-out infinite;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-surface/80 backdrop-blur-md shadow-sm">
+<div class="flex justify-between items-center px-margin-mobile py-md w-full">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-2xl">shield_with_heart</span>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-tight">MineG</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-on-surface-variant">settings</span>
+</button>
+</div>
+</header>
+<main class="px-margin-mobile pt-lg space-y-lg">
+<!-- Status Hero Area -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container-low p-lg flex flex-col items-center text-center space-y-md">
+<!-- Decorative atmospheric element -->
+<div class="absolute -top-12 -right-12 w-32 h-32 bg-secondary-container opacity-20 rounded-full blur-3xl"></div>
+<div class="relative w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm float-animation">
+<span class="material-symbols-outlined text-secondary text-4xl" style="font-variation-settings: 'FILL' 1;">wifi_off</span>
+</div>
+<div class="space-y-xs">
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">等待 Wi-Fi</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-[280px]">
+                    守护你的流量，当前处于移动网络，<span class="text-secondary font-bold">已暂停上传</span>。
+                </p>
+</div>
+<div class="flex flex-col w-full gap-sm pt-md">
+<button class="bg-primary text-on-primary font-bold py-md px-lg rounded-xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined text-sm">wifi</span>
+                    连接 Wi-Fi
+                </button>
+<button class="bg-surface-container-highest text-secondary font-bold py-md px-lg rounded-xl active:scale-95 transition-all">
+                    使用流量备份
+                </button>
+</div>
+</section>
+<!-- Stats Grid (Bento Style) -->
+<section class="grid grid-cols-2 gap-gutter">
+<!-- Stat 1 -->
+<div class="bento-card bg-white p-md rounded-xl shadow-sm border border-surface-variant/50 flex flex-col justify-between aspect-square">
+<span class="material-symbols-outlined text-primary-container text-2xl">photo_library</span>
+<div>
+<div class="text-display-lg-mobile font-display-lg-mobile text-on-surface">1,284</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">待备份照片</div>
+</div>
+</div>
+<!-- Stat 2 -->
+<div class="bento-card bg-white p-md rounded-xl shadow-sm border border-surface-variant/50 flex flex-col justify-between aspect-square">
+<span class="material-symbols-outlined text-secondary-container text-2xl">movie</span>
+<div>
+<div class="text-display-lg-mobile font-display-lg-mobile text-on-surface">42</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">待备份视频</div>
+</div>
+</div>
+<!-- Stat 3 -->
+<div class="bento-card bg-white p-md rounded-xl shadow-sm border border-surface-variant/50 flex flex-col justify-between aspect-square">
+<span class="material-symbols-outlined text-tertiary text-2xl">cloud_done</span>
+<div>
+<div class="text-display-lg-mobile font-display-lg-mobile text-on-surface">85%</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">空间已用</div>
+</div>
+</div>
+<!-- Stat 4 -->
+<div class="bento-card bg-white p-md rounded-xl shadow-sm border border-surface-variant/50 flex flex-col justify-between aspect-square">
+<span class="material-symbols-outlined text-outline text-2xl">history</span>
+<div>
+<div class="text-display-lg-mobile font-display-lg-mobile text-on-surface">昨天</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">最后同步</div>
+</div>
+</div>
+</section>
+<!-- Warm Tip -->
+<section class="bg-primary-fixed/30 p-md rounded-xl flex items-start gap-md">
+<span class="material-symbols-outlined text-primary mt-xs">auto_awesome</span>
+<div class="space-y-xs">
+<p class="font-body-md text-body-md text-on-primary-fixed-variant leading-relaxed">
+                    “美好的记忆值得耐心等待。我们会在你接入 Wi-Fi 时自动开启备份，确保每一份珍贵都不会遗失。”
+                </p>
+</div>
+</section>
+<!-- Storage Card -->
+<section class="bg-surface-container-highest p-lg rounded-2xl space-y-md">
+<div class="flex justify-between items-center">
+<h3 class="font-headline-md text-headline-md-mobile text-on-surface">私有云存储</h3>
+<span class="text-label-sm font-label-sm text-secondary">升级空间</span>
+</div>
+<div class="w-full h-3 bg-surface-container-low rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[85%] rounded-full shadow-inner"></div>
+</div>
+<div class="flex justify-between text-label-sm font-label-sm text-on-surface-variant">
+<span>1.7 TB 已使用</span>
+<span>2 TB 总量</span>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-xs pb-safe pt-sm bg-surface/80 backdrop-blur-lg border-t border-surface-container-highest shadow-[0_-2px_12px_rgba(0,0,0,0.05)] z-50 rounded-t-xl">
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:text-primary transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">cloud_circle</span>
+<span class="font-label-sm text-label-sm">私人空间</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:text-primary transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">group_work</span>
+<span class="font-label-sm text-label-sm">家庭相册</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud_upload</span>
+<span class="font-label-sm text-label-sm font-bold">备份</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:text-primary transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">delete_outline</span>
+<span class="font-label-sm text-label-sm">回收站</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:text-primary transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">我的</span>
+</button>
+</nav>
+<script>
+        // Micro-interactions for button press feedback
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('touchstart', () => {
+                btn.classList.add('opacity-80');
+            });
+            btn.addEventListener('touchend', () => {
+                btn.classList.remove('opacity-80');
+            });
+        });
+
+        // Simulating a "re-check" animation if connection is clicked
+        const wifiBtn = document.querySelector('button.bg-primary');
+        wifiBtn.addEventListener('click', () => {
+            const icon = wifiBtn.querySelector('.material-symbols-outlined');
+            icon.classList.add('animate-spin');
+            setTimeout(() => {
+                icon.classList.remove('animate-spin');
+                alert('正在检测 Wi-Fi 网络...');
+            }, 1000);
+        });
+    </script>
+</body></html>

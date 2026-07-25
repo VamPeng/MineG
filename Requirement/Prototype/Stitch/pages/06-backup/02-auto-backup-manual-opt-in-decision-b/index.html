@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>MineG - 设置自动备份</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#474743",
+                    "on-error": "#ffffff",
+                    "surface-container-highest": "#eae1da",
+                    "surface-container-low": "#fbf2eb",
+                    "on-secondary-fixed": "#360f00",
+                    "secondary-container": "#fda27a",
+                    "on-tertiary-container": "#fcffe3",
+                    "background": "#fff8f4",
+                    "secondary": "#914b2a",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-surface-variant": "#424841",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-secondary-fixed-variant": "#743415",
+                    "tertiary": "#5d5c58",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#ffb596",
+                    "tertiary-container": "#767471",
+                    "surface-variant": "#eae1da",
+                    "on-secondary-container": "#773717",
+                    "surface-tint": "#456646",
+                    "on-tertiary": "#ffffff",
+                    "primary-container": "#5b7d5b",
+                    "primary-fixed": "#c6edc4",
+                    "on-primary-fixed": "#012108",
+                    "outline-variant": "#c2c8be",
+                    "tertiary-fixed": "#e5e2dd",
+                    "surface-container-high": "#f0e7df",
+                    "on-secondary": "#ffffff",
+                    "inverse-primary": "#abd0a9",
+                    "on-primary-container": "#f7fff2",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-error-container": "#93000a",
+                    "surface-container": "#f5ece5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "outline": "#737970",
+                    "on-surface": "#1f1b17",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "inverse-surface": "#34302b",
+                    "surface-dim": "#e1d8d2",
+                    "inverse-on-surface": "#f8efe8",
+                    "error": "#ba1a1a",
+                    "surface-bright": "#fff8f4",
+                    "primary": "#436444",
+                    "on-background": "#1f1b17",
+                    "on-primary": "#ffffff",
+                    "surface": "#fff8f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "24px",
+                    "md": "16px",
+                    "margin-mobile": "20px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "xl": "40px",
+                    "margin-tablet": "32px",
+                    "gutter": "12px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "label-sm": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "headline-md-mobile": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "headline-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .toggle-dot {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        input:checked ~ .toggle-bg {
+            background-color: #436444; /* primary */
+        }
+        input:checked ~ .toggle-dot {
+            transform: translateX(100%);
+        }
+        .disabled-layer {
+            pointer-events: none;
+            opacity: 0.5;
+            filter: grayscale(0.5);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md flex items-center justify-between px-margin-mobile h-16">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</div>
+<h1 class="font-headline-md-mobile text-headline-md-mobile text-on-surface">设置自动备份</h1>
+<div class="w-10"></div> <!-- Spacer for center alignment -->
+</header>
+<main class="pt-24 px-margin-mobile">
+<!-- Variation Annotation -->
+<div class="mb-6 py-2 px-4 bg-secondary-fixed text-on-secondary-fixed rounded-xl border border-secondary/20 flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">info</span>
+<p class="font-label-sm text-label-sm">产品决策 B：用户必须手动开启自动备份</p>
+</div>
+<!-- Illustration Section -->
+<div class="w-full h-48 mb-8 rounded-3xl bg-surface-container-low flex flex-col items-center justify-center relative overflow-hidden">
+<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(#6B8E6B 1px, transparent 1px); background-size: 20px 20px;"></div>
+<img class="w-32 h-32 object-contain z-10" data-alt="A warm, soft-focus minimalist illustration showing a stylized house icon and a cloud icon floating peacefully. The background is a gentle cream color with subtle sage green geometric patterns, conveying a sense of security and domestic warmth for a private family photo storage app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvXWjhZxqAAvVJ5BFjuRB70oIofz8xlRQ8hmeQIhKZtY8LSGQbuDGWTx-FfkUlzWD_9ztVOb0N0h6byURmpPHghd76YpElZouP2DsFnXu5wNCsWW1dCJ8gxt7EN3FspynhThDbEkfK9DTusAYoukaCGusdJb5urPoHvmI-9u9Ziekj9aosPiwqfAwMiglplNkMXg2einnXQxsUGKBr09kT56vqUwT8QPy8nHuiJWBY3bPYghs8UJlQddRI8CCYcNEKpq-s-7xOuls"/>
+</div>
+<!-- Main Toggle Card -->
+<section class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm mb-6 border border-outline-variant/30">
+<div class="flex items-center justify-between mb-2">
+<div class="flex flex-col">
+<h2 class="font-headline-md-mobile text-primary">自动备份</h2>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" id="autoBackupToggle" type="checkbox"/>
+<div class="toggle-bg w-14 h-8 bg-outline-variant rounded-full peer-focus:outline-none"></div>
+<div class="toggle-dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full shadow-md"></div>
+</label>
+</div>
+<p class="text-on-surface-variant text-body-md">开启后，MineG 将自动为您同步珍贵瞬间</p>
+</section>
+<!-- Network Strategy Section (Conditionally Disabled) -->
+<section class="disabled-layer transition-all duration-300" id="networkStrategy">
+<h3 class="font-label-sm text-label-sm uppercase tracking-wider text-outline px-2 mb-3">网络策略</h3>
+<div class="bg-surface-container-lowest rounded-2xl divide-y divide-outline-variant/20 border border-outline-variant/30">
+<!-- Only Wi-Fi -->
+<div class="p-5 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary">wifi</span>
+<span class="text-body-md font-medium">仅 Wi-Fi</span>
+</div>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Cellular Data -->
+<div class="p-5">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-outline">signal_cellular_alt</span>
+<span class="text-body-md font-medium">允许使用移动网络备份</span>
+</div>
+<label class="relative inline-flex items-center cursor-not-allowed">
+<input class="sr-only" disabled="" type="checkbox"/>
+<div class="w-12 h-7 bg-outline-variant/30 rounded-full"></div>
+<div class="absolute left-1 top-1 bg-white/50 w-5 h-5 rounded-full"></div>
+</label>
+</div>
+<p class="text-label-sm text-on-surface-variant ml-12">
+                        开启后在无 Wi-Fi 时也会备份，可能产生流量费用
+                    </p>
+</div>
+</div>
+</section>
+<!-- Primary Action -->
+<div class="mt-10">
+<button class="w-full bg-primary text-on-primary py-4 rounded-xl font-headline-md-mobile shadow-lg active:scale-95 transition-all duration-200">
+                开始备份
+            </button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 bg-surface/90 backdrop-blur-lg shadow-[0_-2px_12px_rgba(0,0,0,0.05)] flex justify-around items-center px-2 py-3 pb-safe rounded-t-xl">
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 transition-colors">
+<span class="material-symbols-outlined">shield_person</span>
+<span class="font-label-sm text-label-sm">Space</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 transition-colors">
+<span class="material-symbols-outlined">photo_library</span>
+<span class="font-label-sm text-label-sm">Album</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 transition-colors">
+<span class="material-symbols-outlined">cloud_upload</span>
+<span class="font-label-sm text-label-sm">Backup</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+<span class="font-label-sm text-label-sm">Bin</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1.5 transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</div>
+</nav>
+<script>
+        const mainToggle = document.getElementById('autoBackupToggle');
+        const networkSection = document.getElementById('networkStrategy');
+
+        mainToggle.addEventListener('change', function() {
+            if (this.checked) {
+                networkSection.classList.remove('disabled-layer');
+            } else {
+                networkSection.classList.add('disabled-layer');
+            }
+        });
+    </script>
+</body></html>

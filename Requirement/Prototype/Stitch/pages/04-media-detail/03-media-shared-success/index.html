@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Memory - 媒体详情</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@100..900&family=Plus+Jakarta+Sans:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#eae1da",
+                    "on-tertiary-container": "#fcffe3",
+                    "surface-variant": "#eae1da",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed": "#012108",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed": "#360f00",
+                    "on-primary": "#ffffff",
+                    "primary-container": "#5b7d5b",
+                    "on-background": "#1f1b17",
+                    "tertiary-container": "#767471",
+                    "primary-fixed-dim": "#abd0a9",
+                    "error": "#ba1a1a",
+                    "outline": "#737970",
+                    "on-surface-variant": "#424841",
+                    "secondary-fixed-dim": "#ffb596",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed-variant": "#743415",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "surface-container-lowest": "#ffffff",
+                    "primary": "#436444",
+                    "on-surface": "#1f1b17",
+                    "tertiary": "#5d5c58",
+                    "surface-container-low": "#fbf2eb",
+                    "surface-bright": "#fff8f4",
+                    "surface-container": "#f5ece5",
+                    "surface": "#fff8f4",
+                    "secondary": "#914b2a",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-primary-container": "#f7fff2",
+                    "on-error": "#ffffff",
+                    "inverse-on-surface": "#f8efe8",
+                    "surface-tint": "#456646",
+                    "secondary-container": "#fda27a",
+                    "inverse-surface": "#34302b",
+                    "surface-container-high": "#f0e7df",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "on-secondary-container": "#773717",
+                    "background": "#fff8f4",
+                    "tertiary-fixed": "#e5e2dd",
+                    "inverse-primary": "#abd0a9",
+                    "outline-variant": "#c2c8be",
+                    "primary-fixed": "#c6edc4",
+                    "surface-dim": "#e1d8d2",
+                    "secondary-fixed": "#ffdbcd"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "sm": "8px",
+                    "gutter": "12px",
+                    "xs": "4px",
+                    "margin-tablet": "32px",
+                    "lg": "24px",
+                    "xl": "40px",
+                    "margin-mobile": "20px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "body-md": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-sm": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        @keyframes toastIn {
+            0% { transform: translate(-50%, 20px); opacity: 0; }
+            100% { transform: translate(-50%, 0); opacity: 1; }
+        }
+        .toast-active {
+            animation: toastIn 0.3s ease-out forwards;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen font-body-md overflow-x-hidden selection:bg-primary-fixed-dim selection:text-on-primary-fixed">
+<!-- Top AppBar (from Shared Components JSON) -->
+<header class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md sticky top-0 z-50 docked full-width flex justify-between items-center w-full px-margin-mobile py-sm">
+<button class="flex items-center justify-center p-unit text-primary transition-colors hover:bg-surface-container-high active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md-mobile text-primary">Memory</h1>
+<button class="flex items-center justify-center p-unit text-primary transition-colors hover:bg-surface-container-high active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="lock">lock</span>
+</button>
+</header>
+<!-- Success Toast -->
+<div class="fixed top-24 left-1/2 -translate-x-1/2 z-[60] toast-active" id="success-toast">
+<div class="bg-primary text-on-primary px-lg py-sm rounded-full shadow-lg flex items-center gap-sm">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-label-sm">共享成功</span>
+</div>
+</div>
+<main class="pb-32">
+<!-- Hero Media Canvas -->
+<div class="relative w-full aspect-[4/5] md:aspect-video overflow-hidden animate-fade-in">
+<img class="w-full h-full object-cover" data-alt="A warm, nostalgic high-resolution photograph of a multi-generational family gathering around a large rustic wooden table in a sun-drenched dining room. The lighting is soft and golden, suggesting a late afternoon glow. The color palette is composed of warm creams, sage greens, and earthy browns, consistent with a digital hearth aesthetic. The focus is sharp on the joyful expressions of the family members, creating a feeling of safety, love, and private precious moments." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtHwVjm5UDlWzViHpQ3S0anAhTMGU6GQn3rMa9K2NaEPIFU2usgPVKJmsXHQ29qZDQjJ4j6h3oBCo6dQapxY4L131Ja29PgFl6wOJdkcHEXGjGIwZupI5KaFdFvDIDwj4liosvwdYp9OLH8s0wJpEbJ11XeLQIiGdnd-eH_pN6_XIbpnH1hZ8vA4fw0JhWab8q31xMh2DwsUAAF7dLOZKPgFu9fY49bbwmlEu9I7VUsYh6g1E61wXDYNuWbXTPZW_uPMNbiUP2SbM"/>
+<!-- Privacy Indicator -->
+<div class="absolute top-md right-md glass-effect bg-surface/40 px-sm py-xs rounded-full flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<span class="font-label-sm text-label-sm text-on-surface">私人加密云</span>
+</div>
+</div>
+<!-- Content Details Section -->
+<div class="px-margin-mobile pt-lg flex flex-col gap-lg animate-slide-up">
+<!-- Metadata Header -->
+<div class="flex justify-between items-start">
+<div>
+<h2 class="font-display-lg-mobile text-display-lg-mobile text-on-background">夏日午后聚餐</h2>
+<div class="flex items-center gap-xs mt-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<p class="font-body-md text-body-md">2024年8月15日</p>
+</div>
+</div>
+<div class="flex -space-x-sm">
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A small, soft-focus circular avatar of an elderly grandfather smiling warmly, captured in a minimalist, light-mode aesthetic with natural skin tones and a sage green background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyE4S1YBpTi73dArsIsUPDUMvbbjAwo6PLiWy2f4ia_O1yaICuGyUN163Pa5IaxxUJNj3GKeuC6p8AZDB1jsmXj9GMLDa7cTuMP2EUINGLdZr-OCY3YabbiXov-APez5np3ntszQT165fjPGKqVKtROcNGmkehqZW5uMY_Wur8lLKKnG9iu7WjqsZDHre6u7VVULvteD3GYaGLCj-dv_edoiCv8k8J61LuQp-r13t5_RAh6e-41RIqIPwpj0xoLSbc97JCx3ghfIA"/>
+</div>
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-primary-container flex items-center justify-center text-on-primary-container text-[10px] font-bold">
+                        +3
+                    </div>
+</div>
+</div>
+<!-- Share Status Card -->
+<div class="bg-surface-container-low p-md rounded-xl flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">family_history</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-primary uppercase tracking-wider">共享状态</p>
+<p class="font-body-lg text-body-lg text-on-surface">已共享至家庭相册</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Action Buttons -->
+<div class="flex flex-col gap-md pt-sm">
+<button class="w-full bg-primary text-on-primary py-md rounded-xl flex items-center justify-center gap-sm font-headline-md text-headline-md shadow-md active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined" data-icon="share_off">share_off</span>
+                    取消家庭共享
+                </button>
+<div class="grid grid-cols-2 gap-md">
+<button class="bg-surface-container-high text-on-surface-variant py-md rounded-xl flex items-center justify-center gap-sm font-label-sm text-label-sm border border-outline-variant/30 active:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined">edit</span>
+                        编辑信息
+                    </button>
+<button class="bg-surface-container-high text-on-surface-variant py-md rounded-xl flex items-center justify-center gap-sm font-label-sm text-label-sm border border-outline-variant/30 active:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined">favorite</span>
+                        设为精选
+                    </button>
+</div>
+</div>
+<!-- Location & Technical Details (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter pt-sm">
+<div class="bg-surface-container p-md rounded-xl flex flex-col gap-xs">
+<span class="material-symbols-outlined text-secondary text-[24px]">location_on</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant">拍摄地点</p>
+<p class="font-body-md text-body-md font-medium">杭州 · 西溪湿地度假村</p>
+<div class="mt-sm h-32 rounded-lg overflow-hidden bg-surface-dim relative">
+<img class="w-full h-full object-cover" data-alt="A minimalist, stylized map view of Hangzhou's Xixi Wetland area, rendered in a soft color palette of sage green, cream, and muted brown, showing simple topography and water bodies without clutter." data-location="Hangzhou" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjuelSIgCuiMP0VY6MdMr8PSfbRSi3oi2i_34lMKVuMOU0MDq8prR--Pf7Cr2ZMT2TcB69BQkfjC9EvtRETZMpcFHcsQcNVMrCfFgDEVyNFMqBEZx6kSLI1I667p3xG5OecnoLpTT_WHvuTG9BO4CyQqt7UArOAIfsbSM-eQCJ-8UeyMGr6qHNECKjMvnbiQt32lrd7i8pAMCb6Ay6vtewaqqGcTFotuC0UCqYsLu1UppadwVxQ0rJpIfvU9cOAZgCgCuyUlA68wY"/>
+</div>
+</div>
+<div class="bg-surface-container p-md rounded-xl flex flex-col gap-md">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-unit">拍摄设备</p>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">camera_enhance</span>
+<p class="font-body-md text-body-md">iPhone 15 Pro Max</p>
+</div>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-unit">文件大小</p>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">hard_drive</span>
+<p class="font-body-md text-body-md">12.4 MB · RAW</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation (from Shared Components JSON) -->
+<!-- Determined 'More' is active since we are on a details/action sub-page -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+<span class="font-label-sm text-label-sm">Download</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+<span class="font-label-sm text-label-sm">Share</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+<span class="font-label-sm text-label-sm">Delete</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="more_horiz" style="font-variation-settings: 'FILL' 1;">more_horiz</span>
+<span class="font-label-sm text-label-sm">More</span>
+</button>
+</nav>
+<script>
+        // Micro-interaction for the toast
+        setTimeout(() => {
+            const toast = document.getElementById('success-toast');
+            toast.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translate(-50%, -10px)';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+
+        // Active state click logic for demo purposes
+        document.querySelectorAll('nav button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('nav button').forEach(b => {
+                    b.className = "flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out";
+                });
+                btn.className = "flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out";
+            });
+        });
+    </script>
+</body></html>

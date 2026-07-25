@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Memory - Media Detail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@100..900&family=Plus+Jakarta+Sans:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#eae1da",
+                    "on-tertiary-container": "#fcffe3",
+                    "surface-variant": "#eae1da",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed": "#012108",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed": "#360f00",
+                    "on-primary": "#ffffff",
+                    "primary-container": "#5b7d5b",
+                    "on-background": "#1f1b17",
+                    "tertiary-container": "#767471",
+                    "primary-fixed-dim": "#abd0a9",
+                    "error": "#ba1a1a",
+                    "outline": "#737970",
+                    "on-surface-variant": "#424841",
+                    "secondary-fixed-dim": "#ffb596",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed-variant": "#743415",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "surface-container-lowest": "#ffffff",
+                    "primary": "#436444",
+                    "on-surface": "#1f1b17",
+                    "tertiary": "#5d5c58",
+                    "surface-container-low": "#fbf2eb",
+                    "surface-bright": "#fff8f4",
+                    "surface-container": "#f5ece5",
+                    "surface": "#fff8f4",
+                    "secondary": "#914b2a",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-primary-container": "#f7fff2",
+                    "on-error": "#ffffff",
+                    "inverse-on-surface": "#f8efe8",
+                    "surface-tint": "#456646",
+                    "secondary-container": "#fda27a",
+                    "inverse-surface": "#34302b",
+                    "surface-container-high": "#f0e7df",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "on-secondary-container": "#773717",
+                    "background": "#fff8f4",
+                    "tertiary-fixed": "#e5e2dd",
+                    "inverse-primary": "#abd0a9",
+                    "outline-variant": "#c2c8be",
+                    "primary-fixed": "#c6edc4",
+                    "surface-dim": "#e1d8d2",
+                    "secondary-fixed": "#ffdbcd"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "sm": "8px",
+                    "gutter": "12px",
+                    "xs": "4px",
+                    "margin-tablet": "32px",
+                    "lg": "24px",
+                    "xl": "40px",
+                    "margin-mobile": "20px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "body-md": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-sm": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-custom {
+            animation: rotate 2s linear infinite;
+        }
+
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col overflow-hidden">
+<!-- TopAppBar -->
+<header class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center w-full px-margin-mobile py-sm">
+<button class="text-primary dark:text-primary-fixed-dim hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors p-unit rounded-full active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim">Memory</h1>
+<button class="text-primary dark:text-primary-fixed-dim hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors p-unit rounded-full active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">lock</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow relative overflow-hidden flex flex-col items-center justify-center p-md">
+<!-- Media Preview Container -->
+<div class="relative w-full max-w-lg aspect-[3/4] bg-surface-container-low rounded-xl shadow-lg overflow-hidden transition-all duration-500">
+<img class="w-full h-full object-cover" data-alt="A cinematic, high-resolution family photograph showing a young child running through a sun-drenched golden wheat field during late afternoon. The lighting is warm and ethereal, with soft lens flares and a shallow depth of field focusing on the child's joyful expression. The overall aesthetic is nostalgic and warm, following the digital hearth design system with muted Sage Green and cream tones subtly integrated into the natural environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdKPzmXstAs4LVuCMjHxbW63PHZQ5QRq2becNTiPta62kg76d6D9J6hjkoRBvpTXq_CtESaEIAe-eDf_XqvwO1-f930_6nOxtDSCH24RpMTuk03nUDJnGGMMGY_hx7SwIIUJjHt-eNrJut8oiFm8-_ulBGgoq4sitfvIO_4lGCXlL8qxjvX6deTTrXjxlybljIKSwksSdYW6Umfa_JGdXFEXjSu8NjNLRzTpAYEyKnEVpoZtLB_kpccrBczpUrWq-qXg3uLCBBC7I"/>
+<!-- Privacy Indicator -->
+<div class="absolute top-md left-md bg-surface/40 backdrop-blur-sm px-sm py-xs rounded-full flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px] text-on-surface">lock</span>
+<span class="font-label-sm text-label-sm text-on-surface">Private Cloud</span>
+</div>
+<!-- Download Progress Overlay -->
+<div class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-40 transition-opacity duration-300" id="download-overlay">
+<div class="relative flex items-center justify-center">
+<!-- Progress Ring Background -->
+<svg class="w-24 h-24">
+<circle class="text-white/20" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-primary-fixed-dim progress-ring-circle" cx="48" cy="48" fill="transparent" id="progress-circle" r="40" stroke="currentColor" stroke-dasharray="251.327" stroke-dashoffset="251.327" stroke-linecap="round" stroke-width="4"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="text-white font-label-sm text-label-sm" id="progress-text">0%</span>
+</div>
+</div>
+<p class="mt-lg text-white font-body-md text-body-md tracking-wide">正在下载原文件...</p>
+</div>
+<!-- Detail Metadata (Floating) -->
+<div class="absolute bottom-0 left-0 right-0 p-lg bg-gradient-to-t from-black/60 to-transparent">
+<p class="text-white font-label-sm text-label-sm opacity-80">2023年10月12日</p>
+<div class="flex items-center justify-between mt-xs">
+<p class="text-white font-headline-md text-headline-md-mobile">金色童年.jpg</p>
+<div class="flex items-center gap-xs">
+<span class="text-white font-label-sm text-label-sm">由 Sarah 上传</span>
+<div class="w-8 h-8 rounded-full border border-white/20 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A soft, minimalist profile avatar of a smiling woman with glasses, rendered in a warm, artistic photographic style with cream and sage green background accents, perfectly matching the secure family private cloud brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTrIMIQKlgHBxNBuTImeyL3fcvbFVDktxI6pe5H53z98_jA75qftfGPWs3eNGGkLCUuuCz0PXFaDL5G7RvIOq4nOiMdmb8lght9eCPqJHfyjCGwirbVWgxHkANUTv7PNRZOcq8UJUlXAG3kONM9GBlL9TTnFE8G9VslKSULbg3xGziFFrNVUDdgcUt0YsH5EKaSif6KAWZRrP6LmXqkWIGwTbQI1RvGKeoWrKoWHLWAP_Tv8i1Fd--1OVcRD6teD0XzdaLIWRT4eU"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Disabled/Dimmed State) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl opacity-50 pointer-events-none transition-opacity duration-300">
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
+<span class="material-symbols-outlined mb-xs">download</span>
+<span class="font-label-sm text-label-sm">Download</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
+<span class="material-symbols-outlined mb-xs">share</span>
+<span class="font-label-sm text-label-sm">Share</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
+<span class="material-symbols-outlined mb-xs">delete</span>
+<span class="font-label-sm text-label-sm">Delete</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
+<span class="material-symbols-outlined mb-xs">more_horiz</span>
+<span class="font-label-sm text-label-sm">More</span>
+</div>
+</nav>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const circle = document.getElementById('progress-circle');
+            const progressText = document.getElementById('progress-text');
+            const radius = circle.r.baseVal.value;
+            const circumference = radius * 2 * Math.PI;
+
+            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+            circle.style.strokeDashoffset = circumference;
+
+            function setProgress(percent) {
+                const offset = circumference - (percent / 100 * circumference);
+                circle.style.strokeDashoffset = offset;
+                progressText.innerText = `${Math.round(percent)}%`;
+            }
+
+            let currentProgress = 0;
+            const interval = setInterval(() => {
+                if (currentProgress >= 100) {
+                    clearInterval(interval);
+                    // Reset or transition logic could go here
+                } else {
+                    currentProgress += Math.random() * 5;
+                    if (currentProgress > 100) currentProgress = 100;
+                    setProgress(currentProgress);
+                }
+            }, 200);
+
+            // Subtle parallax effect on media image
+            const image = document.querySelector('main img');
+            document.addEventListener('mousemove', (e) => {
+                const xAxis = (window.innerWidth / 2 - e.pageX) / 50;
+                const yAxis = (window.innerHeight / 2 - e.pageY) / 50;
+                image.style.transform = `scale(1.1) translate(${xAxis}px, ${yAxis}px)`;
+            });
+        });
+    </script>
+</body></html>

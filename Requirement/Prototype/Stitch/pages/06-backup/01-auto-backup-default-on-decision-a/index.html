@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>MineG - 设置自动备份</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#474743",
+                    "on-error": "#ffffff",
+                    "surface-container-highest": "#eae1da",
+                    "surface-container-low": "#fbf2eb",
+                    "on-secondary-fixed": "#360f00",
+                    "secondary-container": "#fda27a",
+                    "on-tertiary-container": "#fcffe3",
+                    "background": "#fff8f4",
+                    "secondary": "#914b2a",
+                    "primary-fixed-dim": "#abd0a9",
+                    "on-surface-variant": "#424841",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-secondary-fixed-variant": "#743415",
+                    "tertiary": "#5d5c58",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#ffb596",
+                    "tertiary-container": "#767471",
+                    "surface-variant": "#eae1da",
+                    "on-secondary-container": "#773717",
+                    "surface-tint": "#456646",
+                    "on-tertiary": "#ffffff",
+                    "primary-container": "#5b7d5b",
+                    "primary-fixed": "#c6edc4",
+                    "on-primary-fixed": "#012108",
+                    "outline-variant": "#c2c8be",
+                    "tertiary-fixed": "#e5e2dd",
+                    "surface-container-high": "#f0e7df",
+                    "on-secondary": "#ffffff",
+                    "inverse-primary": "#abd0a9",
+                    "on-primary-container": "#f7fff2",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-error-container": "#93000a",
+                    "surface-container": "#f5ece5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "outline": "#737970",
+                    "on-surface": "#1f1b17",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "inverse-surface": "#34302b",
+                    "surface-dim": "#e1d8d2",
+                    "inverse-on-surface": "#f8efe8",
+                    "error": "#ba1a1a",
+                    "surface-bright": "#fff8f4",
+                    "primary": "#436444",
+                    "on-background": "#1f1b17",
+                    "on-primary": "#ffffff",
+                    "surface": "#fff8f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "24px",
+                    "md": "16px",
+                    "margin-mobile": "20px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "xl": "40px",
+                    "margin-tablet": "32px",
+                    "gutter": "12px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "label-sm": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "headline-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fff8f4;
+            font-family: 'Noto Sans', sans-serif;
+            color: #1f1b17;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .toggle-checked .toggle-dot {
+            transform: translateX(20px);
+            background-color: #ffffff;
+        }
+        .toggle-checked .toggle-bg {
+            background-color: #436444;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md flex items-center justify-between px-margin-mobile h-16 w-full">
+<div class="flex items-center gap-3">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-low rounded-full p-2 transition-all duration-200 active:scale-95">
+                arrow_back
+            </button>
+<h1 class="font-headline-md-mobile text-headline-md-mobile text-primary">设置自动备份</h1>
+</div>
+<div class="flex items-center">
+<span class="material-symbols-outlined text-primary">lock</span>
+</div>
+</header>
+<main class="mt-20 px-margin-mobile space-y-6">
+<!-- Decision Annotation -->
+<div class="bg-primary-fixed text-on-primary-fixed p-4 rounded-xl flex items-start gap-3 shadow-sm">
+<span class="material-symbols-outlined mt-0.5" style="font-variation-settings: 'FILL' 1;">info</span>
+<div>
+<p class="font-label-sm font-bold">产品决策 A</p>
+<p class="font-body-md">授权完成后自动备份默认开启，确保家庭回忆即刻得到保护。</p>
+</div>
+</div>
+<!-- Main Toggle Card -->
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.05)] space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">sync</span>
+</div>
+<div>
+<h2 class="font-headline-md-mobile text-headline-md-mobile text-on-surface">自动备份</h2>
+<p class="text-on-surface-variant font-label-sm">实时保护您的相册与文件</p>
+</div>
+</div>
+<!-- Primary Toggle (ON) -->
+<button class="toggle-checked relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none" onclick="this.classList.toggle('toggle-checked')">
+<span class="toggle-bg absolute inset-0 rounded-full bg-outline-variant transition-colors"></span>
+<span class="toggle-dot inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-200 ml-1"></span>
+</button>
+</div>
+</div>
+<!-- Network Strategy Section -->
+<div class="space-y-4">
+<h3 class="font-label-sm uppercase tracking-wider text-on-surface-variant px-1">网络策略</h3>
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.05)] overflow-hidden">
+<!-- Option 1: Wi-Fi Only (Default Selected) -->
+<div class="flex items-center justify-between p-4 border-b border-surface-variant bg-surface-container-low/50">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">wifi</span>
+<span class="font-body-md font-medium">仅 Wi-Fi</span>
+</div>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">radio_button_checked</span>
+</div>
+<!-- Option 2: Cellular Data Toggle (OFF) -->
+<div class="p-4 space-y-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">signal_cellular_alt</span>
+<span class="font-body-md">允许使用移动网络备份</span>
+</div>
+<button class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none" onclick="this.classList.toggle('toggle-checked')">
+<span class="toggle-bg absolute inset-0 rounded-full bg-outline-variant transition-colors"></span>
+<span class="toggle-dot inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-200 ml-1"></span>
+</button>
+</div>
+<p class="text-on-surface-variant font-label-sm pl-9 leading-relaxed">
+                        开启后在无 Wi-Fi 时也会备份，可能产生流量费用
+                    </p>
+</div>
+</div>
+</div>
+<!-- Illustration Card (Brand Atmosphere) -->
+<div class="relative w-full h-48 rounded-2xl overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent z-10"></div>
+<div class="absolute bottom-4 left-4 z-20 text-white">
+<p class="font-display-lg-mobile text-display-lg-mobile leading-tight">安全存放<br/>每一份珍贵记忆</p>
+</div>
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A warm, atmospheric photo of a multi-generational family sitting around a wooden dining table in a sunlit home. The lighting is soft and golden, creating a nostalgic 'digital hearth' vibe. The image is clean and minimalist with sage green accents in the background decor, emphasizing security and domestic warmth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_BGEbtHMzixntp1EiBGNNJdkKPbkDpmseddox6t3Qm64rgiOX-TUMtlc5FVkNq2-G7Or-vgTu-bcRf2cmi-hbxB9OOnpsa0anSwAZxxGSd4QxwlWr2O5OqxE-Mh-fa-0NEy_mAz-dMgdaCo2CZ1ZgOB9sAsurWgvHzR5J-oqNmSuL0WF1HMziX2waGqsdvcLObxBoKrCwH4aFOG8YN5rYtK1xkWzoaTCt4hFQB5ROs7yumUgO3Doq3CX3RorkOiUy5CJ7RflA1Gg"/>
+</div>
+<!-- Primary Action -->
+<div class="pt-4">
+<button class="w-full h-14 bg-primary text-on-primary rounded-xl font-headline-md-mobile flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-all duration-150">
+<span class="material-symbols-outlined">cloud_upload</span>
+                开始备份
+            </button>
+<p class="text-center text-on-surface-variant font-label-sm mt-4">
+                您的数据经过端到端加密保护
+            </p>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-safe bg-surface/90 backdrop-blur-lg rounded-t-xl shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 hover:bg-surface-container-high transition-colors cursor-pointer active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">shield_person</span>
+<span class="font-label-sm text-label-sm">Space</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 hover:bg-surface-container-high transition-colors cursor-pointer active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">photo_library</span>
+<span class="font-label-sm text-label-sm">Album</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1.5 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud_upload</span>
+<span class="font-label-sm text-label-sm">Backup</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 hover:bg-surface-container-high transition-colors cursor-pointer active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">delete</span>
+<span class="font-label-sm text-label-sm">Bin</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 hover:bg-surface-container-high transition-colors cursor-pointer active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</div>
+</nav>
+<script>
+        // Simple micro-interaction for toggles
+        document.querySelectorAll('button[onclick*="toggle-checked"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Haptic feedback could be added here if in a real app wrapper
+            });
+        });
+    </script>
+</body></html>

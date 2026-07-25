@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#fcffe3",
+                    "on-background": "#1f1b17",
+                    "surface-container-low": "#fbf2eb",
+                    "secondary": "#914b2a",
+                    "on-secondary-container": "#773717",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-container": "#5b7d5b",
+                    "primary": "#436444",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "on-primary-container": "#f7fff2",
+                    "on-tertiary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#5d5c58",
+                    "surface": "#fff8f4",
+                    "outline-variant": "#c2c8be",
+                    "on-error": "#ffffff",
+                    "inverse-on-surface": "#f8efe8",
+                    "surface-container": "#f5ece5",
+                    "surface-container-high": "#f0e7df",
+                    "surface-variant": "#eae1da",
+                    "surface-container-highest": "#eae1da",
+                    "surface-dim": "#e1d8d2",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#abd0a9",
+                    "surface-tint": "#456646",
+                    "on-primary-fixed": "#012108",
+                    "on-secondary-fixed-variant": "#743415",
+                    "background": "#fff8f4",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-surface": "#1f1b17",
+                    "on-secondary-fixed": "#360f00",
+                    "secondary-container": "#fda27a",
+                    "primary-fixed": "#c6edc4",
+                    "secondary-fixed-dim": "#ffb596",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#34302b",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "outline": "#737970",
+                    "on-surface-variant": "#424841",
+                    "tertiary-container": "#767471",
+                    "tertiary-fixed": "#e5e2dd",
+                    "primary-fixed-dim": "#abd0a9",
+                    "surface-bright": "#fff8f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "md": "16px",
+                    "gutter": "12px",
+                    "unit": "4px",
+                    "xl": "40px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "margin-tablet": "32px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "body-md": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 3s linear infinite;
+        }
+
+        /* Glassmorphism subtle lift */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-surface/80 backdrop-blur-md shadow-sm flex items-center justify-between px-margin-mobile py-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="lock">lock</span>
+<h1 class="font-headline-md text-headline-md-mobile text-primary tracking-tight">私人空间</h1>
+</div>
+<div class="flex items-center gap-md">
+<!-- Sync Status Summary -->
+<div class="flex items-center gap-xs bg-surface-container-low px-sm py-xs rounded-full">
+<span class="material-symbols-outlined text-primary text-[16px] animate-spin-slow" data-icon="sync">sync</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">云端同步中 85%</span>
+</div>
+<!-- User Avatar -->
+<div class="w-8 h-8 rounded-full border-2 border-primary-container overflow-hidden active:scale-90 transition-transform">
+<img class="w-full h-full object-cover" data-alt="A warm, professional portrait of a smiling family member, high-quality photography with soft natural lighting and a blurred home garden background. The visual style is minimalist and clean, matching the sage green and cream color palette of the digital hearth design system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6eBOUsr7WNagNI1Z28jbK9b0Z6FSserOApIu35mSDPLn1KpIrXfBuTdU7tE3evr4d48DSGykH5pkZ7aU66sQZeZaoNEwZAK2UZ1g2GaP04Vhg1Z8iSjtOjWqs6E-xp0k_T345ZizKXVhyoO43G65aL-4DbgY8_eHaWbbxAOwqbjK6gjB2xb8MVO1J7ruIHD5tNij4vNWGe3G0cIautq_yDE0KqlauOTQv6s6oBo_YUol2kAe1NwIkzQkkaEZ5MqG5YB5FzYRAVUM"/>
+</div>
+</div>
+</header>
+<main class="mt-md">
+<!-- Album Entry: Side-scrolling Cards -->
+<section class="mb-lg">
+<div class="px-margin-mobile mb-sm flex justify-between items-end">
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">精选相册</h2>
+<span class="font-label-sm text-label-sm text-primary">查看全部</span>
+</div>
+<div class="flex overflow-x-auto gap-md px-margin-mobile hide-scrollbar snap-x">
+<!-- Card 1 -->
+<div class="flex-shrink-0 w-64 h-80 rounded-xl relative overflow-hidden snap-start shadow-sm active:scale-[0.98] transition-transform">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A cozy family dinner scene with soft candle lighting and warm amber tones. Captured in a candid, nostalgic style, the image shows laughing faces and rustic table settings, emphasizing the digital hearth aesthetic of safety and shared memories." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAvkgIgLgpGWs8rdPPwrLuBe2Ilx1unE4eMvAWXP80qHJfNqDzEC5KYYZvBGnzXRJGBEDZ8-IRQ-hEEPNyTkF93jA2uP6xM_Hdz8mdx3SanTkRXE4cMNuzlSIHCl0XjijJ_GdLi_1dpwakCT6aP6Kv95evRnM70ouXWCyRfn89OD0xIaj4eFbDC9ZwZ6MvBKzgHvzbSSepmlbUTOQPF-XZwakl9Mfy3DRm2e-P3xXSbB-Tjr44I8ag3l2nwxVa94shw2tGnV3wq9go')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-md left-md">
+<p class="font-headline-md text-headline-md text-white">家庭聚餐</p>
+<p class="font-label-sm text-label-sm text-white/80">128 张照片</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="flex-shrink-0 w-64 h-80 rounded-xl relative overflow-hidden snap-start shadow-sm active:scale-[0.98] transition-transform">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A bright, scenic landscape of a summer mountain trip with clear blue skies and lush green pine trees. The photography is high-key and airy, evoking feelings of freedom and nostalgia, perfectly aligned with the warm cream and sage green brand identity." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBt7bJdEzuI4A1PuWJhbvlkwvbeEpji8OF9NAlNlzFMgNVPFHbwWyofWLZsgvUaT2031qCRfjXKtpJTWljfZnE647WQw7Uun3E9UX3iEzgumEPpC5OzCYf59FrPIzdqS53seMztfvhYL2RGp9e8MCttGWMiii3E2wG5Is_uY42tSgii1rhqMfNjwr0ihsNAFqyv_8L9Cx7p8RvpJ8Gk-Tn16ucj4S-bQ3aizTEYdhW51r5CegIzpUyw3Nrh4bzporzSOXP8Z6jt9mM')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-md left-md">
+<p class="font-headline-md text-headline-md text-white">夏季旅途</p>
+<p class="font-label-sm text-label-sm text-white/80">84 张照片</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="flex-shrink-0 w-64 h-80 rounded-xl relative overflow-hidden snap-start shadow-sm active:scale-[0.98] transition-transform">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A peaceful macro shot of autumn leaves on a park bench, with golden sunlight filtering through the trees. The mood is calm and contemplative, emphasizing detail and texture in a high-end, minimalist photography style consistent with the private cloud theme." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAZvidE2cdXuQw3y2UYieWoKQX7VTxOTrwvvMCJHpgIUfC_AD1wsd3gi695Moi_dl-8_brYTjvL8gp1oRXFTeoMUjvvAgVB35lhcSNn9KaxyhzaWSiV6EusPPt7lKLbJ55e13uygBoxQQOnZVg7aBwFD5lLoKMXzDz-WH434G1nlZsQCvX25_RhF2m-KDqCwF8CSftrJ8YTGQrF2s9WDb9x4H-hZfIfqvTJpbSh-X0lrhICCxfyLyi-gKoa299P1JqdlyJiXgEqKfM')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-md left-md">
+<p class="font-headline-md text-headline-md text-white">秋日午后</p>
+<p class="font-label-sm text-label-sm text-white/80">42 张照片</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Media Grid: 3-column compact -->
+<section class="px-2">
+<div class="px-margin-mobile mb-sm">
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">最近上传</h2>
+</div>
+<div class="grid grid-cols-3 gap-[2px]">
+<!-- Media Item 1: Video -->
+<div class="aspect-square relative group overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A close-up video still of a child playing with a golden retriever in a sun-drenched living room. The lighting is warm and hazy, with a soft-focus background that highlights the emotional moment of family connection and private security." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2TXqSx44rOy1sNGHw1OkKd1ywVvGE4ieM_wnu4vrI6tQ0xF7lhPWobOPcYcgffALzgP6-zVciibEcJ29KNRGJ_j915Ko4FzkjDNvDX3hdAROHv3RBNI-qmkKckczu0ehiIc1lYEA0rR5ZIbhsvFeuvSjltW3tR6W6q6mYd6t2MeHiIn_dcVDyBWfUayelH5EhD06BUO1HhH9nYIL2BuRZOaFIv-1aeJHiMPkOItmfIs1-BS-C9D9k2q2ixE20wYQoHMzrI71XtpE"/>
+<div class="absolute bottom-1 right-1 bg-black/40 backdrop-blur-sm rounded px-1 flex items-center gap-xs">
+<span class="material-symbols-outlined text-white text-[12px]" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span class="text-[10px] text-white font-medium">1:20</span>
+</div>
+</div>
+<!-- Media Item 2: Live Photo -->
+<div class="aspect-square relative group overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A vibrant shot of a birthday cake with glowing candles, captured just as someone is about to blow them out. The image is rich in warm tones and motion blur, conveying a 'Live' moment feel within a sophisticated, minimalist UI environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCh3t_HrOQDJK_e_ivs7zWp12T0sAB_opzPIk43X08Eh_uVJkrroFnLQ40jXklejSpIgP6nLHEv1SGPdWfsbYcPuperMcJGNqQ7ulhq6W7-wceCP4IgHhCiOTn8gCBG77vB2mfH30qX_dPrEO4QTy0RI50e8ZnLevojd8L8sbeGGRyols5Oi5-9l9DnfK2MSvpUGpoz7nfAp_C2SRMl4Ro3GYjkDUTUJ-ji3SkcyOstrCx6hPIb_RI8H_yJZ3PB2A_leZt5p9kG63o"/>
+<div class="absolute top-1 left-1 bg-black/40 backdrop-blur-sm rounded-full p-1">
+<span class="material-symbols-outlined text-white text-[14px]" data-icon="motion_photos_on">motion_photos_on</span>
+</div>
+</div>
+<!-- Media Item 3: Standard Photo -->
+<div class="aspect-square bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A minimalist architectural shot of a window with light streaming in, casting long shadows on a cream-colored wall. The aesthetic is clean, modern, and high-end, representing the 'private space' theme through light and silence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAd0azUIBQcNu-yq2kv-3-abltKzIdzWw1wl2ldvwXUAZipbCyr9NPA02kh_gWG6FS4-pd7E5lFYJBV-Ws9USUiqzWXXlGuQzUeFU5ZBnM0Gopy5R8kRPbrZj5NdnqaMb2ljUPk2wqqiClMpryEPmE_Wnf3dtaF66b7EN_9V_1UI_elVBXQbFpt2gdAzal7AIyTX6XgALE0YavBpw0drSFp7j5uyNq-bQmvxPBww0VpOas8NFzgdaGboqjPGJhPrcyfyUd4ssrKhAM"/>
+</div>
+<!-- Media Item 4: GIF -->
+<div class="aspect-square relative group overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="An artistic, looping animation of raindrops on a windowpane, with a soft-focus city garden behind it. The mood is serene and tactile, emphasizing the high-end digital hearth experience with muted greens and warm greys." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMR6d8q2o5oOn1VQkuu165vJrHh9heoenJzrmmNtX7lc8IeqGKr8t2WZbnmhgUyevKOaejVKXY_YcA9URY1tiBKMJeQFwluMlfM-TS0r-PQj0isPdMpoB56jZjVb96j8xlmfvHx2mp0wjfVKoFBh72hFFbyqdk3AcYduuHEn-ivW0fz8RHaftSuHgRIR7rravWLCtF8hmRiemSI3MoZpPh-TOKvW_GGi5ANtu2pBi8daMtiUXX0EWhkaxQDZVS4CnTN-J4HasyxsI"/>
+<div class="absolute top-1 right-1 bg-black/40 backdrop-blur-sm rounded px-1">
+<span class="text-[10px] text-white font-bold tracking-widest">GIF</span>
+</div>
+</div>
+<!-- More Grid Items for visual density -->
+<div class="aspect-square bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A candid photo of two elderly hands holding each other, resting on a white linen tablecloth. High contrast, warm lighting, and a feeling of enduring safety and nostalgia that defines the family memory storage brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDplqbp7ujvxKGgqf_O-O91dQ7ddwS53NvqMfXNuiZTIjPLl9UEvXgJqfr6soYd_M0OoaL3uqRyxktRckx877QtxDzhl4bh98TXzBng9Hg3S9tRwwUKvJ72Kd3puAP1xgZTTetXjC3s3qwt6CW04dYXOfOQD032J52JLm9gSQY43ffHsypoVdzMCcMiSzkeSi_7Z2YZOkie-uggu7-3h8cfEkZgWreDYxoW_tFOQkHsyv_4t7h_5P2Opc1UCRhl6Twr62bRm-zHMY"/>
+</div>
+<div class="aspect-square bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A macro shot of a single flower in a ceramic vase, sitting on a minimalist wooden table. The visual language is quiet and deliberate, matching the sage green and cream brand identity with high-quality, professional photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVGItxNJqv8Vfuc1MqSU233LzYL1TkVv5Y0xMS_k4Oh266gk6UBw-oTeeI3bGF_OSgt7aBI8R593xKzCpJdoKWQP6kwM_90O772pOEq9GNiymX26KmQIRnGB_SKIcvHcHt8RyiVJPn8_-K_5MNIt9DEQMVJTlJlIkmraiD4DpTb3YDcavCjynvYzWkDnd__a13s1w-DPlmJ1GTrz0txyysY-Kt6bhSjXF3wBW7X8lmYGKPv0csglh5mMk85AjxnEbR-cMYnXZZSBI"/>
+</div>
+<div class="aspect-square bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="An overhead shot of an open sketchbook and a cup of tea on a rustic table. The light is soft and diffuse, creating a cozy and private atmosphere that feels like a digital sanctuary for personal memories." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRhWdW3zqOl-u1afbaoDRWX8ji5iBWrMUIv0zTl04jsqlg6dVrHsi6UnIXUdK6plwHu_D7bAqB3KpRx2CKoIM3-hii37bO392AMvQdFLVZZA27X5D1-j4qZC2QRX-KhpYspouI3XrtySvmUbGxZxjkeNPyPwLuTPhOcKnVwsA3E0mtmRIYRcXcYW6TlP0c_JtoohdsCjQcK55E6tvWaOC2UnIzxyNapWfs4EzY9Q29jmLxkYySiBFz2orJ008SbXY3-ge9l4CVFNg"/>
+</div>
+<div class="aspect-square bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A wide landscape shot of a quiet beach at sunset, with pastel pink and orange clouds reflecting in the still water. The scene is calm and expansive, providing a breath of fresh air within the compact media grid." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkBcA38kx761gF-lBN3BjcXSsbRuCOki6ovmgDQjeEIMSrPIQpgoeuVQK_AxpOShp0Q8nWABgMAZkSEYBi4OYrpDbXOQfGvmirk4NqAPDvbITLvdIcdRJMKZiYRN5L50iUj2xD1ctAIAHsZQXcYsvV_yGW3iWk1Nx8WyLu9vKE6GW9fMJKWLwS95sMHazJ2lKSGRY10e_LqyTVnTU_TI5LkedGAb8KLlG7tkvtiFIXrf6YFoQi0putqPOqx8Zq-HZyAlnUkSDKQ2Q"/>
+</div>
+<div class="aspect-square bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A detailed shot of a vintage film camera sitting on a modern white desk. The mix of old and new elements reinforces the theme of preserving past memories in a modern, secure private cloud environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqZjsxuE5GgiPMSmKBqO97ljlgHXikbrZ-K5H9o5doImZs7xrr8ftuQ6Ze_xFCJERt9PSPzn3ttYG_9b9xu3ViGtxX4-rhNzzr6OhLBRhYu9bjLqNYgG_9su0niyvZcrVycvsre7rO4odY2MchnHRf2klKvv_Xgh79rcVqjAVYN6abesxbyRJosQ9LgUv_b-v64i3E2C-e3tV4XZ_Lbxt0JP-NT456DoeGHsluJTivsVZHoIsbsTpr2sgL6C92Doga4oh0BtPn4-M"/>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm pb-6 pt-2 bg-surface/80 backdrop-blur-md shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
+<!-- Private Space (Active) -->
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-3 py-1 transition-all duration-150 active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="shield_person" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span class="font-label-sm text-label-sm mt-1">私人空间</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="photo_library">photo_library</span>
+<span class="font-label-sm text-label-sm mt-1">家庭相册</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+<span class="font-label-sm text-label-sm mt-1">备份</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+<span class="font-label-sm text-label-sm mt-1">回收站</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm mt-1">我的</span>
+</a>
+</nav>
+<!-- Floating Atmosphere Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Micro-interaction for gallery cards
+            const cards = document.querySelectorAll('.snap-start');
+            cards.forEach(card => {
+                card.addEventListener('touchstart', () => {
+                    card.classList.add('scale-[0.98]');
+                });
+                card.addEventListener('touchend', () => {
+                    card.classList.remove('scale-[0.98]');
+                });
+            });
+        });
+    </script>
+</body></html>

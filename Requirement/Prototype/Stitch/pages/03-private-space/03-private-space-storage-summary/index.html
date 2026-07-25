@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG 私人空间</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Shared Style & Component Integration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#fcffe3",
+                    "on-background": "#1f1b17",
+                    "surface-container-low": "#fbf2eb",
+                    "secondary": "#914b2a",
+                    "on-secondary-container": "#773717",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-container": "#5b7d5b",
+                    "primary": "#436444",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "on-primary-container": "#f7fff2",
+                    "on-tertiary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#5d5c58",
+                    "surface": "#fff8f4",
+                    "outline-variant": "#c2c8be",
+                    "on-error": "#ffffff",
+                    "inverse-on-surface": "#f8efe8",
+                    "surface-container": "#f5ece5",
+                    "surface-container-high": "#f0e7df",
+                    "surface-variant": "#eae1da",
+                    "surface-container-highest": "#eae1da",
+                    "surface-dim": "#e1d8d2",
+                    "secondary-fixed": "#ffdbcd",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#abd0a9",
+                    "surface-tint": "#456646",
+                    "on-primary-fixed": "#012108",
+                    "on-secondary-fixed-variant": "#743415",
+                    "background": "#fff8f4",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-surface": "#1f1b17",
+                    "on-secondary-fixed": "#360f00",
+                    "secondary-container": "#fda27a",
+                    "primary-fixed": "#c6edc4",
+                    "secondary-fixed-dim": "#ffb596",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#34302b",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "outline": "#737970",
+                    "on-surface-variant": "#424841",
+                    "tertiary-container": "#767471",
+                    "tertiary-fixed": "#e5e2dd",
+                    "primary-fixed-dim": "#abd0a9",
+                    "surface-bright": "#fff8f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "md": "16px",
+                    "gutter": "12px",
+                    "unit": "4px",
+                    "xl": "40px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "margin-tablet": "32px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "body-md": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "display-lg": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F5F2ED; /* As per Brand Anchors: Warm Cream */
+            color: #1f1b17;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-nav {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-surface dark:bg-surface-dim shadow-sm flex items-center justify-between px-margin-mobile py-sm">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary-fixed-dim active:scale-95 transition-transform">
+<img class="w-full h-full object-cover" data-alt="A warm, professional portrait of an elderly family member, lit with soft natural golden hour light. The style is minimalist and high-quality photography, conveying a sense of warmth and reliability in a family cloud storage context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBE8Xw702HdgqNhLyQOeWidResBsMOEzRtZffRfI61sBUTzaNT5g39NiE-qdGLnRIZvyx6kSSUNO7H7UxdfgvL7HQWXtRFLtYuCNEFTWqSlF0ITZJYb5AjAnen7yT4utcyGW68T4pfB4p4Oadij0nBz_H41TCPm-lJTIUMH0W-hgKwe-fCVhT-Z8diur3KXkxHMVDcDPp8xi46hB2sEwT-1Y5uT4eExAzBUnK4IzuzCerJ0rkC1fUAGtTF9LpJeJygYNWDgCpInXqk"/>
+</div>
+</div>
+<h1 class="font-headline-md text-headline-md-mobile text-primary tracking-tight">私人空间</h1>
+<button class="flex items-center justify-center p-sm rounded-full hover:bg-surface-container-high transition-colors active:scale-95">
+<span class="material-symbols-outlined text-primary" data-icon="cloud_done">cloud_done</span>
+</button>
+</header>
+<main class="pb-32 pt-md">
+<!-- Storage Dashboard -->
+<section class="px-margin-mobile mb-lg">
+<div class="bg-surface-container-lowest rounded-xl p-lg shadow-sm border border-surface-container-high relative overflow-hidden">
+<div class="flex justify-between items-end mb-md">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider">存储空间</p>
+<h2 class="font-headline-md text-headline-md text-on-background">45.2GB <span class="text-on-surface-variant font-normal text-body-md">/ 200GB</span></h2>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-primary font-bold">22.6% 已使用</span>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="w-full h-3 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary-container w-[22.6%] rounded-full shadow-[0_0_8px_rgba(107,142,107,0.4)]"></div>
+</div>
+<p class="mt-md font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+                    端到端加密已开启
+                </p>
+</div>
+</section>
+<!-- Album Entries (Vertical List) -->
+<section class="px-margin-mobile mb-lg">
+<div class="flex flex-col gap-sm">
+<div class="flex items-center justify-between p-md bg-surface-container-low rounded-xl active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 bg-secondary-container text-on-secondary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<div>
+<p class="font-headline-md text-body-lg text-on-surface font-semibold">收藏夹</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">128 个文件</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline" data-icon="chevron_right">chevron_right</span>
+</div>
+<div class="flex items-center justify-between p-md bg-surface-container-low rounded-xl active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 bg-primary-container text-on-primary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="folder_shared" style="font-variation-settings: 'FILL' 1;">folder_shared</span>
+</div>
+<div>
+<p class="font-headline-md text-body-lg text-on-surface font-semibold">家庭共享</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">1,240 个文件</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</section>
+<!-- Media Grid (3 Columns, Loose density) -->
+<section class="px-margin-mobile">
+<div class="grid grid-cols-3 gap-gutter">
+<!-- Media Item 1: Video -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A serene video still of a family gathering around a dinner table, lit by soft candle light. The atmosphere is warm, nostalgic, and intimate. Captured in a high-end, cinematic lifestyle photography style with soft bokeh in the background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDlsH9BKR91qUGuUlz7KTsjtZCGXjWK4SOcsGAsagzXW5O_ho0rw-We65r1tXtK72UhogEBjxT2779y9Fe-u9Q0mFSRgGLCw-6siIaQ53HN-o_Oq76pfYLDCCRrUihEgp76u0iuGg3ERMrdtVRP2Op5bG4U-jfViMa2iNjMXaNID-9XxcXwuH7ycfImRkHLSOgaogl9DPc_cIUSFJC6rYpqsGVivwe0MKSGOazQoIdApAND0YbL7X9Okiw7TLFyyeqbKh_KVehdgI"/>
+<div class="absolute bottom-1 right-1 bg-black/40 backdrop-blur-sm text-white px-xs py-[2px] rounded text-[10px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+                        0:45
+                    </div>
+</div>
+<!-- Media Item 2: Image -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A beautiful close-up of a child's hands holding a vintage paper photograph. The background is a warm wooden texture with soft sunlight streaming in. Minimalist, tactile, and emotional digital art style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGMskiPnbCi2Da2Fd5bg4vPcSlWMikIdw0YEAP6AhPTdRfUc0xbWm_wQudeUusUweK-ze27HQh9hgg91nvzglIVCxXMhqj2VDxav1IaI08jwl1ffqdMO61wYFCv0-FC8vU_YSMP_6t4LFn4S9HWos5tJjgpx-11nf3KGd1nbEu5FNqHx5TrUN75IBm8jeydh1pqgAClZp9bVgCaMptgZW6MS3kNgmUaclY69sngAfVvW2twcjlBpTHmWWvPqxi1mgxxor4MmzPCQ4"/>
+</div>
+<!-- Media Item 3: Image -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A landscape shot of a family walking on a quiet beach during sunrise. Muted earth tones of sage green, cream, and sand. Peaceful and secure mood with a painterly minimalist aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWSLVykgc1kV04jDrQW6QI9sXkXRYHPlsbwkMnfXH0tAwximMAYotwTH7aXVbauLHm-EXjanBx-u0hqmGi3hdgviysS7wWmJ0BJXJPTfHm7k4DoGT9_wtU55Kp7Rtw9dU8lU-Ei0EKIZo8SNKxlhR8__4j_HYm-8y4GkI3YTyU1BvHsODwwP6_YffhND2T0L6zdJmds-Qvl4vfbj5V11sCMn0exRfY7D3DUT086AVB7IPpJemhtttRO1pW1edOtDyGeQym0v16QMI"/>
+</div>
+<!-- Media Item 4: Video -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A slow-motion video frame of family members laughing together in a garden. The lighting is soft and airy, with lush greenery blurred in the background. High-quality family photography aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4wGvjrJyawW6p2bvxmYdpbYeebde9us2XcqjoPMZon4K7QKg6VgKfqqPd7ovDhaYb2uIz-efr9Ys5zmsDGss9QL1g9avvnFjP-j0kNzgNekkp-FKEU-wGHX0bro0DCpBSH2p_nFIS8Kad_Jef6PwhxLO8cCn3xRGcOr6PwTfTPR2WeGcaH4mBycDzEUQGT6E9Qde_6OW_4_ER2t_TdBNOB1HG6TYjxvg0xn25nyUEe2ilWcWUCvbVnzr6TUg1gzW5K1lPVw9wVdA"/>
+<div class="absolute bottom-1 right-1 bg-black/40 backdrop-blur-sm text-white px-xs py-[2px] rounded text-[10px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+                        1:20
+                    </div>
+</div>
+<!-- Media Item 5: Image -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A minimalist overhead shot of an open memory box containing small keepsakes and old letters. The colors are soft cream and muted wood tones. The lighting is diffused and calm." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAXZy8SnnZ9OZyaBnhECWK07QmZhxO4xtP8i2_PrO5KNT_VXHXIBz-EPp6aji9ZKVVhKkTTSqC5otscZGyGrYjSgplooDHZrupOZhXcEfY8Yp_BBNFk6KD0T3udVEk4G221RhgtE14VBGuezAWapYWZWBzkWiWMVIe741KTQGMzlcaCWGcHcyRthPtLlHFBG1Of2Yw1mA0PHbrFYhzlXrFMOsXIpYzhYtQBnU8h0a64cgfksZn7VAGOAMvv7vGxX_sqfhdylDzL3Q"/>
+</div>
+<!-- Media Item 6: Image -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A silhouette of two people watching a sunset together through a large glass window. The room is modern and minimalist with clean lines. Warm, orange and purple sky tones contrasted with soft interior shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBm61bPA-2UyV_m5xHavhQ-cVBJk7t2slh1v7PiAzgAmo4-gwhaVclS87BfpHF3ca58eXmt_ogXB8wO6pEryttY8C9hTJK9uAJL5YHxhmimDIeoivfeeVZfHnt13kOlVhiO8v6RP8JfsB3i2cggmqvjrXVHx2ljh41vy6yh2TDTnhu2NHapS2iAd8TXLrczjHz7fQVJwxMOJZSwgqyRVnrzmH0iMNtnEjF6JKYchVVuPCJY7f94fVhmRTQhFog2tc0add1nGwV6Uvs"/>
+</div>
+<!-- Media Item 7: Image -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A detailed shot of fresh wildflowers in a ceramic vase sitting on a windowsill. The light is soft morning light, creating a peaceful and domestic atmosphere. Sage green and warm white palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqpUWw79pqdZfop7EgjP1eS_LtZ1mdKFIo17Ts5QRYs8mslsmye1wtL4jleT9Zd7dQG8zlko6i9gu5DKtEqQ3eL4ApXhyflKKCR-V90la9vmyxcyQSOEOOWiAmzvW7AtqOqEFGXjevZV-6mi1zkIs61wQMQ4AOSKPmWvCc1PnZFvDnAq6gUB7eA5JaDw6n3_coqxrWEnzA5l9q9R3lJeh2Q7hBCxQ2lPFYwQ-1Z7WnlmVae5YrD8DWlPJfQ4S5B2z23bsCPEBcPSs"/>
+</div>
+<!-- Media Item 8: Video -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A close-up video frame of a birthday cake with a single glowing candle. The background is softly out of focus with warm, happy faces. Intimate and safe atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQxkVsglM7sdWtKDb4xic-Rp4-QpagzV52Muz_6OGIJ3BwvkqccK_SuxwMKQmJosdC6h1VObhtWsr4sAPD1D3grakxwwf08iKB4gzCNKRKY5_O4ydAXoDHBNI--fIURQFZxLOYVALJEAlynuNuX3fArqKg3S8lEugYHKTYROOxcemTSvJVRMk-U4GMdMEeN3FiyDZbbwQpU0MmZ938dyFZb1zPnwrC3Gs69dg7bCDc3qctTevnAC_aLtAYV1StE9SwA0nUynr82Ow"/>
+<div class="absolute bottom-1 right-1 bg-black/40 backdrop-blur-sm text-white px-xs py-[2px] rounded text-[10px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+                        0:15
+                    </div>
+</div>
+<!-- Media Item 9: Image -->
+<div class="aspect-square rounded-xl overflow-hidden relative group active:scale-95 transition-transform bg-surface-container-highest shadow-sm">
+<img class="w-full h-full object-cover" data-alt="An artistic photograph of soft fabric textures and a knitted blanket. Represents comfort, home, and protection. Soft neutral tones and tactile warmth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9Pl7UnVhbu8I3z84ID4VjCtov2PMwsAAC2v98zKBompjKewMY1_jIcbW71Ccy8rksa_nBNDejDReiSMby56Kd8XsBTzbsbGO5wQcm7G8dTt-cxCmYyoifsIAvfJx69tbKi_IUm5oQycJ8-WyT9ydN-UWLyaG_yoe-Sq7R758_TO8k75JmaCz-5PUurU-fRXoNsOHjy17hvA_QAijK05SL7txVKBkOhrVkz3TrlrqxrB_WypZCy4ddUtwtoLYHWmj_MILc2SGb99A"/>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm pb-6 pt-2 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
+<!-- Private Space (Active) -->
+<button class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-3 py-1 transition-all duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="shield_person" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span class="font-label-sm text-label-sm mt-1">私人空间</span>
+</button>
+<!-- Family Album -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-all duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="photo_library">photo_library</span>
+<span class="font-label-sm text-label-sm mt-1">家庭相册</span>
+</button>
+<!-- Backup -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-all duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+<span class="font-label-sm text-label-sm mt-1">备份</span>
+</button>
+<!-- Recycle Bin -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-all duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+<span class="font-label-sm text-label-sm mt-1">回收站</span>
+</button>
+<!-- Profile -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 hover:bg-surface-container-low transition-all duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm mt-1">我的</span>
+</button>
+</nav>
+<!-- FAB (Contextual for Home/Space) -->
+<button class="fixed bottom-24 right-margin-mobile w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform z-40">
+<span class="material-symbols-outlined scale-125" data-icon="add">add</span>
+</button>
+<script>
+        // Micro-interactions
+        document.querySelectorAll('button, .active\\:scale-95').forEach(button => {
+            button.addEventListener('touchstart', () => {
+                button.classList.add('scale-95');
+            });
+            button.addEventListener('touchend', () => {
+                button.classList.remove('scale-95');
+            });
+        });
+
+        // Hide navigation on scroll down, show on scroll up
+        let lastScrollTop = 0;
+        const navbar = document.querySelector('nav');
+        const fab = document.querySelector('button.fixed.bottom-24');
+
+        window.addEventListener("scroll", function() {
+            let st = window.pageYOffset || document.documentElement.scrollTop;
+            if (st > lastScrollTop && st > 100){
+                // Scroll Down
+                navbar.style.transform = "translateY(100%)";
+                navbar.style.transition = "transform 0.3s ease-in-out";
+                fab.style.transform = "scale(0)";
+                fab.style.transition = "transform 0.2s ease-in-out";
+            } else {
+                // Scroll Up
+                navbar.style.transform = "translateY(0)";
+                fab.style.transform = "scale(1)";
+            }
+            lastScrollTop = st <= 0 ? 0 : st; 
+        }, false);
+    </script>
+</body></html>
