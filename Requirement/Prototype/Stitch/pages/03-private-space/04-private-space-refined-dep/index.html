@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MineG 私人空间</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed": "#012108",
+                    "primary": "#436444",
+                    "secondary-container": "#fda27a",
+                    "tertiary-fixed-dim": "#c9c6c2",
+                    "on-surface-variant": "#424841",
+                    "on-background": "#1f1b17",
+                    "surface-container-low": "#fbf2eb",
+                    "on-secondary-fixed-variant": "#743415",
+                    "outline-variant": "#c2c8be",
+                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-high": "#f0e7df",
+                    "primary-container": "#5b7d5b",
+                    "background": "#fff8f4",
+                    "surface-tint": "#456646",
+                    "tertiary-fixed": "#e5e2dd",
+                    "secondary-fixed-dim": "#ffb596",
+                    "secondary-fixed": "#ffdbcd",
+                    "error": "#ba1a1a",
+                    "surface-variant": "#eae1da",
+                    "on-tertiary-container": "#fcffe3",
+                    "outline": "#737970",
+                    "inverse-surface": "#34302b",
+                    "on-secondary-fixed": "#360f00",
+                    "on-error-container": "#93000a",
+                    "primary-fixed-dim": "#abd0a9",
+                    "surface-container-lowest": "#ffffff",
+                    "surface": "#fff8f4",
+                    "error-container": "#ffdad6",
+                    "primary-fixed": "#c6edc4",
+                    "secondary": "#914b2a",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-secondary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "surface-container-highest": "#eae1da",
+                    "surface-bright": "#fff8f4",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "tertiary-container": "#767471",
+                    "tertiary": "#5d5c58",
+                    "inverse-primary": "#abd0a9",
+                    "on-primary-container": "#f7fff2",
+                    "surface-dim": "#e1d8d2",
+                    "inverse-on-surface": "#f8efe8",
+                    "on-surface": "#1f1b17",
+                    "surface-container": "#f5ece5",
+                    "on-primary": "#ffffff",
+                    "on-secondary-container": "#773717"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-tablet": "32px",
+                    "margin-mobile": "20px",
+                    "unit": "4px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "xl": "40px",
+                    "sm": "8px",
+                    "gutter": "12px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Noto Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "body-md": ["Noto Sans"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "display-lg": ["30px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fff8f4;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .tonal-card {
+            background: #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<script defer data-mineg-nav="private" src="../../../assets/mineg-navigation.js"></script>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant/30 px-margin-mobile py-sm flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full overflow-hidden bg-surface-container-high ring-1 ring-outline-variant/50">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCC6O59LQkSQWrT2OsO36fKa8DFvf8f_O_fUCLB9mWWbFmNb16YWSLhGL3lv0Gk4SAQtVeF3XxoxgMSjpbp_M-thVjrQlojBIYooPASeW9XjEdj9tSbj7KbIzQpj6-pQrshn9AImqzvW80y6HXYiF2mRD1ctMXqJXb7NzZ8uF4Jci39W4aF9EnKX4Qb_ZUw5Esvy4OHN8vFxbqFBlxzUOaQ9k7-CcZsfKzHHW1grC7hQFWIhsky7FogAhAGymyS5JMj2Zlzd2_Zgrs"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl">cloud_done</span>
+</div>
+</header>
+<main class="pb-32">
+<!-- Full-width Backup Status Summary -->
+<section class="mb-gutter">
+<div class="bg-surface-container-low px-margin-mobile py-lg border-b border-outline-variant/20">
+<div class="flex items-center justify-between mb-sm">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<h3 class="font-headline-md text-base text-on-surface">备份已完成</h3>
+</div>
+<span class="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">100%</span>
+</div>
+<!-- Progress Bar -->
+<div class="w-full h-1.5 bg-outline-variant/30 rounded-full mb-xs overflow-hidden">
+<div class="h-full bg-primary rounded-full w-full"></div>
+</div>
+<p class="font-label-sm text-on-surface-variant">已守护 1,248 张照片 · 刚刚更新</p>
+</div>
+</section>
+<!-- Media Grid -->
+<section class="px-gutter">
+<div class="grid grid-cols-3 gap-[2px]">
+<!-- Photo -->
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Family gathering" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArwo2X4iddNZtJ2on7lpxk5jA_PuyQXRnNcSjGhqedUuFSm32v3EUz4xtFF_Dn7gpa5dY2Jje8B5g30MkmU_ePMELUwmNEwH4XYaBYX-h65uzefZSQ2q8fTOTmu-Dv23ihKJHtRrjoOTG7xv1OoupABnxpi2Z5F5GbhOn6lzYfFizGo4iO9eZyi-rk0_2mwvUDmOsJnodSQJkd-qHlrlLf80W-5MDJxflD9D7G7yq-GwEb9-bUn-Qi6sB9Yuo2OcbS3KSzLfwuxMA"/>
+</div>
+<!-- Video -->
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Puppy video" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWNCXh0rJ33eQrDBuanQ8s7Wi5IVXxe6YTgEjJzaZg98CKHVXux6GqUFC4ec_rqPidzW8IuJIcAyBbpoGJb5Lj6wsBqyG9-1DCLZu3CmElq-ItR1ZfsuagThxdZ85K-2eflq-rViIM5KaHSvPVha3RBzaJhKlj8xzUxh48OkV6LmFul23HdB1JEOutOp5XMt78bOinQJQiOSbWZBIU3aqkUSS8VMKSBpVNLfkhKyp2PxhS8adWzLZqGJMkFsAN4XdAF2-aSu1ZmoA"/>
+<div class="absolute bottom-1 right-1 px-1 rounded-sm bg-black/60 backdrop-blur-[2px]">
+<span class="text-[9px] text-white font-medium">0:15</span>
+</div>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<span class="material-symbols-outlined text-white/90 text-xl" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<!-- Live Photo -->
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Birthday candle" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4nkCzBOw4n-QlVRQqGDyODq64UqkcIGwl1qNzlu5jhiXesCBZEDB5-JJyqU8ygAob5FJSvWUaX1elToE2Dk4ybwtZhRPcLIKFBj77RBW2i3js3CUiLjoEjiohJ1ci4Ncadgz4U9NYph0PD6GYzRMowqkn5PS4Su1b8JzFCMA8FEL-GVTTnmQBxWwDFYJSP3OsdL0ra2K6ZtWY3cilbFG89PgTpFO8vp-5qfo7mfSmvStMoq7kf-Pj-g2iY8LBVPDaCQCwz5wbICc"/>
+<div class="absolute top-1 right-1 flex items-center gap-0.5 px-1 rounded-sm bg-black/40 backdrop-blur-[2px] border border-white/10">
+<span class="material-symbols-outlined text-[10px] text-white">motion_photos_on</span>
+<span class="text-[9px] text-white font-bold">LIVE</span>
+</div>
+</div>
+<!-- More Items -->
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Landscape" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP-0BN14hGrg-KEWffqDQjPBBYcSzUf8wzAK-5rht2-kay_CLXLUTFalpYZlivQdVxmDwje6UoexmNYSQpb9bbRJQFkpfn9jq9WvlH4k2xuJK7ChWQLGbX7nmzbnGRZokFTi8CkRO3xKplp8Qmtg9FaMjudL96PNjyWbfVYSoe1hpH3a-gXTrVGNbIMwtrzPQ7fqKE7xgcUylkrPFihlI08NSeMoYpmuotBeg3urSPu0TbZ2FT4ZCpd_FnElujY2Tnxj5NUP6Sk-4"/>
+</div>
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Polaroids" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5RXu9DwDuT999ZWExNgneXvWTAsC8l2Gns1HBqD3bEP57CGe4jI7KS4Y3Y-mGcqKFcJE4cD9tAquLIK4hGvcA2cUwdrLCgrQ4znSXcCAX7Wd6wmkFec3i07LXgLZvvglauhJK9w2E5sWUamE7Ydgen0SNw4WQ0wiZpC0qdjtdhWTR0c-tRUJvAo4LwKx_h-3ARYdulaNJJEVlPQ8NqGVt1vrPp_lkGHTNcd2d73fj6tx_k-NSS3oVU7XzWra1AEdlzaRmAp51idA"/>
+</div>
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Reading child" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEhXj5EZdTPyY24tiYumI2VEcjQcLbQV8cwBozTWV8ipp7Gn_ToAmd3vKKDQDtR2O-2f1BjDf5jljuclUKKEg8LNwy58BnlAKy8oPMW42Z3rUfxitIto0Y5bdLasv_-6aWf73giKhoQ1UFOP1rSik23GvUkdVYk9d15RlhLDXOxCpq0HD0nX8YIfuVdkp24L8i9hrMuNTZaXFXsUwfCtOWRjWMEywGFXljMEraBgprNvbNp5GU3yA61WoVE3IBjlPypNtWQv5adIg"/>
+<div class="absolute top-1 right-1 px-1 rounded-sm bg-black/40 backdrop-blur-[2px] border border-white/10">
+<span class="text-[9px] text-white font-bold uppercase">GIF</span>
+</div>
+</div>
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="White flower" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAe94fX7aB-6R6skjnOqFJTcXK5c09v63cKis4nU1wxiurb5SxYouz8dD53-gjCh1jXESC2iOzwL85rujwv_cxvfEdyLy1viue-H5HvUpte58mbupy09WdX2eXGxl8QuB329FlB1b0L0x4evQ-L0l9dh6BwtEkrleN5zWZ38ojEBjoO5fXY5_bQCXKdGMd5Fj3sZ4dB-zJSNEnw6IrkpP_bGmgJELpanJcfE2g6eUYIMLFJzUFnkofEr4INuxYi07b1cPj__e481UY"/>
+</div>
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Bicycle" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZntQAOvhOdScNjcoiVo7crHISC9RvOFqTirzB90bSNdG7QjYH4Lvc-pYu5JKNnFNvF4S6PBGn0dVoH-mxwIC4TFgoqAtkTWM2t5hmpXt_M_CPinFG3HBRANnRA-OJafr39dM2Ss7aJNdphrypms5KlR2XyGWbbXEAfxPUZlba7coneiT1apCg4EfkCdJdEvObRoRj-ro5RQWqbuumukQNLDYz3nC2KdwO25Jf0x44kc0UJ-GUIe1q_1DGLSw_bFhgAnqw-QMQayA"/>
+</div>
+<div class="aspect-square relative overflow-hidden bg-surface-container">
+<img alt="Baking hands" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyOcl0nf_2kHXh7AyrC_TmoKhHF74t_oP5tksf7TSQpYGGCR9WDRNtDWtrmph8d7-3URUXL8xzVHe_RersHGWgSpZixgDEuIF2hSN2mkQYV79q8ZUCDsulGWb66b-F8DyCHfhY1UodNKq-VxkzysoTiOuplf829lPFGkPH4vwI_o3Qm1LhNxcwrgi24Sui0vOQvAphkFPFsCq7J4iSv78-IAtupvJnQ-Pyb5xOY-qNgP6Jx3nofPox48jWF5I9pyvdjis56QvLnd4"/>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm pb-8 pt-3 bg-surface/90 backdrop-blur-md border-t border-outline-variant/30">
+<!-- Private Space (Active) -->
+<button class="flex flex-col items-center justify-center gap-0.5 text-primary active:scale-90 transition-all duration-150">
+<div class="bg-primary/10 rounded-full px-4 py-1 flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+</div>
+<span class="font-label-sm text-[11px] font-semibold">私人空间</span>
+</button>
+<!-- Family Album -->
+<button class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant hover:text-primary active:scale-90 transition-all duration-150">
+<span class="material-symbols-outlined">photo_library</span>
+<span class="font-label-sm text-[11px]">家庭相册</span>
+</button>
+<!-- Backup -->
+<button class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant hover:text-primary active:scale-90 transition-all duration-150">
+<span class="material-symbols-outlined">cloud_upload</span>
+<span class="font-label-sm text-[11px]">备份</span>
+</button>
+<!-- Trash -->
+<button class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant hover:text-primary active:scale-90 transition-all duration-150">
+<span class="material-symbols-outlined">delete</span>
+<span class="font-label-sm text-[11px]">回收站</span>
+</button>
+<!-- Profile -->
+<button class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant hover:text-primary active:scale-90 transition-all duration-150">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-[11px]">我的</span>
+</button>
+</nav>
+<script>
+    // Simple micro-interactions
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('touchstart', () => btn.classList.add('opacity-70'));
+        btn.addEventListener('touchend', () => btn.classList.remove('opacity-70'));
+    });
+</script>
+</body></html>

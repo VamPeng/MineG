@@ -127,22 +127,16 @@
   </head>
 <body class="bg-background text-on-background min-h-screen flex flex-col overflow-x-hidden">
 <!-- TopAppBar -->
-<header class="fixed top-0 left-0 w-full z-50 bg-surface dark:bg-surface-dim shadow-sm flex justify-between items-center px-margin-mobile h-16">
-<div class="flex items-center gap-sm">
-<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="shield">shield</span>
-<h1 class="headline-anchor font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">MineG</h1>
-</div>
-<div class="flex items-center gap-md">
-<span class="material-symbols-outlined text-on-surface-variant cursor-pointer active:scale-95 transition-transform" data-icon="settings">settings</span>
-</div>
+<header class="fixed top-0 left-0 w-full z-50 bg-surface dark:bg-surface-dim shadow-sm grid grid-cols-[40px_1fr_40px] items-center px-margin-mobile h-16">
+<a aria-label="返回个人中心" class="w-10 h-10 rounded-full flex items-center justify-center text-primary dark:text-primary-fixed hover:bg-surface-variant/30 active:scale-95 transition-all" href="../../08-profile/01-profile-overview/index.html">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</a>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface text-center">回收站</h1>
+<div aria-hidden="true" class="w-10"></div>
 </header>
 <!-- Main Content Canvas -->
-<main class="flex-grow flex flex-col items-center justify-center px-margin-mobile pt-16 pb-32">
+<main class="flex-grow flex flex-col items-center justify-center px-margin-mobile pt-20 pb-xl">
 <div class="w-full max-w-md flex flex-col items-center text-center">
-<!-- Dynamic Headline Section -->
-<div class="w-full text-left mb-xl">
-<h2 class="font-display-lg-mobile text-display-lg-mobile md:text-display-lg text-on-surface">回收站</h2>
-</div>
 <!-- Empty State Illustration & Content -->
 <div class="relative w-64 h-64 mb-lg group">
 <!-- Tonal Layering Background Circle -->
@@ -164,41 +158,8 @@
 <p class="font-body-md text-body-md text-outline px-lg max-w-xs leading-relaxed">
                 你删除的照片和视频会出现在这里，可随时恢复。
             </p>
-<!-- CTA for Context -->
-<button class="mt-xl px-xl py-md bg-primary text-on-primary rounded-xl font-body-md shadow-sm active:scale-95 transition-all duration-150 flex items-center gap-sm">
-<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
-<span>查看详情</span>
-</button>
 </div>
 </main>
-<!-- BottomNavBar -->
-<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 bg-surface-container/80 backdrop-blur-md shadow-[0_-4px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
-<!-- Space -->
-<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
-<span class="material-symbols-outlined" data-icon="home">home</span>
-<span class="font-label-sm text-label-sm">Space</span>
-</a>
-<!-- Album -->
-<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
-<span class="material-symbols-outlined" data-icon="photo_album">photo_album</span>
-<span class="font-label-sm text-label-sm">Album</span>
-</a>
-<!-- Backup -->
-<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
-<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
-<span class="font-label-sm text-label-sm">Backup</span>
-</a>
-<!-- Bin (ACTIVE) -->
-<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
-<span class="material-symbols-outlined" data-icon="delete" style="font-variation-settings: 'FILL' 1;">delete</span>
-<span class="font-label-sm text-label-sm">Bin</span>
-</a>
-<!-- Profile -->
-<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
-<span class="material-symbols-outlined" data-icon="person">person</span>
-<span class="font-label-sm text-label-sm">Profile</span>
-</a>
-</nav>
 <!-- Subtle atmospheric micro-interaction -->
 <script>
         document.addEventListener('DOMContentLoaded', () => {

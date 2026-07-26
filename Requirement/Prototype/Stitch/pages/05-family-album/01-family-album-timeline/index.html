@@ -125,34 +125,51 @@
         .avatar-shadow {
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+        .filter-option {
+            color: #424841;
+            transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+        }
+        .filter-option:active {
+            transform: scale(0.97);
+        }
+        .filter-option[aria-pressed="true"] {
+            background: #ffffff;
+            color: #436444;
+            box-shadow: 0 1px 4px rgba(31, 27, 23, 0.12);
+        }
     </style>
 <style>
     body {
       min-height: max(884px, 100dvh);
     }
   </style>
+  <script defer data-mineg-nav="family" src="../../../assets/mineg-navigation.js"></script>
   </head>
 <body class="font-body-md text-body-md-mobile flex flex-col min-h-screen pb-20">
-<!-- TopAppBar -->
-<header class="bg-surface dark:bg-on-background w-full top-0 sticky z-40">
-<div class="flex items-center justify-between px-margin-mobile h-16 w-full">
-<div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim" data-icon="lock">lock</span>
-</div>
-<h1 class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim">家庭相册</h1>
-<div class="w-6"></div> <!-- Spacer for centering -->
-</div>
-</header>
 <!-- Content Canvas -->
 <main class="flex-1 px-1 pt-2">
+<!-- Share Filter -->
+<section class="sticky top-0 z-30 bg-surface/90 px-3 py-2 backdrop-blur-md" aria-label="分享来源筛选">
+<div class="flex w-full rounded-full bg-surface-container-high p-1" role="group" aria-label="筛选家庭相册">
+<button class="filter-option flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 font-label-sm text-label-sm font-semibold" type="button" data-filter-value="all" aria-pressed="true">
+<span class="material-symbols-outlined text-[18px]" aria-hidden="true">photo_library</span>
+<span>全部</span>
+</button>
+<button class="filter-option flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 font-label-sm text-label-sm font-semibold" type="button" data-filter-value="mine" aria-pressed="false">
+<span class="material-symbols-outlined text-[18px]" aria-hidden="true">ios_share</span>
+<span>我分享的</span>
+</button>
+</div>
+<p class="sr-only" id="filter-summary" aria-live="polite">正在展示全部家庭相册内容</p>
+</section>
 <!-- Date Header -->
-<div class="px-4 py-3">
+<div class="px-4 py-3" data-date-group="today">
 <span class="font-headline-md text-primary opacity-60">今天</span>
 </div>
 <!-- 3-Column Media Grid -->
-<div class="grid grid-cols-3 gap-[2px]">
+<div class="grid grid-cols-3 gap-[2px]" data-date-group="today" data-media-grid>
 <!-- Item 1: Video -->
-<div class="media-grid-item relative group active:scale-95 transition-transform duration-200">
+<div class="media-grid-item relative group active:scale-95 transition-transform duration-200" data-shared-by-me="true">
 <div class="w-full h-full bg-surface-container" data-alt="A warm, sun-drenched domestic scene of a young child playing with building blocks on a soft cream rug. The lighting is natural and cinematic, captured with a shallow depth of field. Soft Sage Green accents in the nursery background maintain the MineG design aesthetic. High resolution, family-oriented photography style." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDR-EcrzaFQrRCriALPEbmWVYHqxZNPTytPu2XFD921A1LmxsiUZZ77edtP7SyJBxObmPAbgnVbBDhAe1NBSkaawLxdaKvEfXqHeN4wV9Gmb79Pt011AYLBlSQzUZ9IRxf7Zckl_xhHVR5XLraPbxnQc5oPRRrHWLPieXbgCxqYKLOBUq_MN2PVIliRu1jlF-_U3lOShNA5wq8ZDs-rcUkDWKYf2zML4CTa1hvsXwbVHV7dQfbjavu2ikCuwQrh9aiZTY0Eh1jDvn4')"></div>
 <div class="absolute bottom-1 right-1 glass-tag flex items-center gap-1">
 <span class="material-symbols-outlined text-[12px]" data-icon="play_arrow">play_arrow</span>
@@ -164,7 +181,7 @@
 </div>
 </div>
 <!-- Item 2: Live Photo -->
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="false">
 <div class="w-full h-full bg-surface-container" data-alt="A detailed macro shot of a delicious, home-baked strawberry cake on a rustic wooden table. The scene is bathed in golden hour sunlight, highlighting the texture of the cream and fresh fruit. A soft, warm atmosphere that evokes a sense of family celebration and nostalgia. Minimalist composition." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuApuwukcDsmTVKu6yZ5soxXgI3GvBB4vsM4i4r2H9en9wu6uEoPAnxs6yaxpuvwnaWYDUSbXGmWKNsmkiVp0RXPwzdTjmZvBMB0-_-oTRnX-yEiTrrcGu1qtPzMaeYR7H00j38g8qHaTXws7rUmeJYR8qxQXge-kJk3xJnNEfnQBD75F8Lyz92UcN4Nv6RGBGJBzuagLWfyS472P2c611ifn3IyYz1_hiBZY6wixyTpCCFOBxNzPZkbfWkgh3ixVpTIKqb3TaYmtQ8')"></div>
 <div class="absolute top-1 left-1 glass-tag">
 <span>LIVE</span>
@@ -175,7 +192,7 @@
 </div>
 </div>
 <!-- Item 3: Photo -->
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="true">
 <div class="w-full h-full bg-surface-container" data-alt="An expansive view of a lush green park where a family is having a picnic under a large oak tree. The colors are vibrant yet natural, dominated by Sage Green and earthy tones. The light is soft and even, creating a calm and inviting visual narrative of shared family memories. Modern minimalist photography." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAnIWv1v8u8MDyQ1FBQbLNv0JxLydzN0crMI4BRPSbNo6FkDnprPcNlqsOBKfWfNt-1G4v7m7pf4IbYvRMDn9OVBycLWhwC6XLClEbThLnH9Vs87Ne6NX-apLnxh_4_uEQYCVLIX3iwhF9nDa9Cd8PBnQWcTooMXee9eQ7IDlnYVNiVyHbhTOA5law-5FatCAHbn2VhVR32JOz7XbnMoXqGic4ZaIgCAD83rFRKNVznxOLOprtc5Pr1TGqTJvjudrRQJG43K04o6y8')"></div>
 <div class="absolute bottom-1 left-1 flex items-center gap-1.5 p-1 rounded-full bg-surface/40 backdrop-blur-sm">
 <img class="w-5 h-5 rounded-full object-cover avatar-shadow border border-white" data-alt="Close up portrait of a middle aged man with a warm, kind smile, wearing a casual linen shirt. High-key lighting against a soft-focus garden background. The aesthetic is organic and family-focused." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDuMBxX2ODt53eVg05kIsd1X4mhiULAee3D_dsSvi4Xvv_vx0JyW7BZSZgAAAJNKBeNdHz-2Z-rnYQ73TY_TuSVy0wmw2ncEUTteWInwry1KrHXg8weYhKB2mYmsd5eGFtUXRFbrCmvS6IrKeyDBIk8VWxQAbb6Y_m2JBOnyBFxJtONoV5-bQ2209BuJ07w2ZuOsQ7fGOho7NSBAWf1cRBkwHdSE8jb4d-5Sn3GhXJeiiWw6mZZpLWoDIodDBAJt1bmCTX0f6vGto4"/>
@@ -183,7 +200,7 @@
 </div>
 </div>
 <!-- Item 4: GIF -->
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="false">
 <div class="w-full h-full bg-surface-container" data-alt="A playful shot of a golden retriever puppy jumping in a pile of autumn leaves. The image is full of movement and joy, with warm oranges and browns contrasting against a soft cream background. The lighting is bright and cheerful, reinforcing the sense of security and happiness in a family home." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCNiouyvtyYZc-hHMNsCiyar5q7hhKlsgWCDz6hkdn6mKp95-kzr0DR5FDU2CCTx-ZMZqe2ckfjx7VCrsbqy6h4e_o43R5ZXoH0pDYyXSXPFV4Vyz-jvxFm-tqrC_MWU3T3tN4BdfEENWLKyABh4SjeAUZjKdJoiBxb-3UQgl3FdqyRMGnAB30-sc4g_QP8amdXWiKokQxPL0lRwI_qWB_P0EI5CfOW3_s7n0N6G79n8lBZmrmO4DMs6XtkbDe0VhULn3AT6jBHxqU')"></div>
 <div class="absolute top-1 left-1 glass-tag">
 <span>GIF</span>
@@ -194,7 +211,7 @@
 </div>
 </div>
 <!-- Item 5: Photo -->
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="false">
 <div class="w-full h-full bg-surface-container" data-alt="A clean, minimalist interior shot of a sunlit living room with a focus on a shelf containing framed family photos and a small potted plant. The palette is dominated by warm whites and Sage Green. The atmosphere is quiet, serene, and deeply private, perfectly aligning with the digital hearth concept." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDO_U-w-n1-ysw9v53wMEq73gRT3-EhwLE6ec7xP6pvdBxGOnb14MzX-xxLr5lAmJ_KaVKON3EC0PbGLqI1v03y1VtUSTMrSuzyj1nh7bbrsR3Pb5oW3tqz8yCYki1AzC1Bf1bxw7hOleBHkxg-qMmZmAr7qtoZBVIBDZEVBs9c_ugVB6k39E7WDHO9Wnt95NVE8TXF9pH1LHpXluiz1ewCxgjsSSAQe6QL-cd5In2FTH4jrOgxcB1FuTiSfpzVAdmRBzrI9y0-72Y')"></div>
 <div class="absolute bottom-1 left-1 flex items-center gap-1.5 p-1 rounded-full bg-surface/40 backdrop-blur-sm">
 <img class="w-5 h-5 rounded-full object-cover avatar-shadow border border-white" data-alt="Portrait of a woman with gentle features and a welcoming expression, wearing a soft green sweater that matches the primary brand color. The background is a clean, bright interior with minimalist decor. Soft, diffused lighting for a peaceful, safe feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKfQIU17Jo_7pugsGqUmX0ZaYXH5ScP8rjaLitguM6p3CT_zV5I68Uke-T1HRJ7O1hgGIf9BxUB1ov4oc4G1wrvTaDJVlgcSx7U6OVOXVjf3sKRoR8BEgkXzA-bpyXl6QZhSTtdZkXJsOQNZsVMwLvQGTYBOxcgEEEgai-ogMth_k2h_CBQ4BcKWUvB-8qh9nypyDjp1K_nq3t1PtYXAFSea4eSfmW2piVC6eYoBI1tNYOyBjoR7NVhJwnBkNRTgGM4ILoYdV5SWA"/>
@@ -202,7 +219,7 @@
 </div>
 </div>
 <!-- Item 6: Video -->
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="true">
 <div class="w-full h-full bg-surface-container" data-alt="A nostalgic video frame showing grand parents laughing together on a porch at dusk. The lighting is warm and low-key, with a soft glow from interior lights. The composition is intimate and respectful, emphasizing the multi-generational nature of family archives. High-quality cinematic aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBm3XFKtdwcaxpI2yrdMY6E-RJI1LPfq3JGrAKmdb69GIIdSuqAULuqjoLh0j1qWTFJcpE6zXxToJBltbfeDTH5Dn7NZNIonxwMMvRsE5s5JfBULv-N8Nzgwfan-OMixmqJerNN82NOsTcOCDoGYG4WsuEs_XxGFJDCv5c8eiOM8POsZr0NZJcDEzpLyCA2wYbzrd3PUm6ZwCVyk96w-crMPEUy7rUicd30xSaa_p8cLqf-ZoDBo458SCBYG2gvZUarOSQotwLULVg')"></div>
 <div class="absolute bottom-1 right-1 glass-tag flex items-center gap-1">
 <span class="material-symbols-outlined text-[12px]" data-icon="play_arrow">play_arrow</span>
@@ -215,26 +232,26 @@
 </div>
 </div>
 <!-- Yesterday Header -->
-<div class="px-4 py-3 mt-4">
+<div class="px-4 py-3 mt-4" data-date-group="yesterday">
 <span class="font-headline-md text-primary opacity-60">昨天</span>
 </div>
-<div class="grid grid-cols-3 gap-[2px]">
+<div class="grid grid-cols-3 gap-[2px]" data-date-group="yesterday" data-media-grid>
 <!-- Repeat some patterns for yesterday -->
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="false">
 <div class="w-full h-full bg-surface-container" data-alt="A minimalist landscape of a calm lake at sunrise, reflecting soft pink and orange clouds. The scene is peaceful and contemplative, evoking a sense of safety and timeless memory. The style is clean and high-end, utilizing the brand's warm cream and soft sage palette." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTAR4n8M_PYM_L2ta9m31fQz9_eN7QQnJhHbNx3I2qZRo1xMvlA1LwgBZwaSSDtYTdZAoJ1bIhvAcLUzL9kLE6_tzOkb4G4KwLVg0shfU0OCDYHlCFrCDL1PeCorFyqJAB8UxKQr2BLf2xl8kGyO-N0SiFSe1hG-cM74c3wtxuypdIfODu88xvMD4WkgGJksmb81g8oq-PfavCLt630Ih5O_BZnn4I8Dk3eOTvbwLyxVSlz2yp-ttrm5RVRE9_nuWuutlH2-jvfMU')"></div>
 <div class="absolute bottom-1 left-1 flex items-center gap-1.5 p-1 rounded-full bg-surface/40 backdrop-blur-sm">
 <img class="w-5 h-5 rounded-full object-cover avatar-shadow border border-white" data-alt="Portrait of a woman with gentle features and a welcoming expression, wearing a soft green sweater that matches the primary brand color. The background is a clean, bright interior with minimalist decor. Soft, diffused lighting for a peaceful, safe feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCen6AJH0cqx3EMg9MxJFfimkIxXlZUpf0L1pKmNouJ_B-rMFo50oM4-4Gebha4Fz56nmd1YQEK6lnnOKvfsmpFtV7Tg6Jmjuk3RLV2YvsSsaTQQNAuX_OXTTDoPFPoTa-q78P6tJN8M1A_6JndCGD7EbeHQz_qQyKOBhUJIJXN0OEoEJTI2PPB528lmSTijzzaBAMJVWVQ5114rUQ9mQeG6Z233o0na-pW5xvh6dVdwJQ_QuXf0lwIa4aC8c2ny-11jOgYjoRJxd8"/>
 <span class="text-[9px] text-on-surface font-medium pr-1">妈妈</span>
 </div>
 </div>
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="true">
 <div class="w-full h-full bg-surface-container" data-alt="A close up shot of tiny baby shoes sitting on a textured wool blanket. The lighting is extremely soft and high-key, creating a very light and airy mood. The image focuses on the tactile warmth and emotional significance of small family milestones." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDQgl9SHQMi5WUwTnzqQAA69W1cAjzo0ysYy3Wc61cComS2SxswmeF3Q0pZ3oWjVutK0-m-34ATcA4ofYbYUydUKZeRP_NAGuTFSLqAmXKhUflwRoEJP9rruB09aiN4psJzD3YJd8tbghGosB5Wz8O3GUO5LccN34SEvnQYktx9jCC0GlXPyHLXdMyaD0My6PPhKxnaGJy71NqiSODN2vbOhbM-LPH01GD-ByQ8oflAAyktnK-ssBGSBwCfdyfUScfPEK_5Gzbn2Gs')"></div>
 <div class="absolute bottom-1 left-1 flex items-center gap-1.5 p-1 rounded-full bg-surface/40 backdrop-blur-sm">
 <img class="w-5 h-5 rounded-full object-cover avatar-shadow border border-white" data-alt="Close up portrait of a middle aged man with a warm, kind smile, wearing a casual linen shirt. High-key lighting against a soft-focus garden background. The aesthetic is organic and family-focused." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1hSliJl3KQm5TfQkiBFz1AntxZrE1baSz-sSz3_wO8fCJ1OFtS35BRTLfG-tWze2YWHKqShHLIrVEgnacDLSGD_CzeiOHGwTfetnB-fGY71zjZDk0zXrH2cExp9WhsUXCKldav4PURiTRj8Z9eL0NiZcN4cPn_h_3f5r5LV6pKpDPQmqb_M43xNSDoSBL_K8SYLWFEDUjgAE-zJCGcPW24-7R9qsSYBo9Y6k56YVQBeHUIiPD7X64ax_bCflTPU_tSbA5NkxygWU"/>
 <span class="text-[9px] text-on-surface font-medium pr-1">晨曦爸爸</span>
 </div>
 </div>
-<div class="media-grid-item relative active:scale-95 transition-transform">
+<div class="media-grid-item relative active:scale-95 transition-transform" data-shared-by-me="false">
 <div class="w-full h-full bg-surface-container" data-alt="A candid photo of two siblings sharing a book on a window seat. The window looks out onto a leafy green tree. The composition is natural and unstaged, capturing a quiet moment of domestic harmony. Warm color grading and soft contrasts." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB_mFh-x-LQfW2pBNYLFDhawarYvEFQXOBzW8fR0Jss5H4iwJorYeYbKlr9zQKIFxTRwCT0x54HumOb47I1lzmjTnlQ7N54IR4P5ZcSl1UjswH0fqL34KeFWTbHS3ot6tHetuhQ62PSwye2dotRGIOHkMfOnhft2rBY4-DX9xE8VoIlBiV1witj9FtyFx8hepUJqsEsslqPLinvZmcnYeWYVVrzjqsq7G9y7L8bVswK027hUanygLrCDABU4ieBtbtzXe4MVU3uyrI')"></div>
 <div class="absolute top-1 left-1 glass-tag">
 <span>LIVE</span>
@@ -262,10 +279,6 @@
 <span class="font-label-sm text-label-sm">备份</span>
 </div>
 <div class="flex flex-col items-center justify-center text-outline dark:text-outline-variant hover:opacity-80 transition-opacity">
-<span class="material-symbols-outlined text-[24px]" data-icon="delete">delete</span>
-<span class="font-label-sm text-label-sm">回收站</span>
-</div>
-<div class="flex flex-col items-center justify-center text-outline dark:text-outline-variant hover:opacity-80 transition-opacity">
 <span class="material-symbols-outlined text-[24px]" data-icon="person">person</span>
 <span class="font-label-sm text-label-sm">我的</span>
 </div>
@@ -273,7 +286,40 @@
 </nav>
 <!-- Micro-interaction Script -->
 <script>
-        document.querySelectorAll('.media-grid-item').forEach(item => {
+        const mediaItems = [...document.querySelectorAll('.media-grid-item')];
+        const filterButtons = [...document.querySelectorAll('[data-filter-value]')];
+        const filterSummary = document.querySelector('#filter-summary');
+
+        function applyShareFilter(filter) {
+            mediaItems.forEach(item => {
+                const shouldShow = filter === 'all' || item.dataset.sharedByMe === 'true';
+                item.hidden = !shouldShow;
+            });
+
+            document.querySelectorAll('[data-media-grid]').forEach(grid => {
+                const hasVisibleItems = [...grid.querySelectorAll('.media-grid-item')]
+                    .some(item => !item.hidden);
+                const dateGroup = grid.dataset.dateGroup;
+                document.querySelectorAll(`[data-date-group="${dateGroup}"]`).forEach(element => {
+                    element.hidden = !hasVisibleItems;
+                });
+            });
+
+            filterButtons.forEach(button => {
+                button.setAttribute('aria-pressed', String(button.dataset.filterValue === filter));
+            });
+
+            const visibleCount = mediaItems.filter(item => !item.hidden).length;
+            filterSummary.textContent = filter === 'mine'
+                ? `正在展示我分享的 ${visibleCount} 项内容`
+                : `正在展示全部 ${visibleCount} 项家庭相册内容`;
+        }
+
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => applyShareFilter(button.dataset.filterValue));
+        });
+
+        mediaItems.forEach(item => {
             item.addEventListener('touchstart', function() {
                 this.classList.add('scale-95');
             });

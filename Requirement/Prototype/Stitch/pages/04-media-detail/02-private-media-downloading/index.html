@@ -138,20 +138,13 @@
 <span class="material-symbols-outlined">arrow_back</span>
 </button>
 <h1 class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim">Memory</h1>
-<button class="text-primary dark:text-primary-fixed-dim hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors p-unit rounded-full active:scale-95 transition-transform duration-200">
-<span class="material-symbols-outlined">lock</span>
-</button>
+<div class="w-10 h-10" aria-hidden="true"></div>
 </header>
 <!-- Main Content Canvas -->
 <main class="flex-grow relative overflow-hidden flex flex-col items-center justify-center p-md">
 <!-- Media Preview Container -->
 <div class="relative w-full max-w-lg aspect-[3/4] bg-surface-container-low rounded-xl shadow-lg overflow-hidden transition-all duration-500">
 <img class="w-full h-full object-cover" data-alt="A cinematic, high-resolution family photograph showing a young child running through a sun-drenched golden wheat field during late afternoon. The lighting is warm and ethereal, with soft lens flares and a shallow depth of field focusing on the child's joyful expression. The overall aesthetic is nostalgic and warm, following the digital hearth design system with muted Sage Green and cream tones subtly integrated into the natural environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdKPzmXstAs4LVuCMjHxbW63PHZQ5QRq2becNTiPta62kg76d6D9J6hjkoRBvpTXq_CtESaEIAe-eDf_XqvwO1-f930_6nOxtDSCH24RpMTuk03nUDJnGGMMGY_hx7SwIIUJjHt-eNrJut8oiFm8-_ulBGgoq4sitfvIO_4lGCXlL8qxjvX6deTTrXjxlybljIKSwksSdYW6Umfa_JGdXFEXjSu8NjNLRzTpAYEyKnEVpoZtLB_kpccrBczpUrWq-qXg3uLCBBC7I"/>
-<!-- Privacy Indicator -->
-<div class="absolute top-md left-md bg-surface/40 backdrop-blur-sm px-sm py-xs rounded-full flex items-center gap-xs">
-<span class="material-symbols-outlined text-[14px] text-on-surface">lock</span>
-<span class="font-label-sm text-label-sm text-on-surface">Private Cloud</span>
-</div>
 <!-- Download Progress Overlay -->
 <div class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-40 transition-opacity duration-300" id="download-overlay">
 <div class="relative flex items-center justify-center">
@@ -166,41 +159,43 @@
 </div>
 <p class="mt-lg text-white font-body-md text-body-md tracking-wide">正在下载原文件...</p>
 </div>
-<!-- Detail Metadata (Floating) -->
-<div class="absolute bottom-0 left-0 right-0 p-lg bg-gradient-to-t from-black/60 to-transparent">
-<p class="text-white font-label-sm text-label-sm opacity-80">2023年10月12日</p>
-<div class="flex items-center justify-between mt-xs">
-<p class="text-white font-headline-md text-headline-md-mobile">金色童年.jpg</p>
-<div class="flex items-center gap-xs">
-<span class="text-white font-label-sm text-label-sm">由 Sarah 上传</span>
-<div class="w-8 h-8 rounded-full border border-white/20 overflow-hidden">
-<img class="w-full h-full object-cover" data-alt="A soft, minimalist profile avatar of a smiling woman with glasses, rendered in a warm, artistic photographic style with cream and sage green background accents, perfectly matching the secure family private cloud brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTrIMIQKlgHBxNBuTImeyL3fcvbFVDktxI6pe5H53z98_jA75qftfGPWs3eNGGkLCUuuCz0PXFaDL5G7RvIOq4nOiMdmb8lght9eCPqJHfyjCGwirbVWgxHkANUTv7PNRZOcq8UJUlXAG3kONM9GBlL9TTnFE8G9VslKSULbg3xGziFFrNVUDdgcUt0YsH5EKaSif6KAWZRrP6LmXqkWIGwTbQI1RvGKeoWrKoWHLWAP_Tv8i1Fd--1OVcRD6teD0XzdaLIWRT4eU"/>
-</div>
-</div>
-</div>
-</div>
 </div>
 </main>
-<!-- BottomNavBar (Disabled/Dimmed State) -->
-<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl opacity-50 pointer-events-none transition-opacity duration-300">
-<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
-<span class="material-symbols-outlined mb-xs">download</span>
-<span class="font-label-sm text-label-sm">Download</span>
-</div>
-<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
-<span class="material-symbols-outlined mb-xs">share</span>
-<span class="font-label-sm text-label-sm">Share</span>
-</div>
-<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
-<span class="material-symbols-outlined mb-xs">delete</span>
-<span class="font-label-sm text-label-sm">Delete</span>
-</div>
-<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md">
-<span class="material-symbols-outlined mb-xs">more_horiz</span>
-<span class="font-label-sm text-label-sm">More</span>
-</div>
+<!-- Collapsible Media Actions -->
+<button aria-controls="media-actions" aria-expanded="false" aria-label="展开操作" class="fixed bottom-lg left-1/2 -translate-x-1/2 z-[60] w-12 h-12 rounded-full bg-surface dark:bg-surface-dim text-primary shadow-lg flex items-center justify-center active:scale-90 transition-all duration-300" id="action-toggle" onclick="toggleMediaActions()">
+<span class="material-symbols-outlined text-[28px]" id="action-toggle-icon">keyboard_arrow_up</span>
+</button>
+<nav aria-hidden="true" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl translate-y-full opacity-0 pointer-events-none transition-all duration-300" id="media-actions">
+<button aria-label="下载" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">download</span>
+</button>
+<button aria-label="共享" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">share</span>
+</button>
+<button aria-label="删除" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">delete</span>
+</button>
 </nav>
 <script>
+        function toggleMediaActions() {
+            const actions = document.getElementById('media-actions');
+            const toggle = document.getElementById('action-toggle');
+            const icon = document.getElementById('action-toggle-icon');
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+
+            toggle.setAttribute('aria-expanded', String(!isExpanded));
+            toggle.setAttribute('aria-label', isExpanded ? '展开操作' : '收起操作');
+            toggle.classList.toggle('bottom-lg', isExpanded);
+            toggle.classList.toggle('bottom-24', !isExpanded);
+            actions.setAttribute('aria-hidden', String(isExpanded));
+            actions.classList.toggle('translate-y-full', isExpanded);
+            actions.classList.toggle('translate-y-0', !isExpanded);
+            actions.classList.toggle('opacity-0', isExpanded);
+            actions.classList.toggle('opacity-100', !isExpanded);
+            actions.classList.toggle('pointer-events-none', isExpanded);
+            icon.textContent = isExpanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const circle = document.getElementById('progress-circle');
             const progressText = document.getElementById('progress-text');

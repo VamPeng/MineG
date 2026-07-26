@@ -134,68 +134,40 @@
 <body class="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-hidden">
 <!-- Top App Bar -->
 <header class="bg-surface/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-margin-mobile py-sm">
-<div class="flex items-center gap-md">
 <button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
 <span class="material-symbols-outlined text-primary">arrow_back</span>
 </button>
 <h1 class="font-headline-md text-headline-md-mobile text-primary">Memory</h1>
-</div>
-<div class="flex items-center gap-sm">
-<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
-<span class="material-symbols-outlined text-primary">lock</span>
-</button>
-</div>
+<div class="w-10 h-10" aria-hidden="true"></div>
 </header>
 <!-- Main Content Canvas -->
-<main class="flex-1 relative flex flex-col overflow-y-auto pb-32">
+<main class="flex-1 relative flex flex-col overflow-y-auto pb-16">
 <!-- Media Detail Content -->
 <div class="px-margin-mobile pt-md">
-<!-- Metadata Row -->
-<div class="flex justify-between items-center mb-md">
-<div class="flex flex-col">
-<span class="font-label-sm text-label-sm text-on-surface-variant">2024年5月12日</span>
-<h2 class="font-headline-md text-headline-md-mobile text-on-surface">家庭野餐日</h2>
-</div>
-<div class="flex items-center gap-xs">
-<div class="w-8 h-8 rounded-full border-2 border-surface-container-highest overflow-hidden">
-<img class="w-full h-full object-cover" data-alt="A soft-focus portrait of a smiling grandmother in a sunlit garden, styled with warm cream and sage green tones to match the family memory cloud aesthetic. The lighting is golden and natural, emphasizing a nostalgic, secure family atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNFp5GRGVMyDw7hrqUTQI8sjbsteQ1tJK-daut9wau8EBfHYQObEU10FLATCCsOxSoLdkHAdlbzxNjf5pDeXGSCJbRrQ2ocDYWtBR9BMOagqiDnvO5Fs7bsNuZy6ucPW-sA1iI45bLPhmlTUBnTDl-W1r6fAO5ksuqrETnblTXVsljWqkf2CO-ritQHGH2AXlfZhFAv67cfKJEN-ebOIrZsSMbNUyYhA0nCQYFF73WCTPv55eAtXriFXpKiGDI-7MhWqRgcNg8TfI"/>
-</div>
-</div>
-</div>
 <!-- Immersive Image View -->
-<div class="relative group rounded-xl overflow-hidden shadow-md bg-surface-container aspect-[4/5] mb-lg">
+<div class="relative group rounded-xl overflow-hidden shadow-md bg-surface-container aspect-[4/5]">
 <img class="w-full h-full object-cover" data-alt="A beautiful, high-quality photograph of a multi-generational family having a picnic on a lush green lawn under a large oak tree. The scene is filled with warm, soft sunlight, capturing authentic moments of joy. The overall color palette is dominated by sage greens, warm creams, and earthy browns, creating a sense of privacy and peace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrqfEOUBLb469MsUVmBUNs9lmC8apr7wStMZE7JFaWjuFf6TBEkFxa5Z5Ql9g1t4cAtizH75vmIePKGXbb6Rs9-5Am_VAsxSaIrQ22DLxZaYirzu2UQXmZXfTB-geTUdPEpkFmOd1CGRzrwTvbXexBxDzPHGC4c0L40X88k9cVPcml3GR96REsLDoU-raYh1Y3yBj4Yn2RDVRpZSOakmyJvftgx75rWBh-mGEhCNmWHG2UYKdiCauvUlCXRDhuTuTu7tJpR5u-BGA"/>
 <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
 </div>
-<!-- Description/Captions -->
-<div class="bg-surface-container-low p-md rounded-xl mb-xl border border-surface-container-high">
-<p class="font-body-md text-on-surface-variant leading-relaxed">
-                    这是我们在南山公园野餐的照片。那天阳光很好，爷爷教孩子们如何制作风筝，大家都很开心。
-                </p>
-</div>
 </div>
 </main>
-<!-- Bottom Nav Bar (Simulated Active State for Detail) -->
-<nav class="fixed bottom-0 left-0 w-full z-30 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
-<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150">
-<span class="material-symbols-outlined">download</span>
-<span class="font-label-sm text-label-sm">Download</span>
+<!-- Collapsible Media Actions -->
+<button aria-controls="media-actions" aria-expanded="false" aria-label="展开操作" class="fixed bottom-lg left-1/2 -translate-x-1/2 z-[60] w-12 h-12 rounded-full bg-surface text-primary shadow-lg flex items-center justify-center active:scale-90 transition-all duration-300" id="action-toggle" onclick="toggleMediaActions()">
+<span class="material-symbols-outlined text-[28px]" id="action-toggle-icon">keyboard_arrow_up</span>
 </button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150">
-<span class="material-symbols-outlined">share</span>
-<span class="font-label-sm text-label-sm">Share</span>
+<nav aria-hidden="true" class="fixed bottom-0 left-0 w-full z-30 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl translate-y-full opacity-0 pointer-events-none transition-all duration-300" id="media-actions">
+<button aria-label="下载" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">download</span>
 </button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150" onclick="openDeleteModal()">
-<span class="material-symbols-outlined">delete</span>
-<span class="font-label-sm text-label-sm">Delete</span>
+<button aria-label="共享" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">share</span>
 </button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150">
-<span class="material-symbols-outlined">more_horiz</span>
-<span class="font-label-sm text-label-sm">More</span>
+<button aria-label="删除" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all" onclick="openDeleteModal()">
+<span class="material-symbols-outlined text-[24px]">delete</span>
 </button>
 </nav>
 <!-- Confirmation Modal Overlay -->
-<div class="fixed inset-0 z-50 flex items-center justify-center px-margin-mobile pointer-events-none opacity-0 transition-opacity duration-300" id="deleteModal">
+<div class="fixed inset-0 z-[70] flex items-center justify-center px-margin-mobile pointer-events-none opacity-0 transition-opacity duration-300" id="deleteModal">
 <!-- Background Dim -->
 <div class="absolute inset-0 bg-black/40 modal-overlay pointer-events-auto" onclick="closeDeleteModal()"></div>
 <!-- Modal Dialog -->
@@ -210,7 +182,7 @@
 </div>
 <!-- Description -->
 <p class="font-body-md text-on-surface-variant mb-xl">
-                    移入后媒体将在私人空间和家庭相册中隐藏。你可以在30天内从回收站恢复。
+                    移入后媒体将在私人空间和家庭相册中隐藏。你可以在人工永久清理前从回收站恢复。
                 </p>
 <!-- Actions -->
 <div class="flex flex-col gap-sm">
@@ -225,6 +197,25 @@
 </div>
 </div>
 <script>
+        function toggleMediaActions() {
+            const actions = document.getElementById('media-actions');
+            const toggle = document.getElementById('action-toggle');
+            const icon = document.getElementById('action-toggle-icon');
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+
+            toggle.setAttribute('aria-expanded', String(!isExpanded));
+            toggle.setAttribute('aria-label', isExpanded ? '展开操作' : '收起操作');
+            toggle.classList.toggle('bottom-lg', isExpanded);
+            toggle.classList.toggle('bottom-24', !isExpanded);
+            actions.setAttribute('aria-hidden', String(isExpanded));
+            actions.classList.toggle('translate-y-full', isExpanded);
+            actions.classList.toggle('translate-y-0', !isExpanded);
+            actions.classList.toggle('opacity-0', isExpanded);
+            actions.classList.toggle('opacity-100', !isExpanded);
+            actions.classList.toggle('pointer-events-none', isExpanded);
+            icon.textContent = isExpanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+        }
+
         function openDeleteModal() {
             const modal = document.getElementById('deleteModal');
             const dialog = modal.querySelector('div.relative');

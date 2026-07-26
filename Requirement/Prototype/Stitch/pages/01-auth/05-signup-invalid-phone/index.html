@@ -129,73 +129,58 @@
 <main class="flex-grow flex items-center justify-center px-margin-mobile py-xl">
 <div class="w-full max-w-md bg-surface-container-lowest p-lg rounded-xl form-shadow border border-surface-variant/30">
 <div class="mb-xl text-center">
-<h2 class="font-headline-md text-headline-md-mobile text-on-surface mb-sm">创建您的数字壁炉</h2>
-<p class="text-on-surface-variant font-body-md">为家人守护每一份珍贵记忆</p>
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">创建新账号</h2>
 </div>
-<form class="space-y-lg">
-<!-- Username Field -->
-<div class="space-y-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-1">用户名</label>
-<div class="relative">
-<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">person</span>
-<input class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" placeholder="设置您的昵称" type="text"/>
-</div>
-</div>
+<form class="space-y-md">
 <!-- Phone Field (Error State) -->
 <div class="space-y-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-1">手机号</label>
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="phone">手机号</label>
 <div class="relative">
 <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-error">smartphone</span>
-<input class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-2 border-error focus:ring-0 text-on-surface placeholder:text-outline-variant transition-all" placeholder="请输入手机号" type="tel" value="123456"/>
+<input aria-describedby="phone-error" aria-invalid="true" class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-2 border-error focus:ring-0 text-on-surface placeholder:text-outline-variant transition-all" id="phone" placeholder="请输入手机号码" type="tel" value="123456"/>
 </div>
 <!-- Error Message -->
-<div class="flex items-center gap-1 mt-1 ml-1 text-error">
+<div class="flex items-center gap-1 mt-1 ml-1 text-error" id="phone-error">
 <span class="material-symbols-outlined text-[16px]">error</span>
 <span class="font-label-sm text-label-sm">手机号格式不正确</span>
 </div>
 </div>
 <!-- Password Field -->
 <div class="space-y-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-1">设置密码</label>
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="password">设置密码</label>
 <div class="relative">
 <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">lock</span>
-<input class="w-full pl-12 pr-12 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" placeholder="请输入密码" type="password"/>
+<input class="w-full pl-12 pr-12 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" id="password" placeholder="建议8位以上数字或字母" type="password"/>
 <button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors" type="button">
 <span class="material-symbols-outlined">visibility</span>
 </button>
 </div>
 </div>
+<!-- Confirm Password Field -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="confirm-password">确认密码</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">verified_user</span>
+<input class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" id="confirm-password" placeholder="请再次输入密码" type="password"/>
+</div>
+</div>
+<!-- Admin Review Notice -->
+<div class="mt-lg p-md bg-secondary-container/10 rounded-lg flex items-start gap-sm">
+<span class="material-symbols-outlined text-secondary mt-0.5 scale-75">info</span>
+<p class="text-on-secondary-fixed-variant text-sm font-label-sm leading-relaxed">
+                    注册后需要家庭管理员审核。审核通过后，您将获得访问家庭私有云空间的权限。
+                </p>
+</div>
 <!-- Register Button -->
-<button class="w-full bg-primary-container text-on-primary-container font-headline-md text-headline-md-mobile py-md rounded-lg active:scale-[0.98] transition-transform duration-150 shadow-sm mt-md" type="submit">
-                    开启私密云空间
+<button class="w-full mt-lg bg-primary text-on-primary font-headline-md py-4 rounded-lg shadow-md active:scale-[0.98] transition-transform duration-200" type="button">
+                    提交注册
                 </button>
-<div class="pt-lg flex items-center justify-center gap-md">
-<div class="h-[1px] flex-grow bg-outline-variant/30"></div>
-<span class="font-label-sm text-label-sm text-outline">或者</span>
-<div class="h-[1px] flex-grow bg-outline-variant/30"></div>
-</div>
-<div class="flex justify-center gap-xl mt-lg">
-<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-surface-variant/40 transition-colors" type="button">
-<img class="w-6 h-6" data-alt="A minimalist green and white WeChat logo icon, professionally designed for a modern UI, high-key lighting, centered in a circular frame." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-Bbg0gdm9_ZiBvXioPZqN2sAq_iWw-nOdSZE9vGzf-BLtawqZSSZuz7TMoLULxkx3YzUKgAa8crkoQrwNTNBowVF03ZJmVvxTPbMBdkDs74rMJOpaFVJHu2u-d4eWYpXliLFXfsiUf0XWwZM7VeIIPl5J74xPGqoB-6x1fgids5h9WPfhETud1m5IZITIL7-6IG8rjqqiCXer67JC7bCC2bjOkKFbf_ZQkUZAKeO-8OkuIwHz3TCz9zFJuenJhiAMemnodnyfiO0"/>
-</button>
-<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-surface-variant/40 transition-colors" type="button">
-<img class="w-6 h-6" data-alt="A stylized minimalist golden-orange cloud icon representing a generic secure cloud storage provider, clean lines, high-contrast digital illustration." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtknvcDv_zahuFGrlkWTUXdihQUV2-ImhpNNZACoF0Ejr1v6OQMmH5c7rvUg5WktT9xrND8YjKpzY9kSN_Eq15TvqYjxZCFMOoYxbYE3TVTOgrt0lN7sHRPuAY9FkQLRRgmPBiNaEHugFXtu__Zxht3YREEcNVwdyaqwQKBPA6nmRxKPkGParw_T0pAFLGcABtiSFB5KDEENo7b1AVBXupMZGGcgrtSd0wTFAYSFd0GV9aalnw143MIFgbDCmyXkgxvWiJ6cU0lWs"/>
-</button>
-</div>
 </form>
 <p class="text-center mt-xl font-body-md text-on-surface-variant">
-                已有账号？ <a class="text-primary font-semibold hover:underline" href="#">立即登录</a>
+                已有账号？ <a class="text-primary font-semibold hover:underline" href="#">直接登录</a>
 </p>
 </div>
 </main>
-<!-- Bottom Decorative Content / Branding -->
-<footer class="px-margin-mobile py-lg text-center opacity-60">
-<div class="flex items-center justify-center gap-sm mb-xs">
-<span class="material-symbols-outlined text-[18px]">verified_user</span>
-<span class="font-label-sm text-label-sm">端到端加密技术守护家庭隐私</span>
-</div>
-<p class="font-label-sm text-label-sm">© 2024 MineG Digital Hearth. All rights reserved.</p>
-</footer>
 <!-- Background Atmospheric Effect -->
 <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
 <div class="absolute top-[-10%] right-[-10%] w-96 h-96 rounded-full bg-primary-fixed/20 blur-[100px]"></div>

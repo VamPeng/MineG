@@ -134,9 +134,7 @@
 <span class="material-symbols-outlined">arrow_back</span>
 </button>
 <h1 class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim">Memory</h1>
-<button class="text-primary dark:text-primary-fixed-dim hover:bg-surface-container-high transition-colors p-sm rounded-full active:scale-95 transition-transform duration-200">
-<span class="material-symbols-outlined">lock</span>
-</button>
+<div class="w-10 h-10" aria-hidden="true"></div>
 </header>
 <!-- Main Content Canvas -->
 <main class="flex-1 flex flex-col relative">
@@ -145,42 +143,6 @@
 <!-- Hero Image Card -->
 <div class="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-md bg-surface-container-low group">
 <img class="w-full h-full object-cover" data-alt="A warm, nostalgic high-quality photograph of a family gathering during a sun-drenched afternoon. The scene features soft golden hour lighting filtering through tall trees onto a rustic wooden table filled with home-cooked meals. The overall aesthetic is minimalist yet tactile, using a palette of warm creams and sage greens to evoke a sense of private security and cherished memories. The composition is clean with low visual density, focusing on the intimate connection between family members." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdI5d_Iz7DlT9mu0qtQV3hUr3HwF1HsGiWbO7EuDO2T-ZuZSug7Cfu7HQddkENjSrA5k1OmK5sgXQcL2rglIiXV_XPNjqqSD5GZ9sSUk83ECbqjcY6xM0n5Cg8Ck-RCtJbMG9h7OKg6kLsRE3JYLXGmOEzq-veF76gDxC2mRqlYZ6eDv06OO1ybTX-Ke5_ohgrrVD6cDy9JUS8WAA6GMaacsK6cJgzHQi7zlF-NW3dxhkeZfBjhmy6KmYSJx-3Rwyh2AL1EOSmmCM"/>
-<!-- Date Badge (Digital Hearth Identity) -->
-<div class="absolute top-md left-md bg-white/90 backdrop-blur-sm px-md py-xs rounded-full flex items-center gap-xs shadow-sm">
-<span class="text-label-sm font-label-sm text-on-surface-variant">2023年10月12日</span>
-</div>
-<!-- Shared by Avatar -->
-<div class="absolute bottom-md right-md flex items-center gap-sm bg-white/90 backdrop-blur-sm pr-md pl-sm py-sm rounded-full shadow-sm">
-<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container text-[12px] font-bold">M</div>
-<span class="text-label-sm font-label-sm text-on-surface">妈妈分享</span>
-</div>
-</div>
-<!-- Metadata & Details -->
-<div class="space-y-md">
-<div class="flex justify-between items-start">
-<div>
-<h2 class="font-headline-md text-headline-md-mobile text-on-surface">林间午餐时光</h2>
-<p class="text-body-md text-on-surface-variant mt-xs">在爷爷奶奶家的老橡树下，大家聊得很开心。</p>
-</div>
-<div class="bg-surface-container-highest p-sm rounded-lg">
-<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">cloud_done</span>
-</div>
-</div>
-<!-- Location Tag -->
-<div class="flex items-center gap-sm text-on-surface-variant">
-<span class="material-symbols-outlined text-[18px]">location_on</span>
-<span class="text-label-sm font-label-sm">浙江省，杭州市</span>
-</div>
-<!-- Divider -->
-<div class="h-[1px] bg-[#EAE7E2] w-full"></div>
-<!-- Privacy & Safety Reassurance -->
-<div class="bg-surface-container-low p-md rounded-xl flex items-center gap-md">
-<span class="material-symbols-outlined text-primary">security</span>
-<div class="flex-1">
-<p class="text-label-sm font-bold text-on-surface">私密加密存储</p>
-<p class="text-[11px] text-on-surface-variant leading-tight">仅家庭成员可见，您的数据受端到端加密保护。</p>
-</div>
-</div>
 </div>
 </div>
 <!-- Failure Toast Notification (Floating Actionable) -->
@@ -207,27 +169,41 @@
 </div>
 </div>
 </main>
-<!-- Bottom Navigation (Source: Shared Components) -->
-<!-- Note: Destination maps to "Download" logically as we are in a detail view with a save/download failure -->
-<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
-<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl py-unit px-md active:scale-90 duration-150 ease-in-out">
-<span class="material-symbols-outlined">download</span>
-<span class="font-label-sm text-label-sm">Download</span>
+<!-- Collapsible Media Actions -->
+<button aria-controls="media-actions" aria-expanded="false" aria-label="展开操作" class="fixed bottom-lg left-1/2 -translate-x-1/2 z-[60] w-12 h-12 rounded-full bg-surface dark:bg-surface-dim text-primary shadow-lg flex items-center justify-center active:scale-90 transition-all duration-300" id="action-toggle" onclick="toggleMediaActions()">
+<span class="material-symbols-outlined text-[28px]" id="action-toggle-icon">keyboard_arrow_up</span>
 </button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out">
-<span class="material-symbols-outlined">share</span>
-<span class="font-label-sm text-label-sm">Share</span>
+<nav aria-hidden="true" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl translate-y-full opacity-0 pointer-events-none transition-all duration-300" id="media-actions">
+<button aria-label="下载" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">download</span>
 </button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out">
-<span class="material-symbols-outlined">delete</span>
-<span class="font-label-sm text-label-sm">Delete</span>
+<button aria-label="共享" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">share</span>
 </button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-unit px-md hover:bg-surface-container-highest transition-all active:scale-90 duration-150 ease-in-out">
-<span class="material-symbols-outlined">more_horiz</span>
-<span class="font-label-sm text-label-sm">More</span>
+<button aria-label="删除" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
+<span class="material-symbols-outlined text-[24px]">delete</span>
 </button>
 </nav>
 <script>
+        function toggleMediaActions() {
+            const actions = document.getElementById('media-actions');
+            const toggle = document.getElementById('action-toggle');
+            const icon = document.getElementById('action-toggle-icon');
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+
+            toggle.setAttribute('aria-expanded', String(!isExpanded));
+            toggle.setAttribute('aria-label', isExpanded ? '展开操作' : '收起操作');
+            toggle.classList.toggle('bottom-lg', isExpanded);
+            toggle.classList.toggle('bottom-24', !isExpanded);
+            actions.setAttribute('aria-hidden', String(isExpanded));
+            actions.classList.toggle('translate-y-full', isExpanded);
+            actions.classList.toggle('translate-y-0', !isExpanded);
+            actions.classList.toggle('opacity-0', isExpanded);
+            actions.classList.toggle('opacity-100', !isExpanded);
+            actions.classList.toggle('pointer-events-none', isExpanded);
+            icon.textContent = isExpanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+        }
+
         function closeToast() {
             const toast = document.getElementById('errorToast');
             toast.style.transition = 'all 0.3s ease-in';

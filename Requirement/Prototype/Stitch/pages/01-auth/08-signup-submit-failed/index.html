@@ -156,62 +156,50 @@
 <!-- Main Content: Registration Flow -->
 <main class="flex-1 w-full max-w-[480px] px-margin-mobile flex flex-col justify-center py-xl">
 <div class="text-center mb-xl">
-<div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-md">
-<span class="material-symbols-outlined text-[32px] text-primary" style="font-variation-settings: 'FILL' 1;">family_restroom</span>
-</div>
-<h2 class="font-headline-md text-headline-md-mobile text-on-surface mb-xs">加入 MineG 数字温室</h2>
-<p class="font-body-md text-on-surface-variant px-lg text-balance">创建一个安全、私密的数字空间，为您和家人珍藏最美好的记忆。</p>
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">创建新账号</h2>
 </div>
 <!-- Registration Form Card -->
 <div class="glass-card rounded-xl p-lg border border-white shadow-sm space-y-lg">
 <div class="space-y-sm">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs">家属称呼</label>
-<div class="relative">
-<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline" data-icon="person">person</span>
-<input class="w-full pl-xl pr-md py-md bg-surface-container-low border-transparent focus:border-primary focus:ring-0 rounded-lg font-body-md transition-all outline-none" placeholder="例如：孩子他爸 / 隔壁老王" type="text" value="晨曦爸爸"/>
-</div>
-</div>
-<div class="space-y-sm">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs">手机号码</label>
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs" for="phone">手机号</label>
 <div class="relative">
 <span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline" data-icon="smartphone">smartphone</span>
-<input class="w-full pl-xl pr-md py-md bg-surface-container-low border-transparent focus:border-primary focus:ring-0 rounded-lg font-body-md transition-all outline-none" placeholder="请输入11位手机号" type="tel" value="13800138000"/>
+<input class="w-full pl-xl pr-md py-md bg-surface-container-low border-transparent focus:border-primary focus:ring-0 rounded-lg font-body-md transition-all outline-none" id="phone" placeholder="请输入手机号码" type="tel" value="13800138000"/>
 </div>
 </div>
 <div class="space-y-sm">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs">验证码</label>
-<div class="flex gap-sm">
-<div class="relative flex-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs" for="password">设置密码</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline" data-icon="lock">lock</span>
+<input class="w-full pl-xl pr-md py-md bg-surface-container-low border-transparent focus:border-primary focus:ring-0 rounded-lg font-body-md transition-all outline-none" id="password" placeholder="建议8位以上数字或字母" type="password" value="Password123"/>
+</div>
+</div>
+<div class="space-y-sm">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs" for="confirm-password">确认密码</label>
+<div class="relative">
 <span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline" data-icon="verified_user">verified_user</span>
-<input class="w-full pl-xl pr-md py-md bg-surface-container-low border-transparent focus:border-primary focus:ring-0 rounded-lg font-body-md transition-all outline-none" placeholder="6位验证码" type="text"/>
+<input class="w-full pl-xl pr-md py-md bg-surface-container-low border-transparent focus:border-primary focus:ring-0 rounded-lg font-body-md transition-all outline-none" id="confirm-password" placeholder="请再次输入密码" type="password" value="Password123"/>
 </div>
-<button class="px-md bg-primary/10 text-primary font-label-sm text-label-sm rounded-lg hover:bg-primary/20 transition-colors whitespace-nowrap active:scale-95 duration-150">获取验证码</button>
 </div>
+<!-- Admin Review Notice -->
+<div class="mt-lg p-md bg-secondary-container/10 rounded-lg flex items-start gap-sm">
+<span class="material-symbols-outlined text-secondary mt-0.5 scale-75" data-icon="info">info</span>
+<p class="text-on-secondary-fixed-variant text-sm font-label-sm leading-relaxed">
+                    注册后需要家庭管理员审核。审核通过后，您将获得访问家庭私有云空间的权限。
+                </p>
 </div>
 <div class="pt-md">
 <button class="w-full bg-primary text-on-primary py-md rounded-lg font-headline-md text-headline-md-mobile shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-sm">
-<span>开启记忆之旅</span>
+<span>提交注册</span>
 <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
 </button>
-<p class="font-label-sm text-label-sm text-center text-outline mt-md">
-                    注册即表示您同意 <a class="text-primary underline" href="#">服务协议</a> 与 <a class="text-primary underline" href="#">隐私政策</a>
+</div>
+</div>
+<!-- Bottom Navigation Link -->
+<div class="mt-xl text-center">
+<p class="text-on-surface-variant font-body-md">
+                已有账号？ <a class="text-primary font-semibold hover:underline" href="#">直接登录</a>
 </p>
-</div>
-</div>
-<!-- Footer Visual -->
-<div class="mt-xl flex flex-col items-center">
-<div class="flex -space-x-2 mb-sm">
-<div class="w-8 h-8 rounded-full border-2 border-surface overflow-hidden">
-<img class="w-full h-full object-cover" data-alt="A warm, soft-focus profile photo of a smiling elderly grandmother in a minimalist sunlit kitchen, wearing a soft green sweater, capturing a feeling of family warmth and nostalgia in a clean modern aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwbtGfTNTgAOa9WYx7SUj4gqXS2yBxQfapFN12YJKcP4ocmsXWsmmP3tDvR7-cz5ZT1awvUXnFG10UE_bXVv-kNGwDCRsm1KCVAeJQCqTbZuK7IP_uAaYA7UJHD3oL1gExXGVtS0faAW2gWKnMHhtJA4PEPYFIQkmfSlDWP3SujGnFuYFU8vJ0M97KT4S-YqHhOnyTjzsuqbe0dgDYvroJ5a-16UgoU0jCo8GR1rKAW06WeVpXdY2078szGgSvNrJqRoL-_RGC7Lw"/>
-</div>
-<div class="w-8 h-8 rounded-full border-2 border-surface overflow-hidden">
-<img class="w-full h-full object-cover" data-alt="A profile portrait of a young father laughing with his toddler, outdoors in a soft meadow at sunset. The lighting is golden and warm, the style is minimalist and clean, reflecting a private family moment with high-quality digital photography feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6Z-iINHybxm77ZRGnAlqF0MYfl7nrfZnffEaVe-25YiknX-lhjN7SiCVOHuDHVZy7px48bGmgVXuKKBg5PgHH86AN-JiqzWfXvJdGXnpYHAZKm_rgEOkCQS65_dbwm-kgw1LIt_Stgy3QAQLM-kInUa-yqEMFZYgWk1RZK0uegmvqT2QFl0wSkamonuB2qkPNUcmHXE81AYasyU060KPiqH4knh-tNF_MiwEQwEc2V_M22a1ulrZ6lAlT_9sKZ3F_lzu8CDUGVbQ"/>
-</div>
-<div class="w-8 h-8 rounded-full border-2 border-surface bg-primary-fixed-dim flex items-center justify-center">
-<span class="material-symbols-outlined text-on-primary-fixed-variant text-[14px]">add</span>
-</div>
-</div>
-<p class="font-label-sm text-label-sm text-on-surface-variant">已有 1,248 个家庭选择了 MineG</p>
 </div>
 </main>
 <!-- Visual Polish: Decorative Elements -->

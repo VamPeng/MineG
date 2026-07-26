@@ -119,56 +119,10 @@
       min-height: max(884px, 100dvh);
     }
   </style>
+  <script defer data-mineg-nav="private" src="../../../assets/mineg-navigation.js"></script>
   </head>
 <body class="font-body-md text-on-surface">
-<!-- TopAppBar -->
-<header class="w-full top-0 sticky z-40 bg-surface dark:bg-surface-dim shadow-sm flex items-center justify-between px-margin-mobile py-sm w-full">
-<div class="flex items-center gap-3">
-<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high ring-2 ring-primary/10">
-<img class="w-full h-full object-cover" data-alt="A professional, warm studio portrait of a middle-aged woman with a kind smile, set against a soft cream background. The lighting is high-key and gentle, creating a sense of approachability and family warmth. The overall aesthetic is minimalist and clean, matching a modern private cloud service interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCC6O59LQkSQWrT2OsO36fKa8DFvf8f_O_fUCLB9mWWbFmNb16YWSLhGL3lv0Gk4SAQtVeF3XxoxgMSjpbp_M-thVjrQlojBIYooPASeW9XjEdj9tSbj7KbIzQpj6-pQrshn9AImqzvW80y6HXYiF2mRD1ctMXqJXb7NzZ8uF4Jci39W4aF9EnKX4Qb_ZUw5Esvy4OHN8vFxbqFBlxzUOaQ9k7-CcZsfKzHHW1grC7hQFWIhsky7FogAhAGymyS5JMj2Zlzd2_Zgrs"/>
-</div>
-<h1 class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim tracking-tight">私人空间</h1>
-</div>
-<div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim text-2xl">cloud_done</span>
-</div>
-</header>
 <main class="pb-32 px-margin-mobile pt-md">
-<!-- Backup Status Summary -->
-<section class="mb-lg">
-<div class="tonal-card rounded-xl p-md flex items-center gap-md border-l-4 border-primary">
-<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-</div>
-<div>
-<h3 class="font-headline-md text-headline-md-mobile text-on-surface">备份已完成</h3>
-<p class="font-label-sm text-on-surface-variant">已守护 1,248 张照片</p>
-</div>
-</div>
-</section>
-<!-- Album Entries (Shortcuts) -->
-<section class="mb-lg">
-<div class="flex items-center justify-between gap-gutter">
-<div class="flex-1 tonal-card rounded-xl p-sm flex flex-col items-center justify-center gap-xs active:scale-95 transition-transform">
-<div class="w-12 h-12 bg-surface-container-high rounded-full flex items-center justify-center text-primary">
-<span class="material-symbols-outlined">groups</span>
-</div>
-<span class="font-label-sm text-on-surface">人物</span>
-</div>
-<div class="flex-1 tonal-card rounded-xl p-sm flex flex-col items-center justify-center gap-xs active:scale-95 transition-transform">
-<div class="w-12 h-12 bg-surface-container-high rounded-full flex items-center justify-center text-primary">
-<span class="material-symbols-outlined">location_on</span>
-</div>
-<span class="font-label-sm text-on-surface">地点</span>
-</div>
-<div class="flex-1 tonal-card rounded-xl p-sm flex flex-col items-center justify-center gap-xs active:scale-95 transition-transform">
-<div class="w-12 h-12 bg-surface-container-high rounded-full flex items-center justify-center text-primary">
-<span class="material-symbols-outlined">history</span>
-</div>
-<span class="font-label-sm text-on-surface">最近添加</span>
-</div>
-</div>
-</section>
 <!-- Media Grid -->
 <section>
 <div class="grid grid-cols-3 gap-xs">
@@ -234,11 +188,6 @@
 <button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-3 py-1 hover:bg-surface-container-low active:scale-90 transition-all duration-150">
 <span class="material-symbols-outlined">cloud_upload</span>
 <span class="font-label-sm text-label-sm">备份</span>
-</button>
-<!-- Trash -->
-<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-3 py-1 hover:bg-surface-container-low active:scale-90 transition-all duration-150">
-<span class="material-symbols-outlined">delete</span>
-<span class="font-label-sm text-label-sm">回收站</span>
 </button>
 <!-- Profile -->
 <button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-3 py-1 hover:bg-surface-container-low active:scale-90 transition-all duration-150">

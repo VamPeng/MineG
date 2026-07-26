@@ -15,36 +15,36 @@ colors:
   inverse-on-surface: '#f8efe8'
   outline: '#737970'
   outline-variant: '#c2c8be'
-  surface-tint: '#456646'
-  primary: '#436444'
-  on-primary: '#ffffff'
-  primary-container: '#5b7d5b'
-  on-primary-container: '#f7fff2'
-  inverse-primary: '#abd0a9'
-  secondary: '#914b2a'
+  surface-tint: '#fd5033'
+  primary: '#fd5033'
+  on-primary: '#1f1b17'
+  primary-container: '#ffe3de'
+  on-primary-container: '#6b1a10'
+  inverse-primary: '#ffb59b'
+  secondary: '#436444'
   on-secondary: '#ffffff'
-  secondary-container: '#fda27a'
-  on-secondary-container: '#773717'
-  tertiary: '#5d5c58'
+  secondary-container: '#dcebd9'
+  on-secondary-container: '#19331b'
+  tertiary: '#8a4f00'
   on-tertiary: '#ffffff'
-  tertiary-container: '#767471'
-  on-tertiary-container: '#fcffe3'
+  tertiary-container: '#ffe0b2'
+  on-tertiary-container: '#3a2500'
   error: '#ba1a1a'
   on-error: '#ffffff'
   error-container: '#ffdad6'
   on-error-container: '#93000a'
-  primary-fixed: '#c6edc4'
-  primary-fixed-dim: '#abd0a9'
-  on-primary-fixed: '#012108'
-  on-primary-fixed-variant: '#2e4e30'
-  secondary-fixed: '#ffdbcd'
-  secondary-fixed-dim: '#ffb596'
-  on-secondary-fixed: '#360f00'
-  on-secondary-fixed-variant: '#743415'
-  tertiary-fixed: '#e5e2dd'
-  tertiary-fixed-dim: '#c9c6c2'
-  on-tertiary-fixed: '#1c1c19'
-  on-tertiary-fixed-variant: '#474743'
+  primary-fixed: '#ffe3de'
+  primary-fixed-dim: '#ffb59b'
+  on-primary-fixed: '#3b0b02'
+  on-primary-fixed-variant: '#8b2618'
+  secondary-fixed: '#dcebd9'
+  secondary-fixed-dim: '#abd0a9'
+  on-secondary-fixed: '#0c240d'
+  on-secondary-fixed-variant: '#2e4e30'
+  tertiary-fixed: '#ffe0b2'
+  tertiary-fixed-dim: '#f5bd72'
+  on-tertiary-fixed: '#2a1800'
+  on-tertiary-fixed-variant: '#663c00'
   background: '#fff8f4'
   on-background: '#1f1b17'
   surface-variant: '#eae1da'
@@ -105,9 +105,9 @@ The design system is centered on the concept of a "digital hearth"—a secure, w
 The target audience includes multi-generational family members, requiring an interface that feels intuitive and reliable. The emotional response is one of safety and nostalgia. Visual density is kept low to reduce cognitive load for non-technical users, ensuring that the photos themselves remain the focal point. All interactions should feel deliberate and calm, reinforcing the "private cloud" promise.
 
 ## Colors
-The palette is inspired by natural materials and domestic comfort. 
-- **Primary (Sage Green):** Used for primary actions and "Secure/Synced" states. It evokes growth and tranquility.
-- **Secondary (Muted Sunset):** An accent for highlights or special memories (e.g., "On this day").
+The authoritative color tokens and usage rules are defined in [THEME.md](./THEME.md). The palette is derived directly from the MineG logo and supported by warm neutral surfaces.
+- **Primary (Logo Gradient):** `#FD7106 → #FD5033 → #FD374B`, used for branding, primary interaction and selected navigation states.
+- **Secondary (Sage Green):** `#436444`, reserved for secure, synced and successful states rather than general branding.
 - **Neutral Background (Cream & Warm Grey):** A soft `#F5F2ED` base replaces harsh whites to reduce eye strain and provide a "paper-like" feel. 
 - **Text (Charcoal Brown):** `#4A4540` provides high legibility for Simplified Chinese characters while feeling softer than pure black.
 - **Status Colors:** Clearly defined for technical states like "Backing up" or "Offline," using slightly desaturated tones to maintain the calm atmosphere.
@@ -131,8 +131,9 @@ The layout follows a **Fluid Grid** model with generous margins to signify priva
 Depth is expressed through **Tonal Layering** rather than heavy shadows. 
 - **Base Layer:** The warm cream (`#F5F2ED`) background.
 - **Surface Layer:** White (`#FFFFFF`) cards or containers with a very soft, diffused ambient shadow (Opacity 5%, Blur 12px, Y+2) to suggest a subtle "lift" from the page.
-- **Active State:** Elements may use a slight inner shadow or a color shift to Sage Green to indicate they are pressed.
+- **Active State:** Brand interactions use the logo gradient or its tonal container; success and synced states use Sage Green.
 - **Navigation:** The bottom navigation bar uses a subtle backdrop blur (Glassmorphism) to keep the user oriented with the content scrolling beneath it.
+- **Bottom Navigation State:** The four primary destinations are icon-only: lock for Private Space, home for Family Album, stacked photos for Backup, and person for Profile. The current destination keeps the icon's original logo-derived gradient and places it on the same gradient at 18% opacity. The translucent gradient applies only to the button background. Inactive icons are desaturated and no text labels are shown.
 
 ## Shapes
 This design system uses a **Rounded** shape language to evoke friendliness and safety.
@@ -141,9 +142,9 @@ This design system uses a **Rounded** shape language to evoke friendliness and s
 - **Search Bars:** Fully pill-shaped (rounded-xl) to differentiate functional inputs from content containers.
 
 ## Components
-- **Buttons:** Primary buttons are filled with Sage Green (`#6B8E6B`) with white text. Secondary buttons use a tonal border. Avoid sharp corners; use `rounded-md`.
+- **Buttons:** Brand primary buttons use the logo gradient with dark text. When white text is required, use the accessible solid action color `#D63B26`. Secondary buttons use a tonal border. Avoid sharp corners; use `rounded-md`.
 - **Cards (Memories):** Cards should have no visible border, using subtle elevation to separate them. Include a "Date" label in the top left and a "Shared by" avatar in the bottom right.
 - **Privacy Indicators:** A persistent but unobtrusive icon (e.g., a small shield or lock) should appear near the album title to reassure users of the private nature of the cloud.
 - **Lists:** Use high-contrast dividers (`#EAE7E2`) and include 16px of vertical padding for list items to ensure easy tapping.
-- **Input Fields:** Soft grey backgrounds with a clear focus state using the primary Sage Green. Error states should use Muted Red text but avoid aggressive red background fills.
+- **Input Fields:** Soft grey backgrounds use `#D63B26` for a clear focus outline. Error states use the dedicated error color `#BA1A1A`; the brand warm red must not be reused as an error signal.
 - **Empty States:** Use hand-drawn style iconography or soft illustrations to maintain the "family" feel when no photos are present.

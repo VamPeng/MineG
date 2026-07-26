@@ -2,9 +2,9 @@
 
 <html class="light" lang="zh-CN"><head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="width=360, height=800, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -79,12 +79,12 @@
                     "gutter": "12px"
             },
             "fontFamily": {
-                    "label-sm": ["Noto Sans SC"],
+                    "label-sm": ["Noto Sans"],
                     "display-lg-mobile": ["Plus Jakarta Sans"],
                     "display-lg": ["Plus Jakarta Sans"],
                     "headline-md": ["Plus Jakarta Sans"],
-                    "body-md": ["Noto Sans SC"],
-                    "body-lg": ["Noto Sans SC"]
+                    "body-md": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"]
             },
             "fontSize": {
                     "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
@@ -102,11 +102,25 @@
         body {
             background-color: #fff8f4;
             color: #1f1b17;
-            font-family: 'Noto Sans SC', sans-serif;
+            font-family: 'Noto Sans', sans-serif;
             overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(67, 100, 68, 0.1);
+        }
+        .fade-in {
+            animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .error-shake {
             animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
@@ -118,71 +132,73 @@
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
     </style>
-<style>
-    body {
-      min-height: max(884px, 100dvh);
-    }
-  </style>
-  </head>
-<body class="flex flex-col min-h-screen items-center justify-center bg-background p-margin-mobile">
-<!-- Login Shell Canvas (360x800 logic) -->
-<main class="w-full max-w-[360px] h-full flex flex-col justify-between animate-fade-in">
-<!-- Top Anchor: Brand & Message -->
-<header class="pt-xl mb-xl">
-<div class="flex items-center gap-sm mb-lg">
-<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">shield_person</span>
-<h1 class="font-headline-md text-headline-md-mobile text-primary tracking-tight">MineG</h1>
+</head>
+<body class="flex flex-col items-center justify-between py-12 px-margin-mobile">
+<!-- Brand Header -->
+<header class="w-full flex flex-col items-center space-y-4 fade-in mt-8">
+<div class="relative">
+<img alt="MineG Logo" class="w-28 h-28 rounded-xl" src="https://lh3.googleusercontent.com/aida/AP1WRLv-I_V5YtB6nDaPm0f7lNVojVDmqOC60NO7jU8Ggan92Cs59yD6DZm-TZX5GmRCRa7nW94dvIhuAMqmg1KoI-oQcOCf2lxXhRwAsfaAHYz9Qq9OO1QdwykjAgccA8_y_qNOBta2vwt72853qjFvg4Ep0pY_B6_Qf_UoI_a_cgBl0vBmnH3P1qaaq7kH-JlySkKLGuE33k1yW08eJgh-lWUuyo8R1EcU7CEXNaEGrS-QDz-24uU-mV8xFrk"/>
+<div class="absolute -inset-1 bg-primary/5 blur-lg rounded-full -z-10"></div>
 </div>
-<h2 class="font-display-lg-mobile text-display-lg-mobile text-on-surface">欢迎回来</h2>
-<p class="font-body-md text-body-md text-on-surface-variant mt-xs">私密、温暖的家庭数字空间</p>
 </header>
-<!-- Input Section -->
-<section class="flex-grow space-y-md">
-<!-- Username/Phone Field -->
-<div class="space-y-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs">手机号码</label>
+<!-- Login Form -->
+<main class="w-full flex flex-col space-y-6 fade-in" style="animation-delay: 0.1s;">
+<div class="space-y-4">
+<!-- Phone Number Input -->
 <div class="relative group">
-<input class="w-full bg-surface-container-low border-2 border-error text-on-surface rounded-xl px-md py-md font-body-lg text-body-lg focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" placeholder="请输入手机号" type="text" value="13800138000"/>
-<div class="absolute right-md top-1/2 -translate-y-1/2">
-<span class="material-symbols-outlined text-error text-[20px]">error</span>
+<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[20px]">smartphone</span>
 </div>
+<input aria-describedby="credentials-error" aria-invalid="true" class="w-full h-14 pl-12 pr-4 bg-surface-container-low border border-error rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-error transition-all" placeholder="请输入手机号" type="tel" value="13800138000"/>
 </div>
-</div>
-<!-- Password Field -->
-<div class="space-y-xs">
-<label class="font-label-sm text-label-sm text-on-surface-variant ml-xs">登录密码</label>
+<!-- Password Input -->
 <div class="relative group">
-<input class="w-full bg-surface-container-low border-2 border-error text-on-surface rounded-xl px-md py-md font-body-lg text-body-lg focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" placeholder="请输入密码" type="password" value="••••••••"/>
-<div class="absolute right-md top-1/2 -translate-y-1/2">
-<span class="material-symbols-outlined text-outline text-[20px]">visibility_off</span>
+<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[20px]">lock</span>
 </div>
+<input aria-describedby="credentials-error" aria-invalid="true" class="w-full h-14 pl-12 pr-12 bg-surface-container-low border border-error rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-error transition-all" placeholder="请输入密码" type="password" value="12345678"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility_off</span>
+</button>
 </div>
 <!-- Error Message -->
-<div class="flex items-center gap-xs px-xs pt-xs error-shake">
+<div class="flex items-center space-x-1 px-1 text-error error-shake" id="credentials-error">
 <span class="material-symbols-outlined text-error text-[16px]">report</span>
 <p class="font-label-sm text-label-sm text-error">手机号或密码错误</p>
 </div>
 </div>
-</section>
-<!-- Action Section -->
-<footer class="mt-xl pb-margin-mobile">
-<button class="w-full bg-primary text-on-primary py-md rounded-xl font-headline-md text-headline-md-mobile shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-sm">
-<span>立即登录</span>
-<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+<!-- Primary Action -->
+<button class="w-full h-14 bg-primary text-on-primary font-headline-md text-headline-md-mobile rounded-xl shadow-sm active:scale-[0.98] transition-transform flex items-center justify-center">
+            登录
 </button>
-<div class="mt-lg flex flex-col items-center gap-sm">
-<p class="font-label-sm text-label-sm text-on-surface-variant">
-                    还没有账号？<span class="text-primary font-bold ml-xs">联系家人加入</span>
+<!-- Secondary Action -->
+<div class="text-center">
+<p class="font-body-md text-body-md text-on-surface-variant">
+                还没有账号？<a class="text-primary font-semibold hover:underline" href="#">立即注册</a>
 </p>
 </div>
-</footer>
 </main>
-<!-- Decorative Hearth Glow (Minimalist Background Element) -->
-<div class="fixed top-[-10%] right-[-20%] w-[300px] h-[300px] bg-secondary-container/10 rounded-full blur-[100px] -z-10"></div>
-<div class="fixed bottom-[-5%] left-[-10%] w-[250px] h-[250px] bg-primary-container/10 rounded-full blur-[80px] -z-10"></div>
+<!-- Footer -->
+<footer class="w-full flex flex-col items-center space-y-4 fade-in" style="animation-delay: 0.2s;">
+<div class="flex items-center px-4 py-2 bg-surface-container rounded-full space-x-2">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<span class="font-label-sm text-label-sm text-primary">端到端加密保护</span>
+</div>
+</footer>
 <script>
-        // Simple micro-interaction for button press
-        const loginBtn = document.querySelector('button');
+        // Simple micro-interaction for password visibility
+        const toggleBtn = document.querySelector('button[type="button"]');
+        const passInput = document.querySelector('input[type="password"]');
+        let visible = false;
+
+        toggleBtn.addEventListener('click', () => {
+            visible = !visible;
+            passInput.type = visible ? 'text' : 'password';
+            toggleBtn.innerHTML = `<span class="material-symbols-outlined text-[20px]">${visible ? 'visibility' : 'visibility_off'}</span>`;
+        });
+
+        // Keep the error state visible when login is retried
+        const loginBtn = document.querySelector('button.bg-primary');
         loginBtn.addEventListener('click', () => {
             const inputs = document.querySelectorAll('input');
             inputs.forEach(input => {
@@ -190,10 +206,9 @@
                 void input.offsetWidth; // trigger reflow
                 input.classList.add('error-shake');
             });
-            
-            const errorMsg = document.querySelector('.error-shake');
+            const errorMsg = document.getElementById('credentials-error');
             errorMsg.classList.remove('error-shake');
-            void errorMsg.offsetWidth; 
+            void errorMsg.offsetWidth;
             errorMsg.classList.add('error-shake');
         });
     </script>

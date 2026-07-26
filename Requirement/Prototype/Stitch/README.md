@@ -1,12 +1,14 @@
 # MineG Stitch 移动端原型
 
-本目录由 Stitch 导出的三个原始压缩包整理而成，共包含 47 个页面或页面方案。
+本目录由 Stitch 导出的三个原始压缩包整理而成。当前原型保留 35 个有效页面或页面方案；原始压缩包中的 47 个导出页面保持不变。
 
 ## 目录说明
 
 - `DESIGN.md`：Stitch 导出的统一设计规范。
+- `THEME.md`：以 MineG Logo 渐变为来源的 App 主题色、状态色和使用规则；作为颜色 Token 的唯一基线。
 - `pages/`：按功能域整理后的原型页面。
 - `source-archives/`：保留的原始导出压缩包，未修改内部内容。
+- 目录名以 `-dep` 结尾的页面或功能域仅用于历史设计追溯，不计入有效页面数，也不会被需求流程引用。
 - 每个页面目录包含：
   - `index.html`：可直接在浏览器中打开和调试的 Stitch 原型。
   - `reference.png`：Stitch 生成的页面视觉参考图。
@@ -16,14 +18,14 @@
 | 编号 | 功能域 | 页面数 |
 |---|---|---:|
 | 01 | 登录与注册 | 11 |
-| 02 | 相册权限 | 5 |
-| 03 | 私人空间 | 6 |
+| 02 | 相册权限（已废弃） | 0 |
+| 03 | 私人空间 | 2 |
 | 04 | 媒体详情 | 6 |
 | 05 | 家庭相册 | 2 |
-| 06 | 备份中心 | 11 |
-| 07 | 回收站 | 4 |
+| 06 | 备份中心 | 9 |
+| 07 | 回收站 | 3 |
 | 08 | 个人中心 | 2 |
-|  | 合计 | 47 |
+|  | 合计 | 35 |
 
 ## 页面索引
 
@@ -43,26 +45,43 @@
 | `10-signup-review-pending` | 注册申请待审核 |
 | `11-login-default-interactive` | 默认登录页交互增强版 |
 
-### 02 相册权限
+### 02 相册权限（已废弃）
 
-| 页面 | 用途 |
+原 `02-permissions` 功能域已整体标记为 `02-permissions-dep`，仅用于历史设计追溯。未获得完整相册权限时使用的统一授权说明页，已完整复制到 `06-backup/04-backup-permission-required`，并作为备份中心的“权限未获取”状态继续参与需求流程。
+
+权限流程统一为：
+
+- 未决定、部分授权、访问受限、拒绝或系统限制时，均展示 `06-backup/04-backup-permission-required`。
+- 获得完整授权后直接进入 `03-private-space/01-private-space-overview`，不展示“授权完成”中间页。
+
+废弃参考页：
+
+| 页面 | 原用途 |
 |---|---|
-| `01-album-permission-explainer` | 相册授权前说明 |
-| `02-album-permission-granted` | 已获得完整权限 |
-| `03-album-permission-limited` | 仅允许访问部分照片 |
-| `04-album-permission-restricted` | 系统或管理员限制访问 |
-| `05-album-permission-denied` | 用户拒绝相册权限 |
+| `01-album-permission-explainer` | 未获得完整相册权限时的统一授权说明 |
+| `03-album-permission-limited-dep` | 仅允许访问部分照片 |
+| `04-album-permission-restricted-dep` | 系统或管理员限制访问 |
+| `05-album-permission-denied-dep` | 用户拒绝相册权限 |
+
+以上页面均位于 `02-permissions-dep`，不属于当前需求逻辑，仅保留设计参考。
 
 ### 03 私人空间
 
 | 页面 | 用途 |
 |---|---|
-| `01-private-space-overview` | 私人空间默认方案 |
-| `02-private-space-syncing` | 云端同步状态 |
-| `03-private-space-storage-summary` | 存储空间与分类入口 |
-| `04-private-space-refined` | 默认方案的细化版本 |
-| `05-private-space-storytelling` | 故事化首页方案 |
-| `06-private-space-collections` | 回忆合辑方案 |
+| `01-private-space-overview` | 私人媒体默认网格方案 |
+| `03-private-space-storage-summary` | 私人媒体宽松网格方案 |
+
+废弃参考页：
+
+| 页面 | 原用途 |
+|---|---|
+| `02-private-space-syncing-dep` | 云端同步状态，后续归入备份页面 |
+| `04-private-space-refined-dep` | 默认方案的细化版本 |
+| `05-private-space-storytelling-dep` | 故事化首页方案 |
+| `06-private-space-collections-dep` | 回忆合辑方案 |
+
+以上 `-dep` 页面不属于当前需求逻辑，仅保留设计参考。
 
 ### 04 媒体详情
 
@@ -79,39 +98,61 @@
 
 | 页面 | 用途 |
 |---|---|
-| `01-family-album-timeline` | 家庭相册时间线 |
+| `01-family-album-timeline` | 家庭相册时间线；支持“全部 / 我分享的”过滤 |
 | `02-family-media-detail` | 家庭相册媒体详情 |
 
 ### 06 备份中心
 
+备份主页面统一展示设备本地媒体。页面自上而下由“本地相册”标题栏、同步状态和本地相册列表组成；标题栏右侧设置按钮进入备份设置。各相册文件夹按名称分区，分区内媒体使用三列网格排列。
+
 | 页面 | 用途 |
 |---|---|
-| `01-auto-backup-default-on-decision-a` | 决策 A：自动备份默认开启 |
-| `02-auto-backup-manual-opt-in-decision-b` | 决策 B：用户手动开启备份 |
-| `03-backup-uploading` | 正在上传 |
-| `04-backup-permission-required` | 缺少相册权限 |
-| `05-backup-waiting-for-wifi` | 等待 Wi-Fi |
-| `06-backup-network-offline` | 网络离线 |
-| `07-backup-storage-full` | 存储空间不足 |
-| `08-backup-session-expired` | 登录状态过期 |
-| `09-backup-service-unavailable` | 服务暂时不可用 |
-| `10-backup-scanning` | 正在扫描媒体库 |
-| `11-backup-complete` | 备份全部完成 |
+| `01-auto-backup-default-on-decision-a` | 备份设置；自动备份默认开启，并可设置是否允许移动网络备份 |
+| `03-backup-uploading` | 本地相册主页面；展示当前同步图片和上传进度 |
+| `04-backup-permission-required` | 权限未获取；沿用原统一相册授权说明页 |
+| `05-backup-waiting-for-wifi` | 本地相册；同步等待 Wi-Fi |
+| `06-backup-network-offline` | 本地相册；网络离线 |
+| `07-backup-storage-full` | 本地相册；存储空间不足 |
+| `09-backup-service-unavailable` | 本地相册；服务暂时不可用 |
+| `10-backup-scanning` | 本地相册；正在扫描媒体库 |
+| `11-backup-complete` | 本地相册；展示同步完成文案 |
+
+当自动备份关闭时，本地相册列表底部中间展示“开始备份”悬浮按钮。点击后重新开启备份并恢复同步状态。
+
+登录状态异常不在备份中心展示中间状态页。App 自动清理失效会话、停止当前账号的未完成任务并跳转登录页。
+
+废弃参考页：
+
+| 页面 | 原用途 |
+|---|---|
+| `02-auto-backup-manual-opt-in-decision-b-dep` | 决策 B：用户手动开启自动备份 |
+| `08-backup-session-expired-dep` | 原登录状态过期提示页；现已改为自动退出至登录页 |
+
+以上页面仅用于历史设计追溯，不属于当前需求流程。
 
 ### 07 回收站
+
+回收站不属于底部主导航。用户从个人中心的“回收站”操作入口进入，回收站页面顶部使用返回按钮回到个人中心。
 
 | 页面 | 用途 |
 |---|---|
 | `01-recycle-bin-populated` | 回收站存在内容 |
 | `02-recycle-bin-empty` | 空回收站 |
-| `03-restore-private-only-decision-a` | 决策 A：恢复后保持私有 |
-| `04-restore-original-sharing-decision-b` | 决策 B：恢复原共享状态 |
+| `03-restore-private-only-decision-a` | 已采用决策 A：恢复后保持私有 |
+
+废弃参考页：
+
+| 页面 | 原用途 |
+|---|---|
+| `04-restore-original-sharing-decision-b-dep` | 决策 B：恢复原共享状态 |
+
+决策 B 页面仅用于历史设计追溯，不属于当前需求流程。
 
 ### 08 个人中心
 
 | 页面 | 用途 |
 |---|---|
-| `01-profile-overview` | 个人中心 |
+| `01-profile-overview` | 个人中心；包含回收站操作入口 |
 | `02-logout-confirmation` | 退出登录确认 |
 
 ## 原始导出包

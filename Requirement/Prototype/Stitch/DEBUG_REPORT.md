@@ -1,5 +1,7 @@
 # MineG Stitch 原型调试报告
 
+> 本报告记录的是设计收敛前的 47 页原始调试基线。当前有效原型为 35 页；`02-permissions-dep` 已整体废弃，其中统一的未授权说明页已完整复制到 `06-backup/04-backup-permission-required`，作为备份中心的“权限未获取”状态继续参与需求流程；`03-private-space` 的 02、04、05、06 方案、自动备份决策 B、登录状态过期提示页以及回收站恢复决策 B 也以 `-dep` 结尾保留，完整原始页面仍可在 `source-archives/` 中追溯。
+
 ## 当前结论
 
 - 已在 `360 × 800` 移动端视口下逐页加载 47 个 HTML 原型。
@@ -83,7 +85,7 @@
 | `01-auth/03-login-network-unavailable` | 884px |
 | `04-media-detail/05-media-delete-confirmation` | 832px |
 | `05-family-album/02-family-media-detail` | 884px |
-| `07-recycle-bin/04-restore-original-sharing-decision-b` | 884px |
+| `07-recycle-bin/04-restore-original-sharing-decision-b-dep` | 884px |
 
 ## 缺少页面标题
 
@@ -93,9 +95,9 @@
 - `01-auth/02-login-credentials-error`
 - `01-auth/07-signup-password-mismatch`
 - `01-auth/11-login-default-interactive`
-- `02-permissions/03-album-permission-limited`
-- `02-permissions/04-album-permission-restricted`
-- `03-private-space/02-private-space-syncing`
+- `02-permissions-dep/03-album-permission-limited-dep`
+- `02-permissions-dep/04-album-permission-restricted-dep`
+- `03-private-space/02-private-space-syncing-dep`
 - `04-media-detail/01-private-media-encrypted`
 - `04-media-detail/04-media-save-success`
 - `04-media-detail/06-media-save-failed`

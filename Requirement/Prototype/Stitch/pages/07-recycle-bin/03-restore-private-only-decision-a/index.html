@@ -123,14 +123,12 @@
   </head>
 <body class="bg-background text-on-surface min-h-screen flex flex-col overflow-hidden">
 <!-- TopAppBar -->
-<header class="bg-surface docked full-width top-0 shadow-sm flex justify-between items-center w-full px-margin-mobile h-16 z-50">
-<div class="flex items-center gap-3 active:scale-95 duration-150 cursor-pointer">
-<span class="material-symbols-outlined text-primary" data-icon="shield">shield</span>
-<span class="font-headline-md text-headline-md font-bold text-primary">MineG</span>
-</div>
-<div class="flex items-center gap-4">
-<button class="material-symbols-outlined text-on-surface-variant hover:opacity-80 transition-opacity" data-icon="close">close</button>
-</div>
+<header class="bg-surface docked full-width top-0 shadow-sm grid grid-cols-[40px_1fr_40px] items-center w-full px-margin-mobile h-16 z-50">
+<a aria-label="返回回收站" class="w-10 h-10 rounded-full flex items-center justify-center text-primary hover:bg-surface-variant/30 active:scale-95 transition-all" href="../01-recycle-bin-populated/index.html">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</a>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface text-center">恢复媒体</h1>
+<div aria-hidden="true" class="w-10"></div>
 </header>
 <!-- Main Content Canvas -->
 <main class="flex-grow relative flex flex-col items-center justify-center p-4">
@@ -140,22 +138,15 @@
 </div>
 <!-- Confirmation Dialog -->
 <div class="relative z-10 w-full max-w-md bg-surface/95 backdrop-blur-md rounded-xl p-lg shadow-[0_12px_40px_rgba(0,0,0,0.15)] transform translate-y-[-20px]">
-<!-- Decision Badge -->
-<div class="mb-md">
-<span class="inline-flex items-center px-3 py-1 bg-surface-container-high text-primary rounded-full font-label-sm text-label-sm font-medium">
-<span class="material-symbols-outlined text-[14px] mr-1" data-icon="info">info</span>
-                    产品决策 A：恢复后保持未共享状态
-                </span>
-</div>
 <h1 class="font-headline-md text-headline-md text-on-surface mb-sm">确定恢复此媒体？</h1>
 <p class="font-body-md text-body-md text-on-surface-variant mb-lg leading-relaxed">
                 媒体将恢复至私人空间，不会自动重新同步到家庭相册。
             </p>
 <div class="flex flex-col gap-3">
-<button class="w-full bg-primary text-on-primary py-3 px-6 rounded-lg font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
+<button class="w-full bg-primary text-on-primary py-3 px-6 rounded-lg font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm" data-confirm-restore>
                     确认恢复
                 </button>
-<button class="w-full bg-transparent border border-outline-variant text-on-surface-variant py-3 px-6 rounded-lg font-medium hover:bg-surface-variant/20 active:scale-95 transition-all">
+<button class="w-full bg-transparent border border-outline-variant text-on-surface-variant py-3 px-6 rounded-lg font-medium hover:bg-surface-variant/20 active:scale-95 transition-all" data-cancel-restore>
                     取消
                 </button>
 </div>
@@ -166,41 +157,21 @@
 </div>
 </div>
 </main>
-<!-- BottomNavBar (Dimmed per request) -->
-<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 bg-surface-container/80 backdrop-blur-md shadow-[0_-4px_12px_rgba(0,0,0,0.05)] opacity-40 pointer-events-none">
-<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-<span class="material-symbols-outlined" data-icon="home">home</span>
-<span class="font-label-sm text-label-sm">Space</span>
-</div>
-<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-<span class="material-symbols-outlined" data-icon="photo_album">photo_album</span>
-<span class="font-label-sm text-label-sm">Album</span>
-</div>
-<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
-<span class="font-label-sm text-label-sm">Backup</span>
-</div>
-<!-- Active Tab: Bin (Semantic mapping for Restore workflow) -->
-<div class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1">
-<span class="material-symbols-outlined" data-icon="delete">delete</span>
-<span class="font-label-sm text-label-sm">Bin</span>
-</div>
-<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-<span class="material-symbols-outlined" data-icon="person">person</span>
-<span class="font-label-sm text-label-sm">Profile</span>
-</div>
-</nav>
 <!-- Simple micro-interaction script for the buttons -->
 <script>
-        document.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                if(this.innerText.includes('取消')) {
-                    // Visual feedback for cancel
-                    this.closest('.relative.z-10').style.opacity = '0.5';
-                    this.closest('.relative.z-10').style.transform = 'scale(0.98) translateY(-20px)';
-                    setTimeout(() => window.history.back(), 200);
-                }
-            });
+        document.querySelector('[data-confirm-restore]').addEventListener('click', function() {
+            this.textContent = '已恢复到私人空间';
+            this.disabled = true;
+            this.classList.add('opacity-80');
+        });
+
+        document.querySelector('[data-cancel-restore]').addEventListener('click', function() {
+            const dialog = this.closest('.relative.z-10');
+            dialog.style.opacity = '0.5';
+            dialog.style.transform = 'scale(0.98) translateY(-20px)';
+            setTimeout(() => {
+                window.location.href = '../01-recycle-bin-populated/index.html';
+            }, 200);
         });
     </script>
 </body></html>
