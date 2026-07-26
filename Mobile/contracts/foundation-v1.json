@@ -1,0 +1,55 @@
+{
+  "contractVersion": "1.0.0",
+  "status": "FROZEN",
+  "scope": "M0_FOUNDATION",
+  "coreClient": [
+    "initialize",
+    "execute",
+    "query",
+    "subscribe",
+    "unsubscribe",
+    "cancel",
+    "close"
+  ],
+  "cAbi": [
+    "mineg_core_create",
+    "mineg_core_execute",
+    "mineg_core_query",
+    "mineg_core_subscribe",
+    "mineg_core_unsubscribe",
+    "mineg_core_cancel",
+    "mineg_core_close",
+    "mineg_buffer_free"
+  ],
+  "platformPorts": [
+    "MediaSourcePort",
+    "SecureStorePort",
+    "TransportPort",
+    "BackgroundSchedulerPort",
+    "ConnectivityPort",
+    "FilePort",
+    "MediaPlaybackPort",
+    "SystemAlbumWriterPort"
+  ],
+  "errors": [
+    "OK",
+    "INVALID_ARGUMENT",
+    "CLOSED",
+    "DATABASE_ERROR",
+    "CRYPTO_ERROR",
+    "INTEGRITY_ERROR",
+    "CANCELLED",
+    "NOT_FOUND",
+    "INTERNAL_ERROR"
+  ],
+  "foundationCommands": ["FoundationWriteProbe"],
+  "foundationQueries": ["FoundationReadProbe"],
+  "foundationEvents": ["FoundationProbeChanged"],
+  "semanticIds": [
+    "foundation.probe",
+    "foundation.probe.run",
+    "foundation.probe.status"
+  ],
+  "jsonFieldStyle": "lowerCamelCase",
+  "timeFormat": "UTC_RFC3339_MILLISECONDS"
+}

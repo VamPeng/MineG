@@ -1,0 +1,30 @@
+.DS_Store
+.idea/
+.vscode/
+.history/
+*.log
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Go
+Service/bin/
+Service/coverage.out
+
+# Node / Vue
+Frontend/node_modules/
+Frontend/dist/
+Frontend/coverage/
+Frontend/playwright-report/
+Frontend/test-results/
+
+# Android / CMake
+Mobile/MineG_Android/.gradle/
+Mobile/MineG_Android/.kotlin/
+Mobile/MineG_Android/local.properties
+Mobile/MineG_Android/build/
+Mobile/MineG_Android/app/.cxx/
+Mobile/MineG_Android/app/build/
+Mobile/core/build/

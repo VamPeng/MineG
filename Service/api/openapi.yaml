@@ -1,0 +1,95 @@
+openapi: 3.1.0
+info:
+  title: MineG API
+  version: 0.0.1
+  description: Stage 00 platform contract. It contains no business operations.
+servers:
+  - url: /
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      tags: [platform]
+      responses:
+        "200":
+          description: Process is accepting HTTP requests.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /health/ready:
+    get:
+      operationId: getReadiness
+      tags: [platform]
+      responses:
+        "200":
+          description: Database is reachable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          $ref: "#/components/responses/Problem"
+  /api/v1/platform/probe:
+    get:
+      operationId: runPlatformProbe
+      tags: [platform]
+      summary: Unauthenticated integration probe; not a business API.
+      responses:
+        "200":
+          description: API JSON and UTC timestamp contract is reachable.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformProbe"
+components:
+  headers:
+    RequestId:
+      description: Correlation identifier generated or accepted by the service.
+      schema: { type: string, minLength: 8, maxLength: 128 }
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string }
+    PlatformProbe:
+      type: object
+      additionalProperties: false
+      required: [status, api_version, server_time]
+      properties:
+        status: { type: string, enum: [ok] }
+        api_version: { type: string, enum: [v1] }
+        server_time: { type: string, format: date-time }
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, request_id, retryable]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]+$" }
+        request_id: { type: string }
+        retryable: { type: boolean }
+        details: { type: object, additionalProperties: true }
+    CursorPage:
+      type: object
+      description: Template for stage 01+ cursor responses.
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: {} }
+        next_cursor: { type: string, nullable: true }
+  responses:
+    Problem:
+      description: RFC 9457 problem details with stable MineG extensions.
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }

@@ -1,0 +1,11 @@
+{
+  "format": "MINEG01",
+  "algorithm": "crypto_secretstream_xchacha20poly1305",
+  "keyBytes": 32,
+  "headerBytes": 24,
+  "chunkPlaintextBytes": 65536,
+  "frameLengthEncoding": "uint32_big_endian",
+  "finalTagRequired": true,
+  "tamperBehavior": "INTEGRITY_ERROR_AND_NO_PLAINTEXT_OUTPUT",
+  "bufferReleaseBehavior": "SODIUM_MEMZERO_THEN_FREE"
+}

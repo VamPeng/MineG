@@ -1,0 +1,88 @@
+name: stage-00
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: mineg_test
+          POSTGRES_USER: mineg
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mineg -d mineg_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: Service
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.5
+          cache-dependency-path: Service/go.sum
+      - run: test -z "$(gofmt -l cmd internal api tests)"
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: bash scripts/check-openapi-breaking.sh
+      - run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.29.0 generate
+      - run: git diff --exit-code
+      - run: go test -tags=integration ./tests/integration/...
+        env:
+          MINEG_TEST_DATABASE_URL: postgres://mineg:ci-only@127.0.0.1:5432/mineg_test?sslmode=disable
+      - run: docker build -t mineg-api:stage-00 .
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: docker build -f Frontend/Dockerfile -t mineg-admin:stage-00 .
+        working-directory: ${{ github.workspace }}
+
+  mobile-core:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install cmake pkg-config libsodium
+      - run: bash Mobile/scripts/test-core.sh
+
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Mobile/MineG_Android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+      - run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace
+      - name: JNI lifecycle test on Android 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          script: cd Mobile/MineG_Android && ./gradlew :app:connectedDebugAndroidTest --stacktrace
