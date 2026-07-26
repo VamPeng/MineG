@@ -1,4 +1,4 @@
-.PHONY: format lint test test-integration generate migrate-up run openapi-check openapi-breaking
+.PHONY: format lint test test-integration generate migrate-up run admin-bootstrap openapi-check openapi-breaking
 
 format:
 	gofmt -w $$(find cmd internal api -name '*.go' -type f)
@@ -20,6 +20,9 @@ migrate-up:
 
 run:
 	go run ./cmd/api
+
+admin-bootstrap:
+	go run ./cmd/admin-bootstrap
 
 openapi-check:
 	go test ./api

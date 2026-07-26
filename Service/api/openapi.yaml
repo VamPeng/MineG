@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: MineG API
-  version: 0.0.1
-  description: Stage 00 platform contract. It contains no business operations.
+  version: 0.3.0
+  description: Stage 03 account and client-encrypted single-media multipart upload contract.
 servers:
   - url: /
 paths:
@@ -26,8 +26,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Health" }
-        "503":
-          $ref: "#/components/responses/Problem"
+        "503": { $ref: "#/components/responses/Problem" }
   /api/v1/platform/probe:
     get:
       operationId: runPlatformProbe
@@ -37,17 +36,516 @@ paths:
         "200":
           description: API JSON and UTC timestamp contract is reachable.
           headers:
-            X-Request-ID:
-              $ref: "#/components/headers/RequestId"
+            X-Request-ID: { $ref: "#/components/headers/RequestId" }
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/PlatformProbe"
+              schema: { $ref: "#/components/schemas/PlatformProbe" }
+  /api/v1/auth/register:
+    post:
+      operationId: signUp
+      tags: [auth]
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignUpRequest" }
+      responses:
+        "201":
+          description: A pending account and encrypted key bundle were created, or the same idempotent result was recovered.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignUpResult" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/auth/login:
+    post:
+      operationId: signIn
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignInRequest" }
+      responses:
+        "200":
+          description: A mobile session was created. Pending sessions are restricted to review status and logout operations.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/auth/refresh:
+    post:
+      operationId: refreshSession
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200":
+          description: Access and refresh tokens were rotated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /api/v1/auth/logout:
+    post:
+      operationId: signOut
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200":
+          description: The current mobile session was revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusMessage" }
+  /api/v1/auth/approval-status:
+    get:
+      operationId: getApprovalStatus
+      tags: [auth]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Product-visible approval status. Key-grant waiting remains PENDING.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalStatus" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /api/v1/me:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Minimal real profile for an approved member.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /api/v1/me/profile:
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfileRequest" }
+      responses:
+        "200":
+          description: The current approved member nickname was updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/me/key-bundle:
+    get:
+      operationId: getKeyBundle
+      tags: [keys]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: The current member encrypted key bundle and, when ready, its family envelope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KeyMaterial" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: updateKeyBundle
+      tags: [keys]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateKeyBundleRequest" }
+      responses:
+        "200":
+          description: The password-wrapped bundle was replaced without changing the registered public key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KeyMaterial" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/key-grants/pending:
+    get:
+      operationId: listPendingKeyGrants
+      tags: [keys]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Eligible bootstrap or member grant work. Public keys are only disclosed to the target bootstrap member or an approved family member.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PendingKeyGrantPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /api/v1/key-grants/{grant_id}/complete:
+    post:
+      operationId: completeKeyGrant
+      tags: [keys]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/GrantId" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompleteKeyGrantRequest" }
+      responses:
+        "200":
+          description: The envelope was committed and the target account became APPROVED, or an identical completion was replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompleteKeyGrantResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/me/avatar/uploads:
+    post:
+      operationId: createAvatarUpload
+      tags: [profile]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAvatarUploadRequest" }
+      responses:
+        "201":
+          description: A short-lived upload grant restricted to one avatar object was issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AvatarUploadResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /api/v1/me/avatar/uploads/{upload_id}/complete:
+    post:
+      operationId: completeAvatarUpload
+      tags: [profile]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/UploadId" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "200":
+          description: Object metadata was verified and the avatar became the current profile image.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /api/v1/me/avatar:
+    get:
+      operationId: getAvatarReadGrant
+      tags: [profile]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: A short-lived read grant for the current avatar.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ObjectGrant" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /api/v1/uploads:
+    post:
+      operationId: createMediaUpload
+      tags: [uploads]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateMediaUploadRequest" }
+      responses:
+        "201":
+          description: A resumable ciphertext multipart session was created, replayed, or converged to an existing same-account media.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaUploadSession" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /api/v1/uploads/{upload_id}:
+    get:
+      operationId: getMediaUpload
+      tags: [uploads]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/UploadId" }
+      responses:
+        "200":
+          description: Owner-scoped persisted upload truth. Object grants are omitted from status reads.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaUploadSession" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /api/v1/uploads/{upload_id}/parts:
+    post:
+      operationId: reportMediaUploadPart
+      tags: [uploads]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/UploadId" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReportMediaPartRequest" }
+      responses:
+        "200":
+          description: The exact part ETag, ciphertext size, and digest were persisted; identical reports are idempotent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaPartResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/uploads/{upload_id}/complete:
+    post:
+      operationId: completeMediaUpload
+      tags: [uploads]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/UploadId" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompleteMediaUploadRequest" }
+      responses:
+        "200":
+          description: OSS multipart state was verified and a completed owner media was committed transactionally.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompleteMediaUploadResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /api/v1/media:
+    get:
+      operationId: listCompletedOwnerMedia
+      tags: [media]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Completed metadata owned by the authenticated member; no object URL or key envelope is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OwnerMediaPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /api/v1/admin/login:
+    post:
+      operationId: adminSignIn
+      tags: [admin]
+      parameters:
+        - { $ref: "#/components/parameters/Origin" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminLoginRequest" }
+      responses:
+        "200":
+          description: Administrator session cookie was issued and a CSRF token returned.
+          headers:
+            Set-Cookie:
+              description: Secure, HttpOnly, SameSite=Strict administrator session cookie.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSessionResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /api/v1/admin/session:
+    get:
+      operationId: restoreAdminSession
+      tags: [admin]
+      security: [{ adminCookie: [] }]
+      responses:
+        "200":
+          description: Active session was restored and its CSRF token rotated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSessionResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /api/v1/admin/logout:
+    post:
+      operationId: adminSignOut
+      tags: [admin]
+      security: [{ adminCookie: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/Origin" }
+        - { $ref: "#/components/parameters/CSRFToken" }
+      responses:
+        "200":
+          description: Administrator session was revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusMessage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /api/v1/admin/approvals:
+    get:
+      operationId: listApprovals
+      tags: [admin]
+      security: [{ adminCookie: [] }]
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Pending applications ordered oldest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /api/v1/admin/approvals/{approval_id}:
+    get:
+      operationId: getApproval
+      tags: [admin]
+      security: [{ adminCookie: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/ApprovalId" }
+      responses:
+        "200":
+          description: Masked application detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Approval" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /api/v1/admin/approvals/{approval_id}/approve:
+    post:
+      operationId: approveApplication
+      tags: [admin]
+      security: [{ adminCookie: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/ApprovalId" }
+        - { $ref: "#/components/parameters/Origin" }
+        - { $ref: "#/components/parameters/CSRFToken" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      responses:
+        "200":
+          description: Review decision is committed and a key-grant task exists. Repeats return ALREADY_PROCESSED.
+          headers:
+            X-CSRF-Token:
+              description: Rotated CSRF token for the next state-changing request.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApproveResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+    adminCookie:
+      type: apiKey
+      in: cookie
+      name: mineg_admin_session
   headers:
     RequestId:
       description: Correlation identifier generated or accepted by the service.
       schema: { type: string, minLength: 8, maxLength: 128 }
+  parameters:
+    ApprovalId:
+      name: approval_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    GrantId:
+      name: grant_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UploadId:
+      name: upload_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      schema: { type: string, format: uri }
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string, minLength: 32 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: "^[A-Za-z0-9._:-]+$"
   schemas:
     Health:
       type: object
@@ -63,6 +561,385 @@ components:
         status: { type: string, enum: [ok] }
         api_version: { type: string, enum: [v1] }
         server_time: { type: string, format: date-time }
+    SignUpRequest:
+      type: object
+      additionalProperties: false
+      required: [phone, password, public_key, encrypted_key_bundle, kdf_parameters, bundle_version, device_installation_id, platform]
+      properties:
+        phone: { type: string, minLength: 11, maxLength: 14 }
+        password: { type: string, minLength: 8, maxLength: 64 }
+        public_key: { type: string, description: Unpadded standard base64 32-byte X25519 public key. }
+        encrypted_key_bundle: { type: string, description: Unpadded standard base64 encrypted client key bundle. }
+        kdf_parameters: { type: object, additionalProperties: true }
+        bundle_version: { type: integer, minimum: 1 }
+        device_installation_id: { type: string, minLength: 8, maxLength: 128 }
+        platform: { type: string, enum: [ANDROID, IOS, HARMONYOS] }
+    SignUpResult:
+      type: object
+      additionalProperties: false
+      required: [user_id, access_token, access_expires_at, refresh_token, refresh_expires_at, approval_status, next_step]
+      properties:
+        user_id: { type: string, format: uuid }
+        access_token: { type: string }
+        access_expires_at: { type: string, format: date-time }
+        refresh_token: { type: string }
+        refresh_expires_at: { type: string, format: date-time }
+        approval_status: { $ref: "#/components/schemas/ApprovalStatusValue" }
+        next_step: { $ref: "#/components/schemas/NextStep" }
+    SignInRequest:
+      type: object
+      additionalProperties: false
+      required: [phone, password, device_installation_id, platform, agreement_accepted, terms_version, privacy_version]
+      properties:
+        phone: { type: string, minLength: 11, maxLength: 14 }
+        password: { type: string, minLength: 1, maxLength: 64 }
+        device_installation_id: { type: string, minLength: 8, maxLength: 128 }
+        platform: { type: string, enum: [ANDROID, IOS, HARMONYOS] }
+        agreement_accepted: { type: boolean, enum: [true] }
+        terms_version: { type: string, minLength: 1, maxLength: 64 }
+        privacy_version: { type: string, minLength: 1, maxLength: 64 }
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string, minLength: 32 }
+    TokenResult:
+      type: object
+      additionalProperties: false
+      required: [user_id, access_token, access_expires_at, refresh_token, refresh_expires_at, approval_status, next_step]
+      properties:
+        user_id: { type: string, format: uuid }
+        access_token: { type: string }
+        access_expires_at: { type: string, format: date-time }
+        refresh_token: { type: string }
+        refresh_expires_at: { type: string, format: date-time }
+        approval_status: { $ref: "#/components/schemas/ApprovalStatusValue" }
+        next_step: { $ref: "#/components/schemas/NextStep" }
+    ApprovalStatus:
+      type: object
+      additionalProperties: false
+      required: [status, next_step]
+      properties:
+        status: { $ref: "#/components/schemas/ApprovalStatusValue" }
+        next_step: { $ref: "#/components/schemas/NextStep" }
+    ApprovalStatusValue:
+      type: string
+      enum: [PENDING, APPROVED]
+    NextStep:
+      type: string
+      enum: [REVIEW_PENDING, APP_HOME]
+    Profile:
+      type: object
+      additionalProperties: false
+      required: [id, nickname, masked_phone, version]
+      properties:
+        id: { type: string, format: uuid }
+        nickname: { type: string, minLength: 2, maxLength: 20 }
+        masked_phone: { type: string, pattern: "^[0-9]{3}\\*{4}[0-9]{4}$" }
+        avatar_url: { type: string, format: uri }
+        version: { type: integer, minimum: 1 }
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      required: [nickname]
+      properties:
+        nickname:
+          type: string
+          minLength: 2
+          maxLength: 20
+          pattern: "^[\\p{L}\\p{N} _-]+$"
+    KeyMaterial:
+      type: object
+      additionalProperties: false
+      required: [public_key, encrypted_key_bundle, kdf_parameters, bundle_version, updated_at]
+      properties:
+        public_key: { type: string, description: Unpadded standard base64 32-byte X25519 public key. }
+        encrypted_key_bundle: { type: string, description: Unpadded standard base64 password-wrapped user key bundle. }
+        kdf_parameters: { type: object, additionalProperties: true }
+        bundle_version: { type: integer, minimum: 1 }
+        family_envelope: { type: string, description: Unpadded standard base64 X25519 sealed box. }
+        family_envelope_algorithm: { type: string, enum: [X25519_SEALED_BOX] }
+        family_envelope_version: { type: integer, minimum: 1 }
+        updated_at: { type: string, format: date-time }
+    UpdateKeyBundleRequest:
+      type: object
+      additionalProperties: false
+      required: [public_key, encrypted_key_bundle, kdf_parameters, bundle_version]
+      properties:
+        public_key: { type: string }
+        encrypted_key_bundle: { type: string }
+        kdf_parameters: { type: object, additionalProperties: true }
+        bundle_version: { type: integer, minimum: 1 }
+    PendingKeyGrant:
+      type: object
+      additionalProperties: false
+      required: [id, user_id, family_id, kind, recipient_public_key, bundle_version, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        family_id: { type: string, format: uuid }
+        kind: { type: string, enum: [FAMILY_BOOTSTRAP, MEMBER_GRANT] }
+        recipient_public_key: { type: string }
+        bundle_version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+    PendingKeyGrantPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PendingKeyGrant" }
+    CompleteKeyGrantRequest:
+      type: object
+      additionalProperties: false
+      required: [recipient_public_key, encrypted_envelope, algorithm, envelope_version]
+      properties:
+        recipient_public_key: { type: string }
+        encrypted_envelope: { type: string, description: Unpadded standard base64 80-byte sealed family key. }
+        algorithm: { type: string, enum: [X25519_SEALED_BOX] }
+        envelope_version: { type: integer, minimum: 1 }
+    CompleteKeyGrantResult:
+      type: object
+      additionalProperties: false
+      required: [grant_id, user_id, outcome, status]
+      properties:
+        grant_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        outcome: { type: string, enum: [COMPLETED, ALREADY_COMPLETED] }
+        status: { type: string, enum: [APPROVED] }
+    CreateAvatarUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [content_type, source_size, display_size, width, height, content_sha256]
+      properties:
+        content_type: { type: string, enum: [image/jpeg, image/png, image/heic, image/heif, image/webp] }
+        source_size: { type: integer, minimum: 1, maximum: 10485760 }
+        display_size: { type: integer, minimum: 1, maximum: 10485760 }
+        width: { type: integer, minimum: 1, maximum: 1024 }
+        height: { type: integer, minimum: 1, maximum: 1024 }
+        content_sha256: { type: string, description: Unpadded standard base64 SHA-256 digest. }
+    ObjectGrant:
+      type: object
+      additionalProperties: false
+      required: [url, method, expires_at, headers]
+      properties:
+        url: { type: string, format: uri }
+        method: { type: string, enum: [GET, PUT] }
+        expires_at: { type: string, format: date-time }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+    AvatarUploadResult:
+      type: object
+      additionalProperties: false
+      required: [upload_id, grant]
+      properties:
+        upload_id: { type: string, format: uuid }
+        grant: { $ref: "#/components/schemas/ObjectGrant" }
+    MediaType:
+      type: string
+      enum: [PHOTO, VIDEO, GIF, LIVE_PHOTO, DYNAMIC]
+    MediaResourceType:
+      type: string
+      enum: [ORIGINAL, THUMBNAIL, VIDEO_COVER, PREVIEW, LIVE_PHOTO_VIDEO, DYNAMIC_PREVIEW]
+    MediaPartPlan:
+      type: object
+      additionalProperties: false
+      required: [part_number, ciphertext_size, ciphertext_sha256]
+      properties:
+        part_number: { type: integer, minimum: 1, maximum: 10000 }
+        ciphertext_size: { type: integer, minimum: 1, maximum: 4194320 }
+        ciphertext_sha256: { type: string, description: Unpadded standard base64 SHA-256 of this independently authenticated ciphertext block. }
+    MediaResourcePlan:
+      type: object
+      additionalProperties: false
+      required: [resource_id, resource_type, ciphertext_size, ciphertext_sha256, parts]
+      properties:
+        resource_id: { type: string, format: uuid }
+        resource_type: { $ref: "#/components/schemas/MediaResourceType" }
+        ciphertext_size: { type: integer, minimum: 1 }
+        ciphertext_sha256: { type: string, description: Unpadded standard base64 whole ciphertext resource digest. }
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 10000
+          items: { $ref: "#/components/schemas/MediaPartPlan" }
+    CreateMediaUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [client_media_id, dedupe_fingerprint, content_revision, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, resources]
+      properties:
+        client_media_id: { type: string, format: uuid, description: Client-generated media ID already bound into encryption AAD. }
+        dedupe_fingerprint: { type: string, description: Unpadded standard base64 account-private keyed fingerprint. }
+        content_revision: { type: integer, minimum: 1 }
+        media_type: { $ref: "#/components/schemas/MediaType" }
+        captured_at: { type: string, format: date-time }
+        manifest_digest: { type: string, description: Unpadded standard base64 SHA-256 of the authenticated encrypted manifest. }
+        encrypted_manifest: { type: string, description: Unpadded standard base64 client-authenticated encrypted resource manifest. }
+        encrypted_media_key: { type: string, description: Unpadded standard base64 Media Key envelope for the owner. }
+        resources:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: "#/components/schemas/MediaResourcePlan" }
+    MediaPartGrant:
+      type: object
+      additionalProperties: false
+      required: [part_number, grant]
+      properties:
+        part_number: { type: integer, minimum: 1, maximum: 10000 }
+        grant: { $ref: "#/components/schemas/ObjectGrant" }
+    MediaResourceGrant:
+      type: object
+      additionalProperties: false
+      required: [resource_id, object_key, upload_id, parts]
+      properties:
+        resource_id: { type: string, format: uuid }
+        object_key: { type: string, pattern: "^media/" }
+        upload_id: { type: string }
+        parts:
+          type: array
+          items: { $ref: "#/components/schemas/MediaPartGrant" }
+    MediaUploadGrant:
+      type: object
+      additionalProperties: false
+      required: [purpose, scope_prefix, expires_at, resources]
+      properties:
+        purpose: { type: string, enum: [MEDIA_CIPHERTEXT] }
+        scope_prefix: { type: string, pattern: "^media/" }
+        expires_at: { type: string, format: date-time }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/MediaResourceGrant" }
+    MediaResourceStatus:
+      type: object
+      additionalProperties: false
+      required: [resource_id, resource_type, ciphertext_size, part_count, uploaded_parts]
+      properties:
+        resource_id: { type: string, format: uuid }
+        resource_type: { $ref: "#/components/schemas/MediaResourceType" }
+        object_key: { type: string, pattern: "^media/" }
+        ciphertext_size: { type: integer, minimum: 1 }
+        part_count: { type: integer, minimum: 1, maximum: 10000 }
+        uploaded_parts: { type: integer, minimum: 0, maximum: 10000 }
+    MediaUploadSession:
+      type: object
+      additionalProperties: false
+      required: [id, client_media_id, state, purpose, deduplicated, expires_at, resources]
+      properties:
+        id: { type: string, format: uuid }
+        client_media_id: { type: string, format: uuid }
+        state: { type: string, enum: [PENDING, VERIFYING, COMPLETED, EXPIRED, INVALID] }
+        purpose: { type: string, enum: [MEDIA_CIPHERTEXT] }
+        media_id: { type: string, format: uuid }
+        deduplicated: { type: boolean }
+        expires_at: { type: string, format: date-time }
+        grant: { $ref: "#/components/schemas/MediaUploadGrant" }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/MediaResourceStatus" }
+    ReportMediaPartRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id, part_number, ciphertext_size, ciphertext_sha256, etag]
+      properties:
+        resource_id: { type: string, format: uuid }
+        part_number: { type: integer, minimum: 1, maximum: 10000 }
+        ciphertext_size: { type: integer, minimum: 1, maximum: 4194320 }
+        ciphertext_sha256: { type: string }
+        etag: { type: string, minLength: 1, maxLength: 256 }
+    MediaPartResult:
+      type: object
+      additionalProperties: false
+      required: [upload_id, resource_id, part_number, state]
+      properties:
+        upload_id: { type: string, format: uuid }
+        resource_id: { type: string, format: uuid }
+        part_number: { type: integer }
+        state: { type: string, enum: [UPLOADED] }
+    CompleteMediaUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [manifest_digest]
+      properties:
+        manifest_digest: { type: string }
+    CompleteMediaUploadResult:
+      type: object
+      additionalProperties: false
+      required: [upload_id, media_id, state, outcome, deduplicated]
+      properties:
+        upload_id: { type: string, format: uuid }
+        media_id: { type: string, format: uuid }
+        state: { type: string, enum: [COMPLETED] }
+        outcome: { type: string, enum: [COMPLETED, ALREADY_COMPLETED, DEDUPLICATED] }
+        deduplicated: { type: boolean }
+    OwnerMediaSummary:
+      type: object
+      additionalProperties: false
+      required: [id, media_type, content_revision, captured_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        media_type: { $ref: "#/components/schemas/MediaType" }
+        content_revision: { type: integer, minimum: 1 }
+        captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    OwnerMediaPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OwnerMediaSummary" }
+    AdminLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 3, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 64 }
+    AdminSessionResult:
+      type: object
+      additionalProperties: false
+      required: [csrf_token, username]
+      properties:
+        csrf_token: { type: string }
+        username: { type: string }
+    Approval:
+      type: object
+      additionalProperties: false
+      required: [id, masked_phone, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        masked_phone: { type: string, pattern: "^[0-9]{3}\\*{4}[0-9]{4}$" }
+        status: { type: string, enum: [PENDING, PROCESSED] }
+        created_at: { type: string, format: date-time }
+    ApprovalPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Approval" }
+        next_cursor:
+          type: string
+          nullable: true
+    ApproveResult:
+      type: object
+      additionalProperties: false
+      required: [approval, outcome]
+      properties:
+        approval: { $ref: "#/components/schemas/Approval" }
+        outcome: { type: string, enum: [APPROVED, ALREADY_PROCESSED] }
+    StatusMessage:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string }
     Problem:
       type: object
       additionalProperties: false
@@ -77,19 +954,11 @@ components:
         request_id: { type: string }
         retryable: { type: boolean }
         details: { type: object, additionalProperties: true }
-    CursorPage:
-      type: object
-      description: Template for stage 01+ cursor responses.
-      required: [items, next_cursor]
-      properties:
-        items: { type: array, items: {} }
-        next_cursor: { type: string, nullable: true }
   responses:
     Problem:
       description: RFC 9457 problem details with stable MineG extensions.
       headers:
-        X-Request-ID:
-          $ref: "#/components/headers/RequestId"
+        X-Request-ID: { $ref: "#/components/headers/RequestId" }
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }

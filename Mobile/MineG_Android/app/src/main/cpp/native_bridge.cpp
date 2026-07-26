@@ -179,6 +179,280 @@ Java_com_mineg_mobile_core_NativeBridge_nativeRandomKey(JNIEnv *env, jobject) {
   return result;
 }
 
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeCreateUserKeyBundle(JNIEnv *env, jobject,
+                                                                   jbyteArray password_array) {
+  if (password_array == nullptr) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "createUserKeyBundle");
+    return nullptr;
+  }
+  const jsize password_size = env->GetArrayLength(password_array);
+  std::vector<uint8_t> password(static_cast<size_t>(password_size));
+  env->GetByteArrayRegion(password_array, 0, password_size,
+                          reinterpret_cast<jbyte *>(password.data()));
+  mineg_buffer_t public_key{};
+  mineg_buffer_t encrypted_bundle{};
+  mineg_buffer_t kdf{};
+  const mineg_error_code_t code = mineg_core_create_user_key_bundle(
+      password.data(), password.size(), &public_key, &encrypted_bundle, &kdf);
+  sodium_memzero(password.data(), password.size());
+  if (code != MINEG_OK) {
+    throw_error(env, code, "createUserKeyBundle");
+    return nullptr;
+  }
+  jclass byte_array_class = env->FindClass("[B");
+  jobjectArray result = env->NewObjectArray(3, byte_array_class, nullptr);
+  const auto set_buffer = [env, result](jsize index, const mineg_buffer_t &buffer) {
+    jbyteArray value = env->NewByteArray(static_cast<jsize>(buffer.size));
+    env->SetByteArrayRegion(value, 0, static_cast<jsize>(buffer.size),
+                            reinterpret_cast<const jbyte *>(buffer.data));
+    env->SetObjectArrayElement(result, index, value);
+    env->DeleteLocalRef(value);
+  };
+  set_buffer(0, public_key);
+  set_buffer(1, encrypted_bundle);
+  set_buffer(2, kdf);
+  mineg_buffer_free(&public_key);
+  mineg_buffer_free(&encrypted_bundle);
+  mineg_buffer_free(&kdf);
+  env->DeleteLocalRef(byte_array_class);
+  return result;
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeUnlockUserKeyBundle(
+    JNIEnv *env, jobject, jlong handle, jbyteArray password_array, jbyteArray public_key_array,
+    jbyteArray encrypted_bundle_array, jbyteArray device_wrap_key_array) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || password_array == nullptr || public_key_array == nullptr ||
+      encrypted_bundle_array == nullptr || device_wrap_key_array == nullptr ||
+      env->GetArrayLength(public_key_array) != MINEG_KEY_BYTES ||
+      env->GetArrayLength(device_wrap_key_array) != MINEG_KEY_BYTES) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "unlockUserKeyBundle");
+    return nullptr;
+  }
+  std::vector<uint8_t> password(static_cast<size_t>(env->GetArrayLength(password_array)));
+  std::vector<uint8_t> public_key(MINEG_KEY_BYTES);
+  std::vector<uint8_t> encrypted_bundle(static_cast<size_t>(env->GetArrayLength(encrypted_bundle_array)));
+  std::vector<uint8_t> device_wrap_key(MINEG_KEY_BYTES);
+  env->GetByteArrayRegion(password_array, 0, static_cast<jsize>(password.size()),
+                          reinterpret_cast<jbyte *>(password.data()));
+  env->GetByteArrayRegion(public_key_array, 0, MINEG_KEY_BYTES,
+                          reinterpret_cast<jbyte *>(public_key.data()));
+  env->GetByteArrayRegion(encrypted_bundle_array, 0, static_cast<jsize>(encrypted_bundle.size()),
+                          reinterpret_cast<jbyte *>(encrypted_bundle.data()));
+  env->GetByteArrayRegion(device_wrap_key_array, 0, MINEG_KEY_BYTES,
+                          reinterpret_cast<jbyte *>(device_wrap_key.data()));
+  mineg_buffer_t blob{};
+  const mineg_error_code_t code = mineg_core_unlock_user_key_bundle(
+      session->core, password.data(), password.size(), public_key.data(), encrypted_bundle.data(),
+      encrypted_bundle.size(), device_wrap_key.data(), &blob);
+  sodium_memzero(password.data(), password.size());
+  sodium_memzero(device_wrap_key.data(), device_wrap_key.size());
+  if (code != MINEG_OK) {
+    throw_error(env, code, "unlockUserKeyBundle");
+    return nullptr;
+  }
+  jbyteArray result = env->NewByteArray(static_cast<jsize>(blob.size));
+  env->SetByteArrayRegion(result, 0, static_cast<jsize>(blob.size),
+                          reinterpret_cast<const jbyte *>(blob.data));
+  mineg_buffer_free(&blob);
+  return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeRestoreUserKeyBundle(
+    JNIEnv *env, jobject, jlong handle, jbyteArray public_key_array,
+    jbyteArray device_wrap_key_array, jbyteArray unlock_blob_array) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || public_key_array == nullptr || device_wrap_key_array == nullptr ||
+      unlock_blob_array == nullptr || env->GetArrayLength(public_key_array) != MINEG_KEY_BYTES ||
+      env->GetArrayLength(device_wrap_key_array) != MINEG_KEY_BYTES) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "restoreUserKeyBundle");
+    return;
+  }
+  std::vector<uint8_t> public_key(MINEG_KEY_BYTES);
+  std::vector<uint8_t> device_wrap_key(MINEG_KEY_BYTES);
+  std::vector<uint8_t> blob(static_cast<size_t>(env->GetArrayLength(unlock_blob_array)));
+  env->GetByteArrayRegion(public_key_array, 0, MINEG_KEY_BYTES,
+                          reinterpret_cast<jbyte *>(public_key.data()));
+  env->GetByteArrayRegion(device_wrap_key_array, 0, MINEG_KEY_BYTES,
+                          reinterpret_cast<jbyte *>(device_wrap_key.data()));
+  env->GetByteArrayRegion(unlock_blob_array, 0, static_cast<jsize>(blob.size()),
+                          reinterpret_cast<jbyte *>(blob.data()));
+  const mineg_error_code_t code = mineg_core_restore_user_key_bundle(
+      session->core, public_key.data(), device_wrap_key.data(), blob.data(), blob.size());
+  sodium_memzero(device_wrap_key.data(), device_wrap_key.size());
+  sodium_memzero(blob.data(), blob.size());
+  if (code != MINEG_OK) throw_error(env, code, "restoreUserKeyBundle");
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeUnlockFamilyKeyEnvelope(
+    JNIEnv *env, jobject, jlong handle, jbyteArray envelope_array) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || envelope_array == nullptr) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "unlockFamilyKeyEnvelope");
+    return;
+  }
+  std::vector<uint8_t> envelope(static_cast<size_t>(env->GetArrayLength(envelope_array)));
+  env->GetByteArrayRegion(envelope_array, 0, static_cast<jsize>(envelope.size()),
+                          reinterpret_cast<jbyte *>(envelope.data()));
+  const mineg_error_code_t code = mineg_core_unlock_family_key_envelope(
+      session->core, envelope.data(), envelope.size());
+  sodium_memzero(envelope.data(), envelope.size());
+  if (code != MINEG_OK) throw_error(env, code, "unlockFamilyKeyEnvelope");
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeCreateFamilyKeyEnvelope(
+    JNIEnv *env, jobject, jlong handle, jbyteArray recipient_array, jboolean bootstrap_if_needed) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || recipient_array == nullptr ||
+      env->GetArrayLength(recipient_array) != MINEG_KEY_BYTES) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "createFamilyKeyEnvelope");
+    return nullptr;
+  }
+  std::vector<uint8_t> recipient(MINEG_KEY_BYTES);
+  env->GetByteArrayRegion(recipient_array, 0, MINEG_KEY_BYTES,
+                          reinterpret_cast<jbyte *>(recipient.data()));
+  mineg_buffer_t envelope{};
+  const mineg_error_code_t code = mineg_core_create_family_key_envelope(
+      session->core, recipient.data(), bootstrap_if_needed == JNI_TRUE ? 1 : 0, &envelope);
+  if (code != MINEG_OK) {
+    throw_error(env, code, "createFamilyKeyEnvelope");
+    return nullptr;
+  }
+  jbyteArray result = env->NewByteArray(static_cast<jsize>(envelope.size));
+  env->SetByteArrayRegion(result, 0, static_cast<jsize>(envelope.size),
+                          reinterpret_cast<const jbyte *>(envelope.data));
+  mineg_buffer_free(&envelope);
+  return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeLockKeys(JNIEnv *, jobject, jlong handle) {
+  NativeSession *session = session_from(handle);
+  if (session != nullptr) mineg_core_lock_keys(session->core);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeCreateMediaKeyEnvelope(
+    JNIEnv *env, jobject, jlong handle, jstring media_id_value) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || media_id_value == nullptr) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "createMediaKeyEnvelope");
+    return nullptr;
+  }
+  const std::string media_id = from_jstring(env, media_id_value);
+  mineg_buffer_t envelope{};
+  const mineg_error_code_t code =
+      mineg_core_create_media_key_envelope(session->core, media_id.c_str(), &envelope);
+  if (code != MINEG_OK) {
+    throw_error(env, code, "createMediaKeyEnvelope");
+    return nullptr;
+  }
+  jbyteArray result = env->NewByteArray(static_cast<jsize>(envelope.size));
+  env->SetByteArrayRegion(result, 0, static_cast<jsize>(envelope.size),
+                          reinterpret_cast<const jbyte *>(envelope.data));
+  mineg_buffer_free(&envelope);
+  return result;
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeComputeDedupeFingerprint(
+    JNIEnv *env, jobject, jlong handle, jint descriptor, jstring media_type_value) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || media_type_value == nullptr) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "computeDedupeFingerprint");
+    return nullptr;
+  }
+  const std::string media_type = from_jstring(env, media_type_value);
+  mineg_buffer_t fingerprint{};
+  const mineg_error_code_t code = mineg_core_compute_dedupe_fingerprint(
+      session->core, descriptor, media_type.c_str(), &fingerprint);
+  if (code != MINEG_OK) {
+    throw_error(env, code, "computeDedupeFingerprint");
+    return nullptr;
+  }
+  jbyteArray result = env->NewByteArray(static_cast<jsize>(fingerprint.size));
+  env->SetByteArrayRegion(result, 0, static_cast<jsize>(fingerprint.size),
+                          reinterpret_cast<const jbyte *>(fingerprint.data));
+  mineg_buffer_free(&fingerprint);
+  return result;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeEncryptMediaResource(
+    JNIEnv *env, jobject, jlong handle, jint descriptor, jstring ciphertext_path_value,
+    jstring media_id_value, jstring resource_id_value, jstring resource_type_value,
+    jbyteArray encrypted_media_key_value) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || ciphertext_path_value == nullptr || media_id_value == nullptr ||
+      resource_id_value == nullptr || resource_type_value == nullptr ||
+      encrypted_media_key_value == nullptr) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "encryptMediaResource");
+    return nullptr;
+  }
+  std::vector<uint8_t> encrypted_media_key(
+      static_cast<size_t>(env->GetArrayLength(encrypted_media_key_value)));
+  env->GetByteArrayRegion(encrypted_media_key_value, 0,
+                          static_cast<jsize>(encrypted_media_key.size()),
+                          reinterpret_cast<jbyte *>(encrypted_media_key.data()));
+  const std::string ciphertext_path = from_jstring(env, ciphertext_path_value);
+  const std::string media_id = from_jstring(env, media_id_value);
+  const std::string resource_id = from_jstring(env, resource_id_value);
+  const std::string resource_type = from_jstring(env, resource_type_value);
+  mineg_buffer_t manifest{};
+  const mineg_error_code_t code = mineg_core_encrypt_media_resource(
+      session->core, descriptor, ciphertext_path.c_str(), media_id.c_str(), resource_id.c_str(),
+      resource_type.c_str(), encrypted_media_key.data(), encrypted_media_key.size(), &manifest);
+  sodium_memzero(encrypted_media_key.data(), encrypted_media_key.size());
+  if (code != MINEG_OK) {
+    throw_error(env, code, "encryptMediaResource");
+    return nullptr;
+  }
+  std::string result(reinterpret_cast<const char *>(manifest.data), manifest.size);
+  mineg_buffer_free(&manifest);
+  return env->NewStringUTF(result.c_str());
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeEncryptMediaManifest(
+    JNIEnv *env, jobject, jlong handle, jstring media_id_value, jbyteArray manifest_value,
+    jbyteArray encrypted_media_key_value) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || media_id_value == nullptr || manifest_value == nullptr ||
+      encrypted_media_key_value == nullptr) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "encryptMediaManifest");
+    return nullptr;
+  }
+  std::vector<uint8_t> manifest(static_cast<size_t>(env->GetArrayLength(manifest_value)));
+  std::vector<uint8_t> encrypted_media_key(
+      static_cast<size_t>(env->GetArrayLength(encrypted_media_key_value)));
+  env->GetByteArrayRegion(manifest_value, 0, static_cast<jsize>(manifest.size()),
+                          reinterpret_cast<jbyte *>(manifest.data()));
+  env->GetByteArrayRegion(encrypted_media_key_value, 0,
+                          static_cast<jsize>(encrypted_media_key.size()),
+                          reinterpret_cast<jbyte *>(encrypted_media_key.data()));
+  const std::string media_id = from_jstring(env, media_id_value);
+  mineg_buffer_t encrypted{};
+  const mineg_error_code_t code = mineg_core_encrypt_media_manifest(
+      session->core, media_id.c_str(), manifest.data(), manifest.size(), encrypted_media_key.data(),
+      encrypted_media_key.size(), &encrypted);
+  sodium_memzero(manifest.data(), manifest.size());
+  sodium_memzero(encrypted_media_key.data(), encrypted_media_key.size());
+  if (code != MINEG_OK) {
+    throw_error(env, code, "encryptMediaManifest");
+    return nullptr;
+  }
+  jbyteArray result = env->NewByteArray(static_cast<jsize>(encrypted.size));
+  env->SetByteArrayRegion(result, 0, static_cast<jsize>(encrypted.size),
+                          reinterpret_cast<const jbyte *>(encrypted.data));
+  mineg_buffer_free(&encrypted);
+  return result;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_mineg_mobile_core_NativeBridge_nativeEncryptFd(JNIEnv *env, jobject, jlong handle,
                                                          jint descriptor, jstring output_path,

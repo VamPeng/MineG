@@ -1,5 +1,7 @@
 #include "mineg/mineg_core.h"
+#include "sodium_compat.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -36,15 +38,98 @@ void write_plaintext(const std::filesystem::path &path) {
   }
 }
 
+void write_media_plaintext(const std::filesystem::path &path) {
+  std::ofstream output(path, std::ios::binary);
+  for (size_t index = 0; index < 8U * 1024U * 1024U + 37U; ++index) {
+    output.put(static_cast<char>((index * 17U + 29U) & 0xffU));
+  }
+}
+
+std::string json_string(const std::string &json, const std::string &field) {
+  const std::string marker = "\"" + field + "\"";
+  const size_t start = json.find(marker);
+  assert(start != std::string::npos);
+  const size_t colon = json.find(':', start + marker.size());
+  assert(colon != std::string::npos);
+  const size_t quote = json.find('"', colon + 1U);
+  assert(quote != std::string::npos);
+  const size_t value = quote + 1U;
+  const size_t end = json.find('"', value);
+  assert(end != std::string::npos);
+  return json.substr(value, end - value);
+}
+
+std::array<uint8_t, MINEG_MEDIA_NONCE_PREFIX_BYTES> decode_nonce_prefix(
+    const std::string &hex) {
+  assert(hex.size() == MINEG_MEDIA_NONCE_PREFIX_BYTES * 2U);
+  std::array<uint8_t, MINEG_MEDIA_NONCE_PREFIX_BYTES> result{};
+  const auto nibble = [](char value) -> uint8_t {
+    if (value >= '0' && value <= '9') return static_cast<uint8_t>(value - '0');
+    if (value >= 'a' && value <= 'f') return static_cast<uint8_t>(value - 'a' + 10);
+    std::abort();
+  };
+  for (size_t index = 0; index < result.size(); ++index) {
+    result[index] = static_cast<uint8_t>((nibble(hex[index * 2U]) << 4U) |
+                                         nibble(hex[index * 2U + 1U]));
+  }
+  return result;
+}
+
+size_t count_occurrences(const std::string &value, const std::string &needle) {
+  size_t count = 0;
+  size_t offset = 0;
+  while ((offset = value.find(needle, offset)) != std::string::npos) {
+    ++count;
+    offset += needle.size();
+  }
+  return count;
+}
+
 std::string read_all(const std::filesystem::path &path) {
   std::ifstream input(path, std::ios::binary);
   return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
 }
 
+std::vector<uint8_t> decode_hex(const std::string &hex) {
+  assert(hex.size() % 2U == 0U);
+  const auto nibble = [](char value) -> uint8_t {
+    if (value >= '0' && value <= '9') return static_cast<uint8_t>(value - '0');
+    if (value >= 'a' && value <= 'f') return static_cast<uint8_t>(value - 'a' + 10);
+    std::abort();
+  };
+  std::vector<uint8_t> result(hex.size() / 2U);
+  for (size_t index = 0; index < result.size(); ++index) {
+    result[index] = static_cast<uint8_t>((nibble(hex[index * 2U]) << 4U) |
+                                         nibble(hex[index * 2U + 1U]));
+  }
+  return result;
+}
+
+void verify_media_encryption_vector() {
+  const auto vector_path =
+      std::filesystem::path(MINEG_CORE_SOURCE_DIR) / "test-vectors/media-encryption-v1.json";
+  const std::string fixture = read_all(vector_path);
+  const auto key = decode_hex(json_string(fixture, "resourceKeyHex"));
+  const auto nonce = decode_hex(json_string(fixture, "nonceHex"));
+  const auto aad = decode_hex(json_string(fixture, "aadHex"));
+  const auto plaintext = decode_hex(json_string(fixture, "plaintextHex"));
+  const auto expected = decode_hex(json_string(fixture, "ciphertextHex"));
+  assert(key.size() == 32U);
+  assert(nonce.size() == crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+  std::vector<uint8_t> ciphertext(plaintext.size() + crypto_aead_xchacha20poly1305_ietf_ABYTES);
+  unsigned long long ciphertext_size = 0;
+  assert(crypto_aead_xchacha20poly1305_ietf_encrypt(
+             ciphertext.data(), &ciphertext_size, plaintext.data(), plaintext.size(), aad.data(),
+             aad.size(), nullptr, nonce.data(), key.data()) == 0);
+  ciphertext.resize(static_cast<size_t>(ciphertext_size));
+  assert(ciphertext == expected);
+}
+
 }  // namespace
 
 int main() {
-  assert(mineg_abi_version() == 1U);
+  verify_media_encryption_vector();
+  assert(mineg_abi_version() == 4U);
   const auto root = std::filesystem::temp_directory_path() /
                     ("mineg-core-test-" + std::to_string(static_cast<long long>(::getpid())));
   std::filesystem::create_directories(root);
@@ -62,8 +147,396 @@ int main() {
   uint64_t subscription = 0;
   expect(mineg_core_subscribe(core, event_callback, &event, &subscription), MINEG_OK, "subscribe");
 
-  const std::string command = R"({"version":1,"type":"FoundationWriteProbe","value":"persisted"})";
+  const std::string account_command =
+      R"({"version":1,"type":"PersistAccountState","userId":"user-001","maskedPhone":"138****8000","approvalStatus":"PENDING","updatedAt":"2026-07-26T00:00:00.000Z"})";
   mineg_buffer_t result{};
+  expect(mineg_core_execute(core, 9, reinterpret_cast<const uint8_t *>(account_command.data()),
+                            account_command.size(), &result),
+         MINEG_OK, "persist account state");
+  mineg_buffer_free(&result);
+  const std::string account_query = R"({"version":1,"type":"GetAccountState"})";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(account_query.data()),
+                          account_query.size(), &result),
+         MINEG_OK, "query account state");
+  assert(as_string(result).find("138****8000") != std::string::npos);
+  assert(as_string(result).find("accessToken") == std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string password = "family-photo-2026";
+  mineg_buffer_t public_key{};
+  mineg_buffer_t encrypted_bundle{};
+  mineg_buffer_t kdf{};
+  expect(mineg_core_create_user_key_bundle(
+             reinterpret_cast<const uint8_t *>(password.data()), password.size(), &public_key,
+             &encrypted_bundle, &kdf),
+         MINEG_OK, "create user key bundle");
+  assert(public_key.size == 32U);
+  assert(encrypted_bundle.size == 128U);
+  assert(as_string(kdf).find("ARGON2ID13") != std::string::npos);
+  assert(as_string(encrypted_bundle).find(password) == std::string::npos);
+  std::array<uint8_t, MINEG_KEY_BYTES> device_wrap_key{};
+  for (size_t index = 0; index < device_wrap_key.size(); ++index) {
+    device_wrap_key[index] = static_cast<uint8_t>(index + 1U);
+  }
+  mineg_buffer_t device_unlock_blob{};
+  const std::string wrong_password = "wrong-family-photo-2026";
+  expect(mineg_core_unlock_user_key_bundle(
+             core, reinterpret_cast<const uint8_t *>(wrong_password.data()), wrong_password.size(),
+             public_key.data, encrypted_bundle.data, encrypted_bundle.size, device_wrap_key.data(),
+             &device_unlock_blob),
+         MINEG_INTEGRITY_ERROR, "reject wrong key bundle password");
+  expect(mineg_core_unlock_user_key_bundle(
+             core, reinterpret_cast<const uint8_t *>(password.data()), password.size(), public_key.data,
+             encrypted_bundle.data, encrypted_bundle.size, device_wrap_key.data(), &device_unlock_blob),
+         MINEG_OK, "unlock user key bundle");
+  assert(device_unlock_blob.size == 112U);
+  mineg_buffer_t family_envelope{};
+  expect(mineg_core_create_family_key_envelope(core, public_key.data, 1, &family_envelope),
+         MINEG_OK, "bootstrap family key envelope");
+  assert(family_envelope.size == MINEG_FAMILY_KEY_ENVELOPE_BYTES);
+  mineg_core_lock_keys(core);
+  expect(mineg_core_unlock_family_key_envelope(core, family_envelope.data, family_envelope.size),
+         MINEG_NOT_FOUND, "family envelope requires user keys");
+  expect(mineg_core_restore_user_key_bundle(core, public_key.data, device_wrap_key.data(),
+                                            device_unlock_blob.data, device_unlock_blob.size),
+         MINEG_OK, "restore device wrapped user keys");
+  expect(mineg_core_unlock_family_key_envelope(core, family_envelope.data, family_envelope.size),
+         MINEG_OK, "unlock family key envelope");
+  std::array<uint8_t, MINEG_FAMILY_KEY_ENVELOPE_BYTES> invalid_family_envelope{};
+  expect(mineg_core_unlock_family_key_envelope(core, invalid_family_envelope.data(),
+                                               invalid_family_envelope.size()),
+         MINEG_INTEGRITY_ERROR, "reject invalid family envelope");
+  mineg_buffer_t rejected_member_envelope{};
+  expect(mineg_core_create_family_key_envelope(core, public_key.data, 0, &rejected_member_envelope),
+         MINEG_NOT_FOUND, "invalid envelope clears prior family key");
+  expect(mineg_core_unlock_user_key_bundle(
+             core, reinterpret_cast<const uint8_t *>(wrong_password.data()), wrong_password.size(),
+             public_key.data, encrypted_bundle.data, encrypted_bundle.size, device_wrap_key.data(),
+             &rejected_member_envelope),
+         MINEG_INTEGRITY_ERROR, "failed user unlock clears prior user keys");
+  expect(mineg_core_create_family_key_envelope(core, public_key.data, 0, &rejected_member_envelope),
+         MINEG_NOT_FOUND, "failed user unlock leaves no usable keys");
+  expect(mineg_core_restore_user_key_bundle(core, public_key.data, device_wrap_key.data(),
+                                            device_unlock_blob.data, device_unlock_blob.size),
+         MINEG_OK, "restore user keys after rejected unlock");
+  expect(mineg_core_unlock_family_key_envelope(core, family_envelope.data, family_envelope.size),
+         MINEG_OK, "restore family key after rejected unlock");
+  mineg_buffer_free(&kdf);
+
+  const auto media_plaintext = root / "media-plain.bin";
+  const auto media_ciphertext = root / "media-cipher.bin";
+  const auto media_decrypted = root / "media-decrypted.bin";
+  write_media_plaintext(media_plaintext);
+  const std::string media_id = "10000000-0000-4000-8000-000000000003";
+  const std::string resource_id = "20000000-0000-4000-8000-000000000003";
+  mineg_buffer_t media_key_envelope{};
+  expect(mineg_core_create_media_key_envelope(core, media_id.c_str(), &media_key_envelope),
+         MINEG_OK, "create media key envelope");
+  assert(media_key_envelope.size == MINEG_MEDIA_KEY_ENVELOPE_BYTES);
+  const int media_fd = ::open(media_plaintext.c_str(), O_RDONLY);
+  assert(media_fd >= 0);
+  mineg_buffer_t fingerprint{};
+  expect(mineg_core_compute_dedupe_fingerprint(core, media_fd, "PHOTO", &fingerprint),
+         MINEG_OK, "compute account private dedupe fingerprint");
+  assert(fingerprint.size == 32U);
+  mineg_buffer_t fingerprint_replay{};
+  expect(mineg_core_compute_dedupe_fingerprint(core, media_fd, "PHOTO", &fingerprint_replay),
+         MINEG_OK, "repeat dedupe fingerprint");
+  assert(as_string(fingerprint) == as_string(fingerprint_replay));
+  mineg_buffer_free(&fingerprint_replay);
+  mineg_buffer_t resource_manifest{};
+  expect(mineg_core_encrypt_media_resource(
+             core, media_fd, media_ciphertext.c_str(), media_id.c_str(), resource_id.c_str(),
+             "ORIGINAL", media_key_envelope.data, media_key_envelope.size, &resource_manifest),
+         MINEG_OK, "encrypt 4 MiB media blocks");
+  ::close(media_fd);
+  const std::string manifest = as_string(resource_manifest);
+  assert(manifest.find("\"logicalBlockBytes\":4194304") != std::string::npos);
+  assert(count_occurrences(manifest, "\"partNumber\"") == 3U);
+  assert(manifest.find("XCHACHA20_POLY1305") != std::string::npos);
+  const auto nonce_prefix = decode_nonce_prefix(json_string(manifest, "noncePrefix"));
+  mineg_buffer_t encrypted_manifest{};
+  expect(mineg_core_encrypt_media_manifest(
+             core, media_id.c_str(), resource_manifest.data, resource_manifest.size,
+             media_key_envelope.data, media_key_envelope.size, &encrypted_manifest),
+         MINEG_OK, "authenticate encrypted resource manifest");
+  assert(encrypted_manifest.size == resource_manifest.size + 48U);
+  assert(as_string(encrypted_manifest).find(resource_id) == std::string::npos);
+  const uint64_t media_plaintext_size = std::filesystem::file_size(media_plaintext);
+  expect(mineg_core_decrypt_media_resource(
+             core, media_ciphertext.c_str(), media_decrypted.c_str(), media_id.c_str(),
+             resource_id.c_str(), "ORIGINAL", media_plaintext_size, nonce_prefix.data(),
+             media_key_envelope.data, media_key_envelope.size),
+         MINEG_OK, "decrypt authenticated media blocks");
+  assert(read_all(media_plaintext) == read_all(media_decrypted));
+
+  const auto reordered_ciphertext = root / "media-reordered.bin";
+  std::string reordered = read_all(media_ciphertext);
+  constexpr size_t kEncryptedFullBlock = 4U * 1024U * 1024U + 16U;
+  std::swap_ranges(reordered.begin(), reordered.begin() + kEncryptedFullBlock,
+                   reordered.begin() + kEncryptedFullBlock);
+  {
+    std::ofstream output(reordered_ciphertext, std::ios::binary);
+    output.write(reordered.data(), static_cast<std::streamsize>(reordered.size()));
+  }
+  const auto rejected_reorder = root / "media-reorder-rejected.bin";
+  expect(mineg_core_decrypt_media_resource(
+             core, reordered_ciphertext.c_str(), rejected_reorder.c_str(), media_id.c_str(),
+             resource_id.c_str(), "ORIGINAL", media_plaintext_size, nonce_prefix.data(),
+             media_key_envelope.data, media_key_envelope.size),
+         MINEG_INTEGRITY_ERROR, "reject reordered media blocks");
+  assert(!std::filesystem::exists(rejected_reorder));
+
+  const auto truncated_ciphertext = root / "media-truncated.bin";
+  reordered = read_all(media_ciphertext);
+  reordered.resize(reordered.size() - 1U);
+  {
+    std::ofstream output(truncated_ciphertext, std::ios::binary);
+    output.write(reordered.data(), static_cast<std::streamsize>(reordered.size()));
+  }
+  const auto rejected_truncated = root / "media-truncated-rejected.bin";
+  expect(mineg_core_decrypt_media_resource(
+             core, truncated_ciphertext.c_str(), rejected_truncated.c_str(), media_id.c_str(),
+             resource_id.c_str(), "ORIGINAL", media_plaintext_size, nonce_prefix.data(),
+             media_key_envelope.data, media_key_envelope.size),
+         MINEG_INTEGRITY_ERROR, "reject truncated media resource");
+  assert(!std::filesystem::exists(rejected_truncated));
+  mineg_buffer_t wrong_manifest{};
+  expect(mineg_core_encrypt_media_manifest(
+             core, "wrong-media-id", resource_manifest.data, resource_manifest.size,
+             media_key_envelope.data, media_key_envelope.size, &wrong_manifest),
+         MINEG_INTEGRITY_ERROR, "reject manifest media mismatch");
+
+  const std::string create_backup =
+      "{\"version\":1,\"type\":\"CreateSingleMediaBackup\",\"taskId\":\"" + media_id +
+      "\",\"userId\":\"user-001\",\"platformAssetRef\":\"android:asset:backup-1\","
+      "\"contentVersion\":\"7:8388645\",\"mediaType\":\"PHOTO\","
+      "\"createdAt\":\"2026-07-26T06:00:00.000Z\"}";
+  expect(mineg_core_execute(core, 20, reinterpret_cast<const uint8_t *>(create_backup.data()),
+                            create_backup.size(), &result),
+         MINEG_OK, "persist backup before side effects");
+  mineg_buffer_free(&result);
+  const std::string premature_completion =
+      "{\"version\":1,\"type\":\"CompleteSingleMediaBackup\",\"taskId\":\"" + media_id +
+      "\",\"serverMediaId\":\"must-not-complete\","
+      "\"updatedAt\":\"2026-07-26T06:00:00.500Z\"}";
+  expect(mineg_core_execute(core, 21,
+                            reinterpret_cast<const uint8_t *>(premature_completion.data()),
+                            premature_completion.size(), &result),
+         MINEG_INVALID_ARGUMENT, "reject premature local completion");
+  const std::string fake_digest(64, 'a');
+  const std::string prepared_backup =
+      "{\"version\":1,\"type\":\"RecordPreparedMedia\",\"taskId\":\"" + media_id +
+      "\",\"dedupeFingerprint\":\"dedupe-base64\",\"encryptedMediaKey\":\"key-base64\","
+      "\"encryptedManifest\":\"manifest-base64\",\"manifestDigest\":\"digest-base64\","
+      "\"resources\":[{\"resourceId\":\"" + resource_id +
+      "\",\"resourceType\":\"ORIGINAL\",\"ciphertextPath\":\"" +
+      media_ciphertext.string() + "\",\"ciphertextSize\":" +
+      std::to_string(std::filesystem::file_size(media_ciphertext)) +
+      ",\"ciphertextSha256\":\"" + fake_digest + "\",\"manifest\":" + manifest +
+      ",\"parts\":[{\"partNumber\":1,\"offset\":0,\"ciphertextSize\":4194320,"
+      "\"ciphertextSha256\":\"" + fake_digest +
+      "\"},{\"partNumber\":2,\"offset\":4194320,\"ciphertextSize\":4194320,"
+      "\"ciphertextSha256\":\"" + fake_digest +
+      "\"},{\"partNumber\":3,\"offset\":8388640,\"ciphertextSize\":53,"
+      "\"ciphertextSha256\":\"" + fake_digest +
+      "\"}]}],\"updatedAt\":\"2026-07-26T06:00:01.000Z\"}";
+  expect(mineg_core_execute(core, 22, reinterpret_cast<const uint8_t *>(prepared_backup.data()),
+                            prepared_backup.size(), &result),
+         MINEG_OK, "persist encrypted resources before upload");
+  mineg_buffer_free(&result);
+  const std::string upload_session_command =
+      "{\"version\":1,\"type\":\"RecordUploadSession\",\"taskId\":\"" + media_id +
+      "\",\"uploadId\":\"server-upload-1\",\"updatedAt\":\"2026-07-26T06:00:02.000Z\"}";
+  expect(mineg_core_execute(core, 23, reinterpret_cast<const uint8_t *>(upload_session_command.data()),
+                            upload_session_command.size(), &result),
+         MINEG_OK, "persist server upload session");
+  mineg_buffer_free(&result);
+  for (int part = 1; part <= 3; ++part) {
+    const std::string report =
+        "{\"version\":1,\"type\":\"RecordUploadedPart\",\"taskId\":\"" + media_id +
+        "\",\"resourceId\":\"" + resource_id + "\",\"partNumber\":" +
+        std::to_string(part) + ",\"etag\":\"etag-" + std::to_string(part) +
+        "\",\"updatedAt\":\"2026-07-26T06:00:03.000Z\"}";
+    expect(mineg_core_execute(core, 23U + static_cast<uint64_t>(part),
+                              reinterpret_cast<const uint8_t *>(report.data()), report.size(), &result),
+           MINEG_OK, "persist uploaded part");
+    mineg_buffer_free(&result);
+    if (part == 1) {
+      mineg_core_close(core);
+      core = nullptr;
+      expect(mineg_core_create(database.c_str(), &core), MINEG_OK,
+             "reopen during multipart upload");
+      expect(mineg_core_subscribe(core, event_callback, &event, &subscription), MINEG_OK,
+             "restore subscription after process death");
+      expect(mineg_core_restore_user_key_bundle(core, public_key.data, device_wrap_key.data(),
+                                                device_unlock_blob.data,
+                                                device_unlock_blob.size),
+             MINEG_OK, "restore user keys during multipart recovery");
+      expect(mineg_core_unlock_family_key_envelope(core, family_envelope.data,
+                                                   family_envelope.size),
+             MINEG_OK, "restore family key during multipart recovery");
+      const std::string recovery_query =
+          "{\"version\":1,\"type\":\"GetSingleMediaBackup\",\"taskId\":\"" +
+          media_id + "\"}";
+      expect(mineg_core_query(core,
+                              reinterpret_cast<const uint8_t *>(recovery_query.data()),
+                              recovery_query.size(), &result),
+             MINEG_OK, "recover multipart upload after process death");
+      const std::string recovery = as_string(result);
+      assert(recovery.find("\"state\":\"UPLOADING\"") != std::string::npos);
+      assert(recovery.find("\"etag\":\"etag-1\"") != std::string::npos);
+      assert(recovery.find(media_ciphertext.string()) != std::string::npos);
+      mineg_buffer_free(&result);
+    }
+  }
+  const std::string verifying =
+      "{\"version\":1,\"type\":\"MarkServerVerifying\",\"taskId\":\"" + media_id +
+      "\",\"updatedAt\":\"2026-07-26T06:00:04.000Z\"}";
+  expect(mineg_core_execute(core, 27, reinterpret_cast<const uint8_t *>(verifying.data()),
+                            verifying.size(), &result),
+         MINEG_OK, "persist server verifying state");
+  mineg_buffer_free(&result);
+  const std::string completed_backup =
+      "{\"version\":1,\"type\":\"CompleteSingleMediaBackup\",\"taskId\":\"" + media_id +
+      "\",\"serverMediaId\":\"server-media-1\","
+      "\"updatedAt\":\"2026-07-26T06:00:05.000Z\"}";
+  expect(mineg_core_execute(core, 28, reinterpret_cast<const uint8_t *>(completed_backup.data()),
+                            completed_backup.size(), &result),
+         MINEG_OK, "complete single media backup only after server confirmation");
+  mineg_buffer_free(&result);
+  const std::string backup_query =
+      "{\"version\":1,\"type\":\"GetSingleMediaBackup\",\"taskId\":\"" + media_id + "\"}";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(backup_query.data()),
+                          backup_query.size(), &result),
+         MINEG_OK, "read completed single media backup");
+  assert(as_string(result).find("\"state\":\"COMPLETED\"") != std::string::npos);
+  assert(as_string(result).find("\"uploadedParts\":3") != std::string::npos);
+  mineg_buffer_free(&result);
+  mineg_buffer_free(&encrypted_manifest);
+  mineg_buffer_free(&resource_manifest);
+  mineg_buffer_free(&fingerprint);
+  mineg_buffer_free(&media_key_envelope);
+
+  const std::string settings_query =
+      R"({"version":1,"type":"GetBackupSettings","userId":"user-001","deviceInstallationId":"device-001"})";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(settings_query.data()),
+                          settings_query.size(), &result),
+         MINEG_OK, "default backup settings");
+  assert(as_string(result).find("\"autoBackupEnabled\":true") != std::string::npos);
+  assert(as_string(result).find("\"allowCellularBackup\":false") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string settings_command =
+      R"({"version":1,"type":"UpdateBackupSettings","userId":"user-001","deviceInstallationId":"device-001","autoBackupEnabled":false,"allowCellularBackup":true,"updatedAt":"2026-07-26T01:00:00.000Z"})";
+  expect(mineg_core_execute(core, 10, reinterpret_cast<const uint8_t *>(settings_command.data()),
+                            settings_command.size(), &result),
+         MINEG_OK, "update backup settings");
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(settings_query.data()),
+                          settings_query.size(), &result),
+         MINEG_OK, "persisted backup settings");
+  assert(as_string(result).find("\"autoBackupEnabled\":false") != std::string::npos);
+  assert(as_string(result).find("\"allowCellularBackup\":true") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string media_batch =
+      R"({"version":1,"type":"ApplyLocalMediaBatch","userId":"user-001","scanGeneration":"scan-001","albums":[{"platformAlbumRef":"android:album:camera","name":"Camera"}],"media":[{"platformAssetRef":"android:asset:2","mediaType":"VIDEO","mimeType":"video/mp4","width":1920,"height":1080,"durationMs":3000,"capturedAt":"2026-07-26T02:00:00.000Z","modifiedAt":"2026-07-26T02:00:01.000Z","modifiedVersion":2,"contentVersion":"2:2048","availability":"AVAILABLE","thumbnailUri":"content://media/2"},{"platformAssetRef":"android:asset:1","mediaType":"PHOTO","mimeType":"image/jpeg","width":1000,"height":1000,"durationMs":null,"capturedAt":"2026-07-26T01:00:00.000Z","modifiedAt":"2026-07-26T01:00:01.000Z","modifiedVersion":1,"contentVersion":"1:1024","availability":"AVAILABLE","thumbnailUri":"content://media/1"}],"relations":[{"platformAssetRef":"android:asset:2","platformAlbumRef":"android:album:camera"},{"platformAssetRef":"android:asset:1","platformAlbumRef":"android:album:camera"}],"cursorModifiedVersion":2,"cursorAssetRef":"android:asset:2","complete":true,"updatedAt":"2026-07-26T03:00:00.000Z"})";
+  expect(mineg_core_execute(core, 11, reinterpret_cast<const uint8_t *>(media_batch.data()),
+                            media_batch.size(), &result),
+         MINEG_OK, "apply local media batch");
+  mineg_buffer_free(&result);
+  const std::string album_query =
+      R"({"version":1,"type":"ListLocalAlbums","userId":"user-001","limit":50})";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(album_query.data()),
+                          album_query.size(), &result),
+         MINEG_OK, "list local albums");
+  assert(as_string(result).find("Camera") != std::string::npos);
+  assert(as_string(result).find("\"mediaCount\":2") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string media_query =
+      R"({"version":1,"type":"ListLocalMedia","userId":"user-001","platformAlbumRef":"android:album:camera","limit":1})";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(media_query.data()),
+                          media_query.size(), &result),
+         MINEG_OK, "list local media page");
+  assert(as_string(result).find("android:asset:2") != std::string::npos);
+  assert(as_string(result).find("nextCursor") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string reconciled_batch =
+      R"({"version":1,"type":"ApplyLocalMediaBatch","userId":"user-001","scanGeneration":"scan-002","albums":[{"platformAlbumRef":"android:album:camera","name":"Family Camera"},{"platformAlbumRef":"android:album:favorites","name":"Favorites"}],"media":[{"platformAssetRef":"android:asset:1","mediaType":"PHOTO","mimeType":"image/webp","width":1200,"height":1200,"durationMs":null,"capturedAt":"2026-07-26T01:00:00.000Z","modifiedAt":"2026-07-26T04:00:00.000Z","modifiedVersion":3,"contentVersion":"3:1536","availability":"AVAILABLE","thumbnailUri":"content://media/1"}],"relations":[{"platformAssetRef":"android:asset:1","platformAlbumRef":"android:album:camera"},{"platformAssetRef":"android:asset:1","platformAlbumRef":"android:album:favorites"}],"cursorModifiedVersion":3,"cursorAssetRef":"android:asset:1","complete":true,"updatedAt":"2026-07-26T04:00:01.000Z"})";
+  expect(mineg_core_execute(core, 12, reinterpret_cast<const uint8_t *>(reconciled_batch.data()),
+                            reconciled_batch.size(), &result),
+         MINEG_OK, "reconcile rename edit multi-album and deletion");
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(album_query.data()),
+                          album_query.size(), &result),
+         MINEG_OK, "list reconciled albums");
+  assert(as_string(result).find("Family Camera") != std::string::npos);
+  assert(as_string(result).find("Favorites") != std::string::npos);
+  assert(count_occurrences(as_string(result), "\"mediaCount\":1") == 2U);
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(media_query.data()),
+                          media_query.size(), &result),
+         MINEG_OK, "list reconciled media");
+  assert(as_string(result).find("\"contentVersion\":\"3:1536\"") != std::string::npos);
+  assert(as_string(result).find("android:asset:2") == std::string::npos);
+  mineg_buffer_free(&result);
+
+  constexpr int kMediaCount = 100000;
+  constexpr int kBatchSize = 500;
+  for (int base = 0; base < kMediaCount; base += kBatchSize) {
+    std::string batch =
+        "{\"version\":1,\"type\":\"ApplyLocalMediaBatch\",\"userId\":\"user-100k\","
+        "\"scanGeneration\":\"scan-100k\",\"albums\":[{\"platformAlbumRef\":"
+        "\"android:album:large\",\"name\":\"Large Library\"}],\"media\":[";
+    std::string relations = "],\"relations\":[";
+    for (int offset = 0; offset < kBatchSize; ++offset) {
+      const int index = base + offset;
+      const std::string ref = "android:asset:large:" + std::to_string(index);
+      if (offset > 0) {
+        batch += ',';
+        relations += ',';
+      }
+      batch += "{\"platformAssetRef\":\"" + ref +
+               "\",\"mediaType\":\"PHOTO\",\"mimeType\":\"image/jpeg\","
+               "\"width\":1000,\"height\":1000,\"durationMs\":null,"
+               "\"capturedAt\":\"2026-07-26T05:00:00.000Z\","
+               "\"modifiedAt\":\"2026-07-26T05:00:00.000Z\",\"modifiedVersion\":" +
+               std::to_string(index) + ",\"contentVersion\":\"" + std::to_string(index) +
+               ":1024\",\"availability\":\"AVAILABLE\",\"thumbnailUri\":\"content://media/" +
+               std::to_string(index) + "\"}";
+      relations += "{\"platformAssetRef\":\"" + ref +
+                   "\",\"platformAlbumRef\":\"android:album:large\"}";
+    }
+    const bool complete = base + kBatchSize == kMediaCount;
+    batch += relations + "],\"cursorModifiedVersion\":" +
+             std::to_string(base + kBatchSize - 1) + ",\"cursorAssetRef\":\"android:asset:large:" +
+             std::to_string(base + kBatchSize - 1) + "\",\"complete\":" +
+             (complete ? "true" : "false") +
+             ",\"updatedAt\":\"2026-07-26T05:00:01.000Z\"}";
+    expect(mineg_core_execute(core, 1000U + static_cast<uint64_t>(base / kBatchSize),
+                              reinterpret_cast<const uint8_t *>(batch.data()), batch.size(), &result),
+           MINEG_OK, "apply 100k local media index batch");
+    mineg_buffer_free(&result);
+  }
+  const std::string large_state_query =
+      R"({"version":1,"type":"GetLocalScanState","userId":"user-100k"})";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(large_state_query.data()),
+                          large_state_query.size(), &result),
+         MINEG_OK, "read 100k local media scan state");
+  assert(as_string(result).find("\"indexedCount\":100000") != std::string::npos);
+  assert(as_string(result).find("\"status\":\"COMPLETE\"") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string large_page_query =
+      R"({"version":1,"type":"ListLocalMedia","userId":"user-100k","platformAlbumRef":"android:album:large","limit":500})";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(large_page_query.data()),
+                          large_page_query.size(), &result),
+         MINEG_OK, "page 100k local media index");
+  assert(count_occurrences(as_string(result), "\"platformAssetRef\"") == 501U);
+  assert(as_string(result).find("\"nextCursor\":null") == std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string command = R"({"version":1,"type":"FoundationWriteProbe","value":"persisted"})";
   expect(mineg_core_execute(core, 1, reinterpret_cast<const uint8_t *>(command.data()), command.size(),
                             &result),
          MINEG_OK, "execute");
@@ -113,6 +586,7 @@ int main() {
   assert(!std::filesystem::exists(rejected));
   assert(!std::filesystem::exists(rejected.string() + ".partial"));
   mineg_buffer_free(&key);
+  mineg_buffer_free(&family_envelope);
   mineg_core_close(core);
 
   expect(mineg_core_create(database.c_str(), &core), MINEG_OK, "reopen");
@@ -121,9 +595,17 @@ int main() {
          MINEG_OK, "query after reopen");
   assert(as_string(result).find("persisted") != std::string::npos);
   mineg_buffer_free(&result);
+  expect(mineg_core_restore_user_key_bundle(core, public_key.data, device_wrap_key.data(),
+                                            device_unlock_blob.data, device_unlock_blob.size),
+         MINEG_OK, "restore keys after process reopen");
+  expect(mineg_core_unlock_family_key_envelope(core, family_envelope.data, family_envelope.size),
+         MINEG_INVALID_ARGUMENT, "freed family envelope is rejected");
+  mineg_buffer_free(&public_key);
+  mineg_buffer_free(&encrypted_bundle);
+  mineg_buffer_free(&device_unlock_blob);
   mineg_core_close(core);
 
   std::filesystem::remove_all(root);
-  std::cout << "MineG core M0 tests passed\n";
+  std::cout << "MineG core through M2 tests passed\n";
   return 0;
 }

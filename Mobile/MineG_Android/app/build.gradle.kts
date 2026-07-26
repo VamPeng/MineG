@@ -53,8 +53,8 @@ android {
     applicationId = "com.mineg.mobile"
     minSdk = 29
     targetSdk = 36
-    versionCode = 1
-    versionName = "0.0.1-m0"
+    versionCode = 4
+    versionName = "0.3.0-m3"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     externalNativeBuild {
@@ -111,6 +111,7 @@ android {
   sourceSets {
     getByName("main").jniLibs.srcDir(sodiumOutput.map { it.dir("jni") })
     getByName("test").resources.srcDir("../../contracts")
+    getByName("test").resources.srcDir("../../core/migrations")
   }
   packaging {
     jniLibs.useLegacyPackaging = false
@@ -145,6 +146,7 @@ dependencies {
   implementation("androidx.compose.ui:ui")
   implementation("androidx.compose.ui:ui-tooling-preview")
   implementation("androidx.compose.material3:material3")
+  implementation("androidx.compose.material:material-icons-extended")
   implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
   implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
   implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")

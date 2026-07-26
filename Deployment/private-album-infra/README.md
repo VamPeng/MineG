@@ -8,8 +8,9 @@
 - [x] Docker、Docker Compose、Git 已安装
 - [x] 磁盘、内存、Swap 和监听端口已检查
 - [x] ECS 实例 RAM 角色可签发临时凭证
-- [x] OSS 目标 Bucket 的列举、上传和读取权限已验证
+- [x] OSS 目标 Bucket 的早期列举、上传和读取权限已验证
 - [x] OSS 原文件删除保护已验证
+- [ ] 阶段 03 在线角色已移除 Bucket/全部 multipart 列举，并完成定向对象与媒体 multipart 回归
 - [ ] 确认权限测试对象已由 Bucket 所有者清理
 - [ ] 确定应用代码仓库与部署方式
 - [ ] 配置域名、TLS、应用环境变量和备份策略
@@ -21,7 +22,8 @@
 2. 实例 ID、Bucket 名称、RAM 角色名、账号 ID、域名和公网 IP 只写入本地 `.env`。
 3. ECS 内的应用通过实例 RAM 角色获取临时凭证，不配置长期 AccessKey。
 4. OSS 原文件默认禁止由应用角色永久删除；相册删除功能优先采用逻辑回收站。
-5. 提交前运行 `./scripts/scan-secrets.sh`。
+5. 在线应用角色不允许列举 Bucket，只允许 `avatars/` 与 `media/` 前缀中的已知对象操作。
+6. 提交前运行 `./scripts/scan-secrets.sh`。
 
 ## 开始使用
 

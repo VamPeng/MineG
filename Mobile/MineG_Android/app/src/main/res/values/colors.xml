@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="mineg_brand_primary">#FD5033</color>
+  <color name="mineg_background">#FFF8F4</color>
+  <color name="mineg_dark_brand_primary">#FF6E58</color>
+  <color name="mineg_dark_background">#1B1513</color>
+</resources>

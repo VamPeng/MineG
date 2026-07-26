@@ -1,0 +1,83 @@
+{
+  "contractVersion": "1.0.0",
+  "status": "FROZEN",
+  "scope": "F01_F03_ACCOUNT_REVIEW_PROFILE",
+  "models": {
+    "AccountSession": [
+      "accessToken",
+      "accessExpiresAt",
+      "refreshToken",
+      "refreshExpiresAt",
+      "approvalStatus",
+      "nextStep"
+    ],
+    "Profile": ["id", "nickname", "maskedPhone", "avatarUrl"],
+    "AccountProblem": ["code", "messageKey", "retryable", "requestId", "details"]
+  },
+  "enums": {
+    "ApprovalStatus": ["PENDING", "APPROVED"],
+    "AccountNextStep": ["REVIEW_PENDING", "APP_HOME"],
+    "AccountPageState": ["INITIAL", "LOADING", "CONTENT", "ERROR", "BLOCKED", "SUCCESS"]
+  },
+  "methods": [
+    "signUp",
+    "signIn",
+    "signOut",
+    "restoreSession",
+    "refreshReviewStatus",
+    "getProfile"
+  ],
+  "coreCommands": ["PersistAccountState", "ClearAccountState"],
+  "coreQueries": ["GetAccountState"],
+  "coreEvents": ["AccountStateChanged"],
+  "cAbiAdditions": ["mineg_core_create_user_key_bundle"],
+  "errors": [
+    "PHONE_INVALID",
+    "PASSWORD_INVALID",
+    "PASSWORD_MISMATCH",
+    "AGREEMENT_REQUIRED",
+    "PHONE_ALREADY_REGISTERED",
+    "CREDENTIALS_INVALID",
+    "ACCOUNT_PENDING",
+    "NETWORK_UNAVAILABLE",
+    "SERVICE_UNAVAILABLE",
+    "SESSION_INVALID",
+    "SESSION_EXPIRED",
+    "SESSION_REPLAYED",
+    "KEY_BUNDLE_INVALID"
+  ],
+  "semanticIds": [
+    "auth.login",
+    "auth.login.phone",
+    "auth.login.password",
+    "auth.login.agreement",
+    "auth.login.submit",
+    "auth.login.openSignup",
+    "auth.signup",
+    "auth.signup.phone",
+    "auth.signup.password",
+    "auth.signup.passwordConfirmation",
+    "auth.signup.submit",
+    "auth.reviewPending",
+    "auth.reviewPending.refresh",
+    "auth.reviewPending.signInAgain",
+    "auth.reviewPending.signOut",
+    "profile.home",
+    "profile.home.signOut"
+  ],
+  "actions": ["submitSignIn", "submitSignUp", "refreshReviewStatus", "confirmSignOut"],
+  "polling": {
+    "visibleIntervalSeconds": 10,
+    "failureBackoffSeconds": [10, 20, 40, 60],
+    "foregroundRefresh": true,
+    "manualRefreshIgnoresBackoff": true
+  },
+  "storage": {
+    "secureStore": ["accessToken", "refreshToken", "deviceInstallationId"],
+    "sqliteNonSensitiveOnly": ["userId", "maskedPhone", "approvalStatus", "updatedAt"],
+    "forbidden": ["tokenInSQLite", "plaintextPrivateKey", "secretInLogs"]
+  },
+  "jsonFieldStyle": "lowerCamelCase",
+  "apiFieldStyle": "snake_case",
+  "timeFormat": "UTC_RFC3339_MILLISECONDS"
+}

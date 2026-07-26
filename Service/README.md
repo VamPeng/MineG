@@ -26,6 +26,20 @@
 
 详细模块顺序、数据模型、API 和加密上传流程见 [技术需求](../Requirement/technical-requirements.md)。
 
-## 阶段 00 基座
+## 阶段 01 账号与审核
 
-阶段 00 已建立 Go 1.26.5 模块、PostgreSQL migration、OpenAPI 3.1、RFC 9457 错误、健康检查、公共平台探针、观测和 OSS/STS 受限假实现。开发与部署说明见 [`docs/development.md`](./docs/development.md) 和 [`docs/deployment-config.md`](./docs/deployment-config.md)。本阶段没有账号或媒体业务表。
+阶段 01 已在阶段 00 基座上实现手机号注册、Argon2id 密码、移动端 Access/Refresh Token 轮换与重放撤销、管理员 bootstrap、服务端 Cookie 会话、CSRF/Origin 校验、待审核游标列表、幂等审核与结构化审计。管理员通过只创建 key grant 待办；家庭 envelope 就绪前账号对外仍为 `PENDING`。
+
+OpenAPI 位于 [`api/openapi.yaml`](./api/openapi.yaml)，开发、bootstrap 与部署约束见 [`docs/development.md`](./docs/development.md) 和 [`docs/deployment-config.md`](./docs/deployment-config.md)。本阶段不处理媒体明文、家庭密钥明文或个人资料修改。
+
+## 阶段 02 密钥授权与个人资料
+
+阶段 02 新增固定家庭、80 字节 X25519 sealed-box envelope、并发安全且幂等的 key grant、本人资料更新和头像元数据接口。审核只产生待办；首成员或已持有家庭密钥的成员提交合法 envelope 后，服务才在同一事务中把目标账号置为 `APPROVED`。审计与指标不记录 envelope、Token 或对象签名地址。
+
+头像使用独立 `avatars/` 前缀和精确对象键、长度、类型、摘要的短期签名 PUT；服务通过 ECS RAM Role 的 IMDSv2 临时凭据访问私有 OSS，以内网 `HeadObject` 复核后才更新资料，并为读取签发短期 GET。服务不持有长期 AccessKey，也不代理对象正文。部署参数见 [`docs/deployment-config.md`](./docs/deployment-config.md)。
+
+## 阶段 03 单媒体密文上传
+
+阶段 03 新增 schema version 4 的相册、媒体、密文资源、媒体密钥 envelope、上传会话和分片记录。`POST/GET /api/v1/uploads`、分片上报、完成以及本人媒体列表均要求获批成员 Bearer；服务端生成 `media/<owner>/<session>/` 对象键，并为每个 multipart part 签发精确、短期、不可复用到其他对象的 PUT 授权。
+
+完成前服务通过 OSS `ListParts`、ETag、长度和 `HeadObject` 密文摘要元数据复核；随后在一个数据库事务中创建媒体、资源、本人默认相册关系和加密 Media Key envelope。同账号去重只比较账号私有 HMAC 指纹，唯一键为 `(owner_id, dedupe_fingerprint, content_revision)`；管理员 Cookie 无法访问上传、媒体或对象授权响应。

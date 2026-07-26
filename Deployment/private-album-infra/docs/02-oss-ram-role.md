@@ -17,20 +17,15 @@
     {
       "Effect": "Allow",
       "Action": [
-        "oss:ListObjects",
-        "oss:ListMultipartUploads"
-      ],
-      "Resource": "acs:oss:*:*:<bucket-name>"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
         "oss:GetObject",
         "oss:PutObject",
         "oss:AbortMultipartUpload",
         "oss:ListParts"
       ],
-      "Resource": "acs:oss:*:*:<bucket-name>/*"
+      "Resource": [
+        "acs:oss:*:*:<bucket-name>/avatars/*",
+        "acs:oss:*:*:<bucket-name>/media/*"
+      ]
     },
     {
       "Effect": "Deny",
@@ -44,7 +39,7 @@
 }
 ```
 
-显式拒绝优先于允许。因此，应用可以上传、读取和列举对象，但不能永久删除原文件或历史版本。
+显式拒绝优先于允许。因此，应用只能在 `avatars/` 和 `media/` 前缀下上传、定向读取/HEAD 和处理已知 multipart，会被拒绝列举 Bucket、列举全部 multipart 以及永久删除原文件或历史版本。`oss:PutObject` 覆盖创建、上传 part 和完成 multipart；`oss:ListParts` 只允许读取已知对象键与 upload ID 的 part 状态。
 
 ## ossutil
 
@@ -64,9 +59,9 @@ https://oss-<region-id>-internal.aliyuncs.com
 
 预期行为：
 
-- 指定 Bucket 的对象列举成功。
-- 全账号 `ListBuckets` 可以被最小权限策略拒绝，不影响应用访问指定 Bucket。
-- `PutObject` 和 `GetObject` 成功。
+- 对 `.env` 中指定的非敏感探针对象执行定向 `stat` 成功。
+- 指定 Bucket 的对象列举被拒绝；全账号 `ListBuckets` 同样不属于在线应用权限。
+- `avatars/` 和 `media/` 前缀的受控 `PutObject`/`GetObject` 以及媒体 multipart 操作成功。
 - `DeleteObject` 返回拒绝，符合原文件保护策略。
 
 ## 删除与回收站

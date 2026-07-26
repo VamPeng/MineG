@@ -9,6 +9,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/vampeng/mineg/service/internal/account"
+	"github.com/vampeng/mineg/service/internal/upload"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -19,6 +21,9 @@ type Readiness interface {
 type Dependencies struct {
 	Logger         *slog.Logger
 	Readiness      Readiness
+	Account        *account.Service
+	Upload         *upload.Service
+	AdminOrigin    string
 	RequestTimeout time.Duration
 	Now            func() time.Time
 }
@@ -59,6 +64,12 @@ func New(deps Dependencies) http.Handler {
 				"server_time": deps.Now().UTC().Truncate(time.Millisecond).Format("2006-01-02T15:04:05.000Z07:00"),
 			})
 		})
+		if deps.Account != nil {
+			mountAccountRoutes(api, deps.Account, deps.AdminOrigin)
+			if deps.Upload != nil {
+				mountUploadRoutes(api, deps.Account, deps.Upload)
+			}
+		}
 	})
 
 	router.NotFound(func(w http.ResponseWriter, r *http.Request) {

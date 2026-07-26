@@ -1,4 +1,4 @@
-name: stage-00
+name: stage-03
 
 on:
   pull_request:
@@ -38,7 +38,7 @@ jobs:
       - run: go test -tags=integration ./tests/integration/...
         env:
           MINEG_TEST_DATABASE_URL: postgres://mineg:ci-only@127.0.0.1:5432/mineg_test?sslmode=disable
-      - run: docker build -t mineg-api:stage-00 .
+      - run: docker build -t mineg-api:stage-03 .
 
   frontend:
     runs-on: ubuntu-latest
@@ -54,7 +54,8 @@ jobs:
           cache-dependency-path: Frontend/package-lock.json
       - run: npm ci
       - run: npm run check
-      - run: docker build -f Frontend/Dockerfile -t mineg-admin:stage-00 .
+      - run: if rg -n '/api/v1/(uploads|media)|AccessKey(Id|Secret)|SecurityToken|x-oss-security-token|aliyuncs\.com' dist; then exit 1; fi
+      - run: docker build -f Frontend/Dockerfile -t mineg-admin:stage-03 .
         working-directory: ${{ github.workspace }}
 
   mobile-core:

@@ -3,6 +3,9 @@ package com.mineg.mobile.platform
 import com.mineg.mobile.contracts.ApiRequest
 import com.mineg.mobile.contracts.ApiResponse
 import com.mineg.mobile.contracts.TransportPort
+import com.mineg.mobile.contracts.UploadPartRequest
+import com.mineg.mobile.contracts.UploadPartResult
+import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
@@ -48,6 +51,47 @@ class AndroidTransportPort(
         requestId = connection.getHeaderField("X-Request-ID"),
         body = body,
       )
+    } finally {
+      connection.disconnect()
+    }
+  }
+
+  override suspend fun uploadPart(request: UploadPartRequest): UploadPartResult = withContext(Dispatchers.IO) {
+    require(request.method == "PUT" && request.offset >= 0 && request.size in 1..4L * 1024 * 1024 + 16)
+    val target = URI(request.url)
+    require(target.scheme == "https" && target.userInfo == null && target.host != null)
+    val connection = target.toURL().openConnection() as HttpURLConnection
+    try {
+      connection.requestMethod = "PUT"
+      connection.connectTimeout = 15_000
+      connection.readTimeout = 60_000
+      connection.instanceFollowRedirects = false
+      connection.doOutput = true
+      connection.setFixedLengthStreamingMode(request.size)
+      request.headers.forEach { (name, value) ->
+        if (!name.equals("Host", true) && !name.equals("Content-Length", true)) {
+          connection.setRequestProperty(name, value)
+        }
+      }
+      RandomAccessFile(request.ciphertextPath, "r").use { input ->
+        input.seek(request.offset)
+        connection.outputStream.use { output ->
+          val buffer = ByteArray(64 * 1024)
+          var remaining = request.size
+          while (remaining > 0) {
+            val count = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+            check(count > 0) { "ciphertext part is truncated" }
+            output.write(buffer, 0, count)
+            remaining -= count
+          }
+          buffer.fill(0)
+        }
+      }
+      val status = connection.responseCode
+      if (status !in 200..299) throw java.io.IOException("ciphertext part upload failed with status $status")
+      val etag = connection.getHeaderField("ETag")?.trim()?.trim('"').orEmpty()
+      check(etag.isNotBlank()) { "ciphertext part response omitted ETag" }
+      UploadPartResult(etag)
     } finally {
       connection.disconnect()
     }

@@ -8,14 +8,38 @@
 
 ## 启动
 
+不使用 Docker 时，推荐在 macOS 上通过根目录脚本一次完成编译、Homebrew PostgreSQL 检查、建库、migration、首次管理员初始化和 API 启动：
+
+```bash
+cd Service
+./local-backend.sh
+```
+
+需要从干净的阶段 01 本地数据库重跑时使用：
+
+```bash
+./local-backend.sh --reset-db
+```
+
+`--reset-db` 只允许删除并重建 `mineg_stage01_local`。脚本不读取 `.env`，避免旧 Docker/部署连接串被误用；可通过 `MINEG_LOCAL_DB_*`、`MINEG_ADMIN_ORIGIN` 和 `MINEG_BOOTSTRAP_ADMIN_*` 环境变量覆盖本地默认值。只编译三个可执行文件而不启动依赖时运行 `./local-backend.sh --build-only`，产物位于 `Service/bin/`。API readiness 通过后，脚本会输出后端/API 地址、前端代理变量、管理端 Origin、Android 构建参数和 `adb reverse` 命令。
+
+Docker/Compose 启动方式：
+
 ```bash
 cd Service
 docker compose up -d postgres
 cp .env.example .env
 set -a && source .env && set +a
 go run ./cmd/migrate up
+MINEG_BOOTSTRAP_ADMIN_USERNAME=reviewer \
+MINEG_BOOTSTRAP_ADMIN_PASSWORD='replace-with-a-strong-secret' \
+go run ./cmd/admin-bootstrap
 go run ./cmd/api
 ```
+
+`admin-bootstrap` 只允许在空的 `admin_users` 表上成功一次；密码不会写入日志。移动端注册、登录、单媒体上传和管理员接口均位于 `/api/v1`。管理端状态变更要求与 `MINEG_ADMIN_ORIGIN` 完全一致的 `Origin`、有效 Session Cookie 和 `X-CSRF-Token`。
+
+本地不配置四个 `MINEG_OSS_*` 变量时，头像对象接口明确返回集成不可用；不会回退为后端正文代理。隔离 OSS 或部署环境必须同时配置地域、私有 Bucket、内网 HTTPS Origin 和 ECS RAM Role，服务启动时会拒绝部分配置。
 
 探针为 `GET /api/v1/platform/probe`。它仅验证 Android/C++ 到 HTTPS JSON API 的纵向链路，不是业务接口。生产环境必须由入口代理终止 HTTPS；服务进程只监听内网 HTTP。
 
@@ -29,7 +53,7 @@ make generate
 git diff --exit-code
 ```
 
-集成 migration 测试仅允许连接专用测试库：
+集成测试仅允许连接专用测试库；它覆盖 migration、注册幂等、错误凭据、Token 轮换/重放、退出撤销、管理员会话、并发审核、首成员/后续成员/离线等待/错误公钥/重复与并发 key grant、资料、头像元数据、单媒体会话/分片/完成/同账号去重，以及管理端/移动端权限隔离：
 
 ```bash
 MINEG_TEST_DATABASE_URL='postgres://mineg:...@127.0.0.1:5432/mineg_test?sslmode=disable' make test-integration

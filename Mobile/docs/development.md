@@ -1,4 +1,4 @@
-# M0 移动基座开发与验证
+# M0～M3 移动基座、账号准入与单媒体备份开发验证
 
 阶段 00 只创建 Android 工程；iOS、HarmonyOS 后续直接消费冻结的 `contracts/foundation-v1.json` 与 `core/include/mineg/mineg_core.h`，本阶段不创建空壳。
 
@@ -9,9 +9,30 @@ brew install cmake pkg-config libsodium
 bash Mobile/scripts/test-core.sh
 ```
 
-测试覆盖 C ABI 重复创建/释放、SQLite v1 重开恢复、命令/查询/事件/取消、1 MiB+ 分块加密、正确解密、密文篡改失败以及失败时无部分明文输出。
+测试覆盖 C ABI 重复创建/释放、SQLite v4 重开恢复、账号非敏感状态、Argon2id/XChaCha20-Poly1305 用户 key bundle、设备包装恢复、X25519 sealed-box 家庭 envelope、备份设置、可恢复媒体扫描、10 万条本地索引和 500 条游标分页，以及单媒体 4 MiB 认证块、固定向量、篡改/重排/截断/清单错配失败和 multipart 中途进程重启恢复。
 
 ## Android
+
+推荐使用 APK 构建脚本完成单元测试、Lint 和 Debug 打包。默认 API 地址为通过 USB `adb reverse` 访问的本机 `http://127.0.0.1:8080`：
+
+```bash
+cd Mobile/MineG_Android
+./build-apk.sh
+```
+
+构建并安装到已授权的单台设备；脚本会为本机 HTTP 地址自动建立 `adb reverse`，并使用 `adb install -r` 保留应用数据：
+
+```bash
+./build-apk.sh --install
+```
+
+构建 Release APK 时必须显式提供 HTTPS API 地址。当前工程未在源码中配置签名凭据，因此产物为待签名 APK：
+
+```bash
+./build-apk.sh --release --api-base-url https://api.example.com
+```
+
+底层 Gradle 命令仍可用于单项验证：
 
 ```bash
 cd Mobile/MineG_Android
@@ -27,13 +48,19 @@ cd Mobile/MineG_Android
 ./gradlew :app:assembleRelease -PminegReleaseApiBaseUrl=https://api.example.com
 ```
 
-真机点击“运行探针”后，会请求完整相册权限，读取一条媒体的文件描述符并经 C++ 分块加密；密钥只短暂写入 Android Keystore 包装的存储，测试完成后删除并清零受控缓冲区。探针密文只位于 App cache，完成后删除。
+阶段 01 默认页面是账号准入流程。注册提交期间会在 C++ 内生成并加密用户密钥材料；私钥明文不返回 Kotlin 层。待审核页可见时每 10 秒轮询，连续失败按 10/20/40/60 秒退避，手动和回前台刷新不受退避限制。
 
 连接设备后运行 JNI 生命周期测试：
 
 ```bash
 ./gradlew :app:connectedDebugAndroidTest
 ```
+
+真实账号闭环测试默认跳过；只对专用临时数据库执行时，可通过 instrumentation runner 参数启用 `AccountFlowInstrumentedTest`。测试覆盖注册 → 管理员 Cookie/CSRF 登录 → 幂等通过 → 首成员家庭密钥 bootstrap → 进入资料页 → 退出 → 协议确认重新登录 → 相册权限页。不得把真实生产账号、密码或数据库用于该测试。
+
+阶段 02 的权限验收必须分别验证 Android 14 的完整授权、部分照片授权、拒绝和系统设置撤销；非 `FULL` 状态不得创建扫描或 WorkManager 任务。OEM 若拦截 adb 安装，需要由设备所有者在手机上确认，自动化不得代为放宽“未知来源安装”设置。
+
+阶段 03 真机验收必须使用隔离私有 OSS 和专用测试账号。完整权限下从备份概览触发一条本地媒体，确认原文件与可用派生资源仅以密文直传；断网或杀进程后重试必须从 SQLite 中的 `serverUploadId` 和已确认 ETag 恢复。至少验证照片、视频、GIF 以及设备可提供的 Live/动态样本；无法生成预览时应只降级为原资源密文，不得生成长期明文缓存。
 
 Android Studio 使用 JDK 17、SDK/Target 36、NDK 27.0.12077973 与 CMake 3.22.1。SQLite 固定为 3.51.3 并由共享核心编译；libsodium 5.2.0 AAR 仅提供锁定的各 ABI 原生库，C++ 直接调用稳定 libsodium C API。
 
