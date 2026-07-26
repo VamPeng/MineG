@@ -2,6 +2,7 @@
 #define MINEG_CORE_IMPLEMENTATION_H
 
 #include <cstdint>
+#include <array>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -30,11 +31,58 @@ class Core final {
                                 const unsigned char key[MINEG_KEY_BYTES]);
   mineg_error_code_t decrypt_file(const std::string &ciphertext_path, const std::string &plaintext_path,
                                   const unsigned char key[MINEG_KEY_BYTES]);
+  mineg_error_code_t unlock_user_key_bundle(
+      const uint8_t *password, size_t password_size, const uint8_t public_key[MINEG_KEY_BYTES],
+      const uint8_t *encrypted_bundle, size_t encrypted_bundle_size,
+      const uint8_t device_wrap_key[MINEG_KEY_BYTES], std::string &device_unlock_blob);
+  mineg_error_code_t restore_user_key_bundle(
+      const uint8_t public_key[MINEG_KEY_BYTES], const uint8_t device_wrap_key[MINEG_KEY_BYTES],
+      const uint8_t *device_unlock_blob, size_t device_unlock_blob_size);
+  mineg_error_code_t unlock_family_key_envelope(const uint8_t *encrypted_envelope,
+                                                 size_t encrypted_envelope_size);
+  mineg_error_code_t create_family_key_envelope(
+      const uint8_t recipient_public_key[MINEG_KEY_BYTES], bool bootstrap_if_needed,
+      std::string &encrypted_envelope);
+  void lock_keys();
+  mineg_error_code_t create_media_key_envelope(const std::string &media_id,
+                                                std::string &encrypted_media_key);
+  mineg_error_code_t compute_dedupe_fingerprint(int input_fd, const std::string &media_type,
+                                                std::string &fingerprint);
+  mineg_error_code_t encrypt_media_resource(
+      int input_fd, const std::string &ciphertext_path, const std::string &media_id,
+      const std::string &resource_id, const std::string &resource_type,
+      const uint8_t *encrypted_media_key, size_t encrypted_media_key_size,
+      std::string &resource_manifest_json);
+  mineg_error_code_t encrypt_media_manifest(
+      const std::string &media_id, const uint8_t *manifest_json, size_t manifest_json_size,
+      const uint8_t *encrypted_media_key, size_t encrypted_media_key_size,
+      std::string &encrypted_manifest);
+  mineg_error_code_t decrypt_media_resource(
+      const std::string &ciphertext_path, const std::string &plaintext_path,
+      const std::string &media_id, const std::string &resource_id,
+      const std::string &resource_type, uint64_t plaintext_size,
+      const uint8_t nonce_prefix[MINEG_MEDIA_NONCE_PREFIX_BYTES],
+      const uint8_t *encrypted_media_key, size_t encrypted_media_key_size);
 
  private:
   void open_and_migrate(const std::string &database_path);
   void exec_sql(const char *sql);
   std::string read_probe_locked();
+  std::string read_account_state_locked();
+  std::string read_backup_settings_locked(const std::string &query);
+  std::string read_scan_state_locked(const std::string &query);
+  std::string list_local_albums_locked(const std::string &query);
+  std::string list_local_media_locked(const std::string &query);
+  mineg_error_code_t apply_local_media_batch_locked(const std::string &command);
+  mineg_error_code_t create_single_media_backup_locked(const std::string &command);
+  mineg_error_code_t record_prepared_media_locked(const std::string &command);
+  mineg_error_code_t update_single_media_backup_locked(const std::string &command,
+                                                       const std::string &type);
+  std::string read_single_media_backup_locked(const std::string &query);
+  mineg_error_code_t update_backup_settings_locked(const std::string &command);
+  bool execute_json_statement_locked(const char *sql, const std::string &json);
+  bool execute_json_update_locked(const char *sql, const std::string &json);
+  void lock_keys_locked();
   void emit_locked(const std::string &event);
 
   sqlite3 *database_ = nullptr;
@@ -43,6 +91,12 @@ class Core final {
   uint64_t event_sequence_ = 0;
   std::unordered_map<uint64_t, std::function<void(const std::string &)>> subscribers_;
   std::unordered_set<uint64_t> cancelled_operations_;
+  std::array<uint8_t, MINEG_KEY_BYTES> user_public_key_{};
+  std::array<uint8_t, MINEG_KEY_BYTES> user_private_key_{};
+  std::array<uint8_t, MINEG_KEY_BYTES> user_master_key_{};
+  std::array<uint8_t, MINEG_KEY_BYTES> family_key_{};
+  bool user_keys_unlocked_ = false;
+  bool family_key_unlocked_ = false;
 };
 
 }  // namespace mineg

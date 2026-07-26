@@ -2,6 +2,11 @@ import type { components } from './schema'
 
 export type PlatformProbe = components['schemas']['PlatformProbe']
 export type ProblemPayload = components['schemas']['Problem']
+export type AdminSessionResult = components['schemas']['AdminSessionResult']
+export type Approval = components['schemas']['Approval']
+export type ApprovalPage = components['schemas']['ApprovalPage']
+export type ApproveResult = components['schemas']['ApproveResult']
+export type StatusMessage = components['schemas']['StatusMessage']
 
 export class ApiProblem extends Error {
   readonly code: string
@@ -36,7 +41,8 @@ export class NetworkProblem extends Error {
 
 type ApiHooks = {
   csrfToken?: () => string | undefined
-  onUnauthorized?: () => void | Promise<void>
+  onCSRFToken?: (token: string) => void
+  onUnauthorized?: (path: string) => void | Promise<void>
 }
 
 let hooks: ApiHooks = {}
@@ -98,7 +104,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       signal,
     })
     const requestId = response.headers.get('X-Request-ID') ?? ''
-    if (response.status === 401) await hooks.onUnauthorized?.()
+    const rotatedCSRFToken = response.headers.get('X-CSRF-Token')
+    if (rotatedCSRFToken) hooks.onCSRFToken?.(rotatedCSRFToken)
+    if (response.status === 401) await hooks.onUnauthorized?.(path)
     if (!response.ok) {
       const contentType = response.headers.get('Content-Type') ?? ''
       if (contentType.includes('application/problem+json')) {
@@ -128,4 +136,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 export const apiClient = {
   runPlatformProbe: (signal?: AbortSignal) => request<PlatformProbe>('/api/v1/platform/probe', { signal }),
+  adminSignIn: (username: string, password: string) =>
+    request<AdminSessionResult>('/api/v1/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
+  restoreAdminSession: () => request<AdminSessionResult>('/api/v1/admin/session'),
+  adminSignOut: () => request<StatusMessage>('/api/v1/admin/logout', { method: 'POST' }),
+  listApprovals: (cursor?: string, limit = 20, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return request<ApprovalPage>(`/api/v1/admin/approvals?${query.toString()}`, { signal })
+  },
+  getApproval: (approvalId: string, signal?: AbortSignal) =>
+    request<Approval>(`/api/v1/admin/approvals/${encodeURIComponent(approvalId)}`, { signal }),
+  approveApplication: (approvalId: string, idempotencyKey: string) =>
+    request<ApproveResult>(`/api/v1/admin/approvals/${encodeURIComponent(approvalId)}/approve`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }),
 }

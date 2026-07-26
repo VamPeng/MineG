@@ -125,7 +125,7 @@ Port 类型名三端必须一致：`MediaSourcePort`、`SecureStorePort`、`Tran
 | 账号 | `signUp`、`signIn`、`signOut`、`restoreSession`、`refreshReviewStatus` |
 | 资料与密钥 | `getProfile`、`updateProfile`、`getKeyBundle`、`completeFamilyKeyGrant` |
 | 权限与设置 | `getPermissionSnapshot`、`requestFullLibraryAccess`、`getBackupSettings`、`updateBackupSettings` |
-| 本地媒体与备份 | `scanLocalMedia`、`observeBackupState`、`retryBackup`、`cancelCurrentOperation` |
+| 本地媒体与备份 | `scanLocalMedia`、`backupSingleMedia`、`getSingleMediaBackup`、`observeBackupState`、`retryBackup`、`cancelCurrentOperation` |
 | 私人空间 | `listPrivateMedia`、`getPrivateMediaDetail`、`savePrivateMedia`、`moveToTrash` |
 | 家庭相册 | `shareMedia`、`unshareMedia`、`listFamilyMedia`、`getFamilyMediaDetail` |
 | 回收站 | `listTrashItems`、`restoreFromTrash` |
@@ -191,9 +191,10 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 | 范围 | 当前状态 | 冻结条件 |
 | --- | --- | --- |
 | 分层、命名和 Bridge 基础接口 | `FROZEN` | Android M0 契约测试已通过；变更需按本契约版本规则执行 |
-| F-01～F-03 账号、审核、资料 | `PLANNED` | Android M1 通过 |
-| F-04～F-06 权限、设置、本地相册 | `PLANNED` | Android M2 通过 |
-| F-07～F-08 加密备份 | `PLANNED` | Android M3～M4 通过 |
+| F-01～F-03 账号、审核、资料 | `FROZEN` | Android M1 契约、自动化测试与真实注册审核闭环已通过；变更需按本契约版本规则执行 |
+| F-04～F-06 权限、设置、本地相册 | `FROZEN` | Android M2 与隔离 OSS/权限矩阵验收已通过 |
+| F-07 与单媒体 F-08 加密备份 | `BASELINED` | Android M3 隔离 OSS 与代表性真实媒体验收通过 |
+| F-08 批量队列 | `PLANNED` | Android M4 通过 |
 | F-09～F-10 私人空间与保存 | `PLANNED` | Android M5 通过 |
 | F-11～F-14 家庭、回收站、帮助反馈 | `PLANNED` | Android M6 通过 |
 
@@ -207,3 +208,32 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 - 所有权规则：传入缓冲区只在调用期间借用；返回的 `mineg_buffer_t` 由调用方使用 `mineg_buffer_free` 释放；核心句柄由 `mineg_core_close` 唯一释放。
 - 取消规则：调用方分配非零 `operationId`；`cancel` 幂等标记该操作，核心在命令提交和耗时步骤边界检查并返回 `CANCELLED`。
 - 冻结日期：2026-07-26。
+
+## 12. M1 账号准入冻结记录
+
+- 冻结清单：[`contracts/account-v1.json`](./contracts/account-v1.json)
+- 冻结范围：F-01～F-03 的账号/会话/资料模型，`signUp`、`signIn`、`signOut`、`restoreSession`、`refreshReviewStatus`、`getProfile` 方法，账号错误码、页面语义 ID、轮询和安全存储规则。
+- C ABI：版本升至 2，新增 `mineg_core_create_user_key_bundle`；使用 Argon2id 派生包装密钥，并用 XChaCha20-Poly1305 加密 X25519 私钥与用户主密钥，输出包不含明文私钥。
+- 本地状态：SQLite v2 只保存用户 ID、脱敏手机号、审核状态和更新时间；Access/Refresh Token 与设备安装标识由平台安全存储保护。
+- 审核语义：管理员通过只创建 `KEY_GRANT_PENDING` 协调任务；家庭 envelope 就绪前，移动端和 API 对外状态仍为 `PENDING`，不增加中间页面。
+- 验证：C++ 主机测试、Android JVM 契约/校验测试、lint、arm64-v8a/x86_64 构建以及 OnePlus 8T Android 14 真实后端注册—审核—待 key grant—退出—重新登录闭环均通过。
+- 冻结日期：2026-07-26。
+
+## 13. M2 密钥、资料、权限与本地相册冻结记录
+
+- 冻结清单：[`contracts/stage02-v1.json`](./contracts/stage02-v1.json)
+- 冻结范围：家庭密钥 bootstrap/grant、资料更新、六态相册权限、设备级备份设置、MediaSourcePort 分页扫描以及本地相册三列网格。
+- C ABI：版本升至 3；用户密钥包解封和家庭 sealed-box 操作留在 C++，进程恢复只保存由设备随机包装密钥再次加密的 unlock blob。
+- 本地状态：SQLite v3 保存设备设置、扫描游标、媒体/相册索引与关系；不保存密码、私钥、User Master Key、Family Sharing Key 或媒体明文。
+- 权限门禁：仅 `FULL` 可创建扫描与调度；`NOT_DETERMINED`、`LIMITED`、`RESTRICTED`、`DENIED`、`SYSTEM_RESTRICTED` 均保持在统一说明页。
+- 当前状态：`FROZEN`；隔离 OSS 头像闭环和 Android 权限/真实相册矩阵已由项目执行方确认通过。
+- 冻结日期：2026-07-26。
+
+## 14. M3 单媒体加密备份基线
+
+- 基线清单：[`contracts/stage03-v1.json`](./contracts/stage03-v1.json)
+- 基线范围：F-07 和单媒体 F-08 的 Media Key envelope、账号私有 HMAC 去重、资源 KDF、4 MiB XChaCha20-Poly1305 块、认证清单、multipart 上传与恢复状态机。
+- C ABI：版本升至 4；Media Key 明文只存在于 C++ 受控内存，平台桥接只接收加密 envelope、密文资源路径、摘要和认证清单。
+- 本地状态：SQLite v4 在网络副作用前保存任务、资源、分片、服务端上传 ID 和已确认 ETag；核心测试覆盖 multipart 中途进程重启、篡改、块重排、截断与清单错配失败关闭。
+- 平台适配：`MediaSourcePort` 流式打开原资源并尽力生成 `THUMBNAIL` 或 `VIDEO_COVER`；`TransportPort.uploadPart` 只消费服务签发的精确 PUT 授权。
+- 当前状态：`BASELINED`；隔离 OSS 上的真实照片、视频、GIF、Live/动态资源及过期授权/断网/完成响应丢失矩阵通过后转为 `FROZEN`。

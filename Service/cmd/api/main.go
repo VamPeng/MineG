@@ -10,10 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vampeng/mineg/service/internal/account"
 	"github.com/vampeng/mineg/service/internal/platform/config"
 	"github.com/vampeng/mineg/service/internal/platform/database"
 	"github.com/vampeng/mineg/service/internal/platform/httpapi"
+	"github.com/vampeng/mineg/service/internal/platform/objectstore"
 	"github.com/vampeng/mineg/service/internal/platform/observability"
+	"github.com/vampeng/mineg/service/internal/upload"
 )
 
 func main() {
@@ -44,10 +47,28 @@ func main() {
 		os.Exit(2)
 	}
 	defer pool.Close()
+	var profileObjects objectstore.ProfileObjects = objectstore.DisabledProfileObjects{}
+	var mediaObjects objectstore.MediaObjects = objectstore.DisabledMediaObjects{}
+	if cfg.OSSRegion != "" {
+		ossObjects, objectErr := objectstore.NewOSSProfileObjects(objectstore.OSSProfileConfig{
+			Region: cfg.OSSRegion, Bucket: cfg.OSSBucket, InternalEndpoint: cfg.OSSInternalOrigin,
+			ECSRAMRole: cfg.OSSECSRAMRole,
+		})
+		if objectErr != nil {
+			logger.Error("OSS object setup failed", "error", objectErr.Error())
+			os.Exit(2)
+		}
+		profileObjects = ossObjects
+		mediaObjects = ossObjects
+	}
+	accountService := account.New(pool, account.Config{CursorKey: []byte(cfg.CursorHMACKey), ProfileObjects: profileObjects})
 
 	handler := httpapi.New(httpapi.Dependencies{
 		Logger:         logger,
 		Readiness:      pool,
+		Account:        accountService,
+		Upload:         upload.New(pool, upload.Config{Objects: mediaObjects}),
+		AdminOrigin:    cfg.AdminOrigin,
 		RequestTimeout: cfg.RequestTimeout,
 	})
 	server := &http.Server{

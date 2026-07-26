@@ -14,8 +14,11 @@ extern "C" {
 #define MINEG_API __attribute__((visibility("default")))
 #endif
 
-#define MINEG_ABI_VERSION 1U
+#define MINEG_ABI_VERSION 4U
 #define MINEG_KEY_BYTES 32U
+#define MINEG_FAMILY_KEY_ENVELOPE_BYTES 80U
+#define MINEG_MEDIA_KEY_ENVELOPE_BYTES 80U
+#define MINEG_MEDIA_NONCE_PREFIX_BYTES 16U
 
 typedef struct mineg_core mineg_core_t;
 
@@ -60,6 +63,42 @@ MINEG_API mineg_error_code_t mineg_core_subscribe(mineg_core_t *core, mineg_even
 MINEG_API mineg_error_code_t mineg_core_unsubscribe(mineg_core_t *core, uint64_t subscription_token);
 MINEG_API mineg_error_code_t mineg_core_cancel(mineg_core_t *core, uint64_t operation_id);
 MINEG_API mineg_error_code_t mineg_core_random_key(mineg_buffer_t *out_key);
+MINEG_API mineg_error_code_t mineg_core_create_user_key_bundle(
+    const uint8_t *password, size_t password_size, mineg_buffer_t *out_public_key,
+    mineg_buffer_t *out_encrypted_bundle, mineg_buffer_t *out_kdf_parameters_json);
+MINEG_API mineg_error_code_t mineg_core_unlock_user_key_bundle(
+    mineg_core_t *core, const uint8_t *password, size_t password_size,
+    const uint8_t public_key[MINEG_KEY_BYTES], const uint8_t *encrypted_bundle,
+    size_t encrypted_bundle_size, const uint8_t device_wrap_key[MINEG_KEY_BYTES],
+    mineg_buffer_t *out_device_unlock_blob);
+MINEG_API mineg_error_code_t mineg_core_restore_user_key_bundle(
+    mineg_core_t *core, const uint8_t public_key[MINEG_KEY_BYTES],
+    const uint8_t device_wrap_key[MINEG_KEY_BYTES], const uint8_t *device_unlock_blob,
+    size_t device_unlock_blob_size);
+MINEG_API mineg_error_code_t mineg_core_unlock_family_key_envelope(
+    mineg_core_t *core, const uint8_t *encrypted_envelope, size_t encrypted_envelope_size);
+MINEG_API mineg_error_code_t mineg_core_create_family_key_envelope(
+    mineg_core_t *core, const uint8_t recipient_public_key[MINEG_KEY_BYTES],
+    uint8_t bootstrap_if_needed, mineg_buffer_t *out_encrypted_envelope);
+MINEG_API void mineg_core_lock_keys(mineg_core_t *core);
+MINEG_API mineg_error_code_t mineg_core_create_media_key_envelope(
+    mineg_core_t *core, const char *media_id, mineg_buffer_t *out_encrypted_media_key);
+MINEG_API mineg_error_code_t mineg_core_compute_dedupe_fingerprint(
+    mineg_core_t *core, int32_t input_fd, const char *media_type,
+    mineg_buffer_t *out_fingerprint);
+MINEG_API mineg_error_code_t mineg_core_encrypt_media_resource(
+    mineg_core_t *core, int32_t input_fd, const char *ciphertext_path, const char *media_id,
+    const char *resource_id, const char *resource_type, const uint8_t *encrypted_media_key,
+    size_t encrypted_media_key_size, mineg_buffer_t *out_resource_manifest_json);
+MINEG_API mineg_error_code_t mineg_core_encrypt_media_manifest(
+    mineg_core_t *core, const char *media_id, const uint8_t *manifest_json,
+    size_t manifest_json_size, const uint8_t *encrypted_media_key,
+    size_t encrypted_media_key_size, mineg_buffer_t *out_encrypted_manifest);
+MINEG_API mineg_error_code_t mineg_core_decrypt_media_resource(
+    mineg_core_t *core, const char *ciphertext_path, const char *plaintext_path,
+    const char *media_id, const char *resource_id, const char *resource_type,
+    uint64_t plaintext_size, const uint8_t nonce_prefix[MINEG_MEDIA_NONCE_PREFIX_BYTES],
+    const uint8_t *encrypted_media_key, size_t encrypted_media_key_size);
 MINEG_API mineg_error_code_t mineg_core_encrypt_fd(mineg_core_t *core, int32_t input_fd,
                                                    const char *ciphertext_path,
                                                    const uint8_t key[MINEG_KEY_BYTES]);

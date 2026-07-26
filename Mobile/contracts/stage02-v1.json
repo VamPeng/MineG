@@ -1,0 +1,103 @@
+{
+  "contractVersion": "1.0.0",
+  "status": "FROZEN",
+  "scope": "F02_F06_KEYS_PROFILE_PERMISSION_SETTINGS_LOCAL_MEDIA",
+  "models": {
+    "KeyMaterial": ["publicKey", "encryptedKeyBundle", "kdfParameters", "bundleVersion", "familyEnvelope"],
+    "PendingKeyGrant": ["id", "userId", "familyId", "kind", "recipientPublicKey", "bundleVersion", "createdAt"],
+    "PermissionSnapshot": ["library"],
+    "BackupSettings": ["autoBackupEnabled", "allowCellularBackup", "updatedAt"],
+    "LocalAlbum": ["platformAlbumRef", "name", "mediaCount", "coverThumbnailUri"],
+    "LocalMedia": ["platformAssetRef", "mediaType", "mimeType", "width", "height", "durationMs", "capturedAt", "modifiedAt", "contentVersion", "availability", "thumbnailUri"]
+  },
+  "enums": {
+    "KeyGrantKind": ["FAMILY_BOOTSTRAP", "MEMBER_GRANT"],
+    "LibraryPermissionState": ["NOT_DETERMINED", "FULL", "LIMITED", "RESTRICTED", "DENIED", "SYSTEM_RESTRICTED"],
+    "LocalMediaType": ["PHOTO", "VIDEO", "GIF", "LIVE_PHOTO", "DYNAMIC"],
+    "LocalMediaAvailability": ["AVAILABLE", "WAITING_LOCAL_RESOURCE", "LOCAL_MISSING"],
+    "LocalScanStatus": ["IDLE", "SCANNING", "COMPLETE", "BLOCKED_PERMISSION"]
+  },
+  "methods": [
+    "updateProfile",
+    "updateAvatar",
+    "getKeyBundle",
+    "completeFamilyKeyGrant",
+    "getPermissionSnapshot",
+    "requestFullLibraryAccess",
+    "getBackupSettings",
+    "updateBackupSettings",
+    "scanLocalMedia",
+    "listLocalAlbums",
+    "listLocalMedia"
+  ],
+  "coreCommands": ["UpdateBackupSettings", "ApplyLocalMediaBatch", "MarkLocalScanBlocked"],
+  "coreQueries": ["GetBackupSettings", "GetLocalScanState", "ListLocalAlbums", "ListLocalMedia"],
+  "coreEvents": ["BackupSettingsChanged", "LocalMediaIndexChanged"],
+  "cAbiAdditions": [
+    "mineg_core_unlock_user_key_bundle",
+    "mineg_core_restore_user_key_bundle",
+    "mineg_core_unlock_family_key_envelope",
+    "mineg_core_create_family_key_envelope",
+    "mineg_core_lock_keys"
+  ],
+  "errors": [
+    "KEY_GRANT_FORBIDDEN",
+    "KEY_GRANT_ID_INVALID",
+    "KEY_GRANT_NOT_FOUND",
+    "KEY_GRANT_STATE_INVALID",
+    "KEY_GRANT_ALREADY_COMPLETED",
+    "KEY_GRANT_RECIPIENT_MISMATCH",
+    "KEY_ENVELOPE_INVALID",
+    "KEYS_LOCKED",
+    "PUBLIC_KEY_IMMUTABLE",
+    "KEY_BUNDLE_VERSION_STALE",
+    "NICKNAME_INVALID",
+    "AVATAR_INVALID",
+    "AVATAR_UPLOAD_ID_INVALID",
+    "AVATAR_UPLOAD_NOT_FOUND",
+    "AVATAR_UPLOAD_NOT_READY",
+    "AVATAR_UPLOAD_EXPIRED",
+    "AVATAR_UPLOAD_ALREADY_COMPLETED",
+    "OBJECT_STORAGE_UNAVAILABLE",
+    "PERMISSION_NOT_FULL",
+    "MEDIA_INDEX_FAILED"
+  ],
+  "semanticIds": [
+    "profile.home.edit",
+    "profile.edit",
+    "profile.edit.nickname",
+    "profile.edit.save",
+    "profile.edit.avatar",
+    "permission.library",
+    "permission.library.request",
+    "permission.library.notNow",
+    "backup.overview",
+    "backup.overview.settings",
+    "backup.overview.startBackup",
+    "backup.settings",
+    "backup.settings.autoBackup",
+    "backup.settings.allowCellular",
+    "backup.album",
+    "backup.album.grid"
+  ],
+  "actions": [
+    "saveProfile",
+    "updateAvatar",
+    "requestPermission",
+    "deferPermission",
+    "openBackupSettings",
+    "setAutoBackupEnabled",
+    "setAllowCellularBackup",
+    "startBackup",
+    "openLocalAlbum"
+  ],
+  "rules": {
+    "scanBatchMaximum": 500,
+    "nonFullPermissionCreatesWork": false,
+    "defaultAutoBackupEnabled": true,
+    "defaultAllowCellularBackup": false,
+    "localMediaSort": "capturedAt_DESC_platformAssetRef_DESC",
+    "gridColumns": 3,
+    "decryptedKeysInSQLite": false
+  }
+}

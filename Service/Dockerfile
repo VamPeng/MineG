@@ -6,11 +6,13 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/mineg-api ./cmd/api
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/mineg-migrate ./cmd/migrate
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/mineg-admin-bootstrap ./cmd/admin-bootstrap
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=build /out/mineg-api /app/mineg-api
 COPY --from=build /out/mineg-migrate /app/mineg-migrate
+COPY --from=build /out/mineg-admin-bootstrap /app/mineg-admin-bootstrap
 COPY --from=build /src/migrations /app/migrations
 ENV MINEG_MIGRATIONS_DIR=/app/migrations
 EXPOSE 8080

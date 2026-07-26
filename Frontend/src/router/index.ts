@@ -1,18 +1,8 @@
-import { readonly, ref } from 'vue'
 import { createRouter, createWebHistory, type Router } from 'vue-router'
 
 import LoginView from '@/views/LoginView.vue'
 import ProtectedShell from '@/views/ProtectedShell.vue'
-
-const authenticated = ref(false)
-
-export const sessionState = {
-  authenticated: readonly(authenticated),
-  // Stage 01 session restoration is the only code allowed to set this true.
-  setAuthenticated(value: boolean): void {
-    authenticated.value = value
-  },
-}
+import { adminSession } from '@/services/adminSession'
 
 export function installAuthenticationGuard(router: Router, isAuthenticated: () => boolean): void {
   router.beforeEach((to) => {
@@ -38,4 +28,4 @@ export const router = createRouter({
   ],
 })
 
-installAuthenticationGuard(router, () => sessionState.authenticated.value)
+installAuthenticationGuard(router, () => adminSession.authenticated.value)

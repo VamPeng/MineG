@@ -17,6 +17,7 @@ required_vars=(
   ALIYUN_REGION_ID
   OSS_BUCKET_NAME
   OSS_INTERNAL_ENDPOINT
+  OSS_READ_PROBE_KEY
 )
 
 for var_name in "${required_vars[@]}"; do
@@ -35,8 +36,18 @@ printf '=== ossutil ===\n'
 ossutil version
 
 printf '=== Targeted read-only OSS check ===\n'
-ossutil ls "oss://${OSS_BUCKET_NAME}/" \
+ossutil stat "oss://${OSS_BUCKET_NAME}/${OSS_READ_PROBE_KEY}" \
   --mode EcsRamRole \
   --region "$ALIYUN_REGION_ID" \
-  --endpoint "$OSS_INTERNAL_ENDPOINT" \
-  --limited-num "${OSS_LIST_LIMIT:-10}"
+  --endpoint "$OSS_INTERNAL_ENDPOINT"
+
+list_output="$(mktemp)"
+trap 'rm -f "$list_output"' EXIT
+if ossutil ls "oss://${OSS_BUCKET_NAME}/" \
+  --mode EcsRamRole \
+  --region "$ALIYUN_REGION_ID" \
+  --endpoint "$OSS_INTERNAL_ENDPOINT" >"$list_output" 2>&1; then
+  printf 'Bucket listing unexpectedly succeeded; remove oss:ListObjects from the application role.\n' >&2
+  exit 1
+fi
+printf 'Bucket listing denied as required.\n'

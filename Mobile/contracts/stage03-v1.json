@@ -1,0 +1,51 @@
+{
+  "contractVersion": "1.0.0",
+  "status": "BASELINED",
+  "scope": "F07_SINGLE_MEDIA_F08_UPLOAD",
+  "models": {
+    "SingleMediaBackup": ["taskId", "state", "serverUploadId", "serverMediaId", "uploadedParts", "partCount", "errorCode"],
+    "BackupResource": ["resourceId", "resourceType", "ciphertextPath", "ciphertextSize", "ciphertextSHA256", "manifestJson", "parts"],
+    "BackupPart": ["partNumber", "offset", "ciphertextSize", "ciphertextSHA256", "etag"],
+    "UploadPartRequest": ["url", "method", "headers", "ciphertextPath", "offset", "size"]
+  },
+  "enums": {
+    "BackupTaskState": ["PREPARING", "PREPARED", "UPLOADING", "SERVER_VERIFYING", "COMPLETED", "RETRYABLE_FAILED", "PERMANENT_FAILED"],
+    "MediaResourceType": ["ORIGINAL", "THUMBNAIL", "VIDEO_COVER", "PREVIEW", "LIVE_PHOTO_VIDEO", "DYNAMIC_PREVIEW"]
+  },
+  "methods": ["backupSingleMedia", "getSingleMediaBackup", "openMediaResource", "createDerivedMediaResources", "uploadPart"],
+  "coreCommands": ["CreateSingleMediaBackup", "RecordPreparedMedia", "RecordUploadSession", "RecordUploadedPart", "MarkServerVerifying", "CompleteSingleMediaBackup", "CompleteDeduplicatedSingleMediaBackup", "MarkSingleMediaBackupFailed"],
+  "coreQueries": ["GetSingleMediaBackup"],
+  "coreEvents": ["SingleMediaBackupChanged"],
+  "cAbiAdditions": [
+    "mineg_core_create_media_key_envelope",
+    "mineg_core_compute_dedupe_fingerprint",
+    "mineg_core_encrypt_media_resource",
+    "mineg_core_encrypt_media_manifest",
+    "mineg_core_decrypt_media_resource"
+  ],
+  "errors": [
+    "PERMISSION_NOT_FULL",
+    "MEDIA_RESOURCE_UNAVAILABLE",
+    "UPLOAD_INVALID",
+    "UPLOAD_PART_INVALID",
+    "UPLOAD_PART_MISMATCH",
+    "UPLOAD_PARTS_INCOMPLETE",
+    "UPLOAD_MANIFEST_MISMATCH",
+    "UPLOAD_OBJECT_NOT_READY",
+    "OBJECT_STORAGE_UNAVAILABLE",
+    "BACKUP_SINGLE_MEDIA_FAILED"
+  ],
+  "semanticIds": ["backup.overview.singleMediaStatus"],
+  "actions": ["backupSingleMedia"],
+  "rules": {
+    "logicalBlockBytes": 4194304,
+    "cipher": "XCHACHA20_POLY1305",
+    "nonce": "random_128_bit_prefix_plus_big_endian_u64_block_index",
+    "aad": ["formatVersion", "mediaId", "resourceId", "resourceType", "blockIndex", "plaintextSize"],
+    "persistBeforeSideEffect": true,
+    "completeOnlyAfterServerConfirmation": true,
+    "ciphertextStaging": "NO_BACKUP_FILES_UNTIL_SERVER_COMPLETED",
+    "mediaKeyCrossesPlatformBridge": false,
+    "dedupeScope": "ACCOUNT_PRIVATE_HMAC"
+  }
+}

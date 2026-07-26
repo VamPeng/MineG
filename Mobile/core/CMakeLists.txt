@@ -63,8 +63,12 @@ else()
     enable_testing()
     add_executable(mineg_core_tests tests/core_test.cpp)
     target_compile_features(mineg_core_tests PRIVATE cxx_std_17)
+    target_compile_definitions(mineg_core_tests PRIVATE
+      MINEG_CORE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    target_include_directories(mineg_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_compile_options(mineg_core_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
-    target_link_libraries(mineg_core_tests PRIVATE mineg_core)
+    target_link_libraries(mineg_core_tests PRIVATE mineg_core PkgConfig::MINEG_SODIUM)
     add_test(NAME mineg_core_contract COMMAND mineg_core_tests)
   endif()
 endif()

@@ -53,6 +53,390 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["signUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["signIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["signOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/approval-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApprovalStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateProfile"];
+        trace?: never;
+    };
+    "/api/v1/me/key-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getKeyBundle"];
+        put: operations["updateKeyBundle"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/key-grants/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPendingKeyGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/key-grants/{grant_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["completeKeyGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/avatar/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createAvatarUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/avatar/uploads/{upload_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["completeAvatarUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAvatarReadGrant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createMediaUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/uploads/{upload_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMediaUpload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/uploads/{upload_id}/parts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reportMediaUploadPart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/uploads/{upload_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["completeMediaUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCompletedOwnerMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["adminSignIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["restoreAdminSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["adminSignOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listApprovals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/approvals/{approval_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApproval"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/approvals/{approval_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -68,6 +452,322 @@ export interface components {
             /** Format: date-time */
             server_time: string;
         };
+        SignUpRequest: {
+            phone: string;
+            password: string;
+            /** @description Unpadded standard base64 32-byte X25519 public key. */
+            public_key: string;
+            /** @description Unpadded standard base64 encrypted client key bundle. */
+            encrypted_key_bundle: string;
+            kdf_parameters: {
+                [key: string]: unknown;
+            };
+            bundle_version: number;
+            device_installation_id: string;
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS" | "HARMONYOS";
+        };
+        SignUpResult: {
+            /** Format: uuid */
+            user_id: string;
+            access_token: string;
+            /** Format: date-time */
+            access_expires_at: string;
+            refresh_token: string;
+            /** Format: date-time */
+            refresh_expires_at: string;
+            approval_status: components["schemas"]["ApprovalStatusValue"];
+            next_step: components["schemas"]["NextStep"];
+        };
+        SignInRequest: {
+            phone: string;
+            password: string;
+            device_installation_id: string;
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS" | "HARMONYOS";
+            /** @enum {boolean} */
+            agreement_accepted: true;
+            terms_version: string;
+            privacy_version: string;
+        };
+        RefreshRequest: {
+            refresh_token: string;
+        };
+        TokenResult: {
+            /** Format: uuid */
+            user_id: string;
+            access_token: string;
+            /** Format: date-time */
+            access_expires_at: string;
+            refresh_token: string;
+            /** Format: date-time */
+            refresh_expires_at: string;
+            approval_status: components["schemas"]["ApprovalStatusValue"];
+            next_step: components["schemas"]["NextStep"];
+        };
+        ApprovalStatus: {
+            status: components["schemas"]["ApprovalStatusValue"];
+            next_step: components["schemas"]["NextStep"];
+        };
+        /** @enum {string} */
+        ApprovalStatusValue: "PENDING" | "APPROVED";
+        /** @enum {string} */
+        NextStep: "REVIEW_PENDING" | "APP_HOME";
+        Profile: {
+            /** Format: uuid */
+            id: string;
+            nickname: string;
+            masked_phone: string;
+            /** Format: uri */
+            avatar_url?: string;
+            version: number;
+        };
+        UpdateProfileRequest: {
+            nickname: string;
+        };
+        KeyMaterial: {
+            /** @description Unpadded standard base64 32-byte X25519 public key. */
+            public_key: string;
+            /** @description Unpadded standard base64 password-wrapped user key bundle. */
+            encrypted_key_bundle: string;
+            kdf_parameters: {
+                [key: string]: unknown;
+            };
+            bundle_version: number;
+            /** @description Unpadded standard base64 X25519 sealed box. */
+            family_envelope?: string;
+            /** @enum {string} */
+            family_envelope_algorithm?: "X25519_SEALED_BOX";
+            family_envelope_version?: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        UpdateKeyBundleRequest: {
+            public_key: string;
+            encrypted_key_bundle: string;
+            kdf_parameters: {
+                [key: string]: unknown;
+            };
+            bundle_version: number;
+        };
+        PendingKeyGrant: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            user_id: string;
+            /** Format: uuid */
+            family_id: string;
+            /** @enum {string} */
+            kind: "FAMILY_BOOTSTRAP" | "MEMBER_GRANT";
+            recipient_public_key: string;
+            bundle_version: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        PendingKeyGrantPage: {
+            items: components["schemas"]["PendingKeyGrant"][];
+        };
+        CompleteKeyGrantRequest: {
+            recipient_public_key: string;
+            /** @description Unpadded standard base64 80-byte sealed family key. */
+            encrypted_envelope: string;
+            /** @enum {string} */
+            algorithm: "X25519_SEALED_BOX";
+            envelope_version: number;
+        };
+        CompleteKeyGrantResult: {
+            /** Format: uuid */
+            grant_id: string;
+            /** Format: uuid */
+            user_id: string;
+            /** @enum {string} */
+            outcome: "COMPLETED" | "ALREADY_COMPLETED";
+            /** @enum {string} */
+            status: "APPROVED";
+        };
+        CreateAvatarUploadRequest: {
+            /** @enum {string} */
+            content_type: "image/jpeg" | "image/png" | "image/heic" | "image/heif" | "image/webp";
+            source_size: number;
+            display_size: number;
+            width: number;
+            height: number;
+            /** @description Unpadded standard base64 SHA-256 digest. */
+            content_sha256: string;
+        };
+        ObjectGrant: {
+            /** Format: uri */
+            url: string;
+            /** @enum {string} */
+            method: "GET" | "PUT";
+            /** Format: date-time */
+            expires_at: string;
+            headers: {
+                [key: string]: string;
+            };
+        };
+        AvatarUploadResult: {
+            /** Format: uuid */
+            upload_id: string;
+            grant: components["schemas"]["ObjectGrant"];
+        };
+        /** @enum {string} */
+        MediaType: "PHOTO" | "VIDEO" | "GIF" | "LIVE_PHOTO" | "DYNAMIC";
+        /** @enum {string} */
+        MediaResourceType: "ORIGINAL" | "THUMBNAIL" | "VIDEO_COVER" | "PREVIEW" | "LIVE_PHOTO_VIDEO" | "DYNAMIC_PREVIEW";
+        MediaPartPlan: {
+            part_number: number;
+            ciphertext_size: number;
+            /** @description Unpadded standard base64 SHA-256 of this independently authenticated ciphertext block. */
+            ciphertext_sha256: string;
+        };
+        MediaResourcePlan: {
+            /** Format: uuid */
+            resource_id: string;
+            resource_type: components["schemas"]["MediaResourceType"];
+            ciphertext_size: number;
+            /** @description Unpadded standard base64 whole ciphertext resource digest. */
+            ciphertext_sha256: string;
+            parts: components["schemas"]["MediaPartPlan"][];
+        };
+        CreateMediaUploadRequest: {
+            /**
+             * Format: uuid
+             * @description Client-generated media ID already bound into encryption AAD.
+             */
+            client_media_id: string;
+            /** @description Unpadded standard base64 account-private keyed fingerprint. */
+            dedupe_fingerprint: string;
+            content_revision: number;
+            media_type: components["schemas"]["MediaType"];
+            /** Format: date-time */
+            captured_at: string;
+            /** @description Unpadded standard base64 SHA-256 of the authenticated encrypted manifest. */
+            manifest_digest: string;
+            /** @description Unpadded standard base64 client-authenticated encrypted resource manifest. */
+            encrypted_manifest: string;
+            /** @description Unpadded standard base64 Media Key envelope for the owner. */
+            encrypted_media_key: string;
+            resources: components["schemas"]["MediaResourcePlan"][];
+        };
+        MediaPartGrant: {
+            part_number: number;
+            grant: components["schemas"]["ObjectGrant"];
+        };
+        MediaResourceGrant: {
+            /** Format: uuid */
+            resource_id: string;
+            object_key: string;
+            upload_id: string;
+            parts: components["schemas"]["MediaPartGrant"][];
+        };
+        MediaUploadGrant: {
+            /** @enum {string} */
+            purpose: "MEDIA_CIPHERTEXT";
+            scope_prefix: string;
+            /** Format: date-time */
+            expires_at: string;
+            resources: components["schemas"]["MediaResourceGrant"][];
+        };
+        MediaResourceStatus: {
+            /** Format: uuid */
+            resource_id: string;
+            resource_type: components["schemas"]["MediaResourceType"];
+            object_key?: string;
+            ciphertext_size: number;
+            part_count: number;
+            uploaded_parts: number;
+        };
+        MediaUploadSession: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            client_media_id: string;
+            /** @enum {string} */
+            state: "PENDING" | "VERIFYING" | "COMPLETED" | "EXPIRED" | "INVALID";
+            /** @enum {string} */
+            purpose: "MEDIA_CIPHERTEXT";
+            /** Format: uuid */
+            media_id?: string;
+            deduplicated: boolean;
+            /** Format: date-time */
+            expires_at: string;
+            grant?: components["schemas"]["MediaUploadGrant"];
+            resources: components["schemas"]["MediaResourceStatus"][];
+        };
+        ReportMediaPartRequest: {
+            /** Format: uuid */
+            resource_id: string;
+            part_number: number;
+            ciphertext_size: number;
+            ciphertext_sha256: string;
+            etag: string;
+        };
+        MediaPartResult: {
+            /** Format: uuid */
+            upload_id: string;
+            /** Format: uuid */
+            resource_id: string;
+            part_number: number;
+            /** @enum {string} */
+            state: "UPLOADED";
+        };
+        CompleteMediaUploadRequest: {
+            manifest_digest: string;
+        };
+        CompleteMediaUploadResult: {
+            /** Format: uuid */
+            upload_id: string;
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            state: "COMPLETED";
+            /** @enum {string} */
+            outcome: "COMPLETED" | "ALREADY_COMPLETED" | "DEDUPLICATED";
+            deduplicated: boolean;
+        };
+        OwnerMediaSummary: {
+            /** Format: uuid */
+            id: string;
+            media_type: components["schemas"]["MediaType"];
+            content_revision: number;
+            /** Format: date-time */
+            captured_at: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        OwnerMediaPage: {
+            items: components["schemas"]["OwnerMediaSummary"][];
+        };
+        AdminLoginRequest: {
+            username: string;
+            password: string;
+        };
+        AdminSessionResult: {
+            csrf_token: string;
+            username: string;
+        };
+        Approval: {
+            /** Format: uuid */
+            id: string;
+            masked_phone: string;
+            /** @enum {string} */
+            status: "PENDING" | "PROCESSED";
+            /** Format: date-time */
+            created_at: string;
+        };
+        ApprovalPage: {
+            items: components["schemas"]["Approval"][];
+            next_cursor: string | null;
+        };
+        ApproveResult: {
+            approval: components["schemas"]["Approval"];
+            /** @enum {string} */
+            outcome: "APPROVED" | "ALREADY_PROCESSED";
+        };
+        StatusMessage: {
+            status: string;
+        };
         Problem: {
             /** Format: uri */
             type: string;
@@ -82,11 +782,6 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** @description Template for stage 01+ cursor responses. */
-        CursorPage: {
-            items: unknown[];
-            next_cursor: string | null;
-        };
     };
     responses: {
         /** @description RFC 9457 problem details with stable MineG extensions. */
@@ -100,7 +795,14 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        ApprovalId: string;
+        GrantId: string;
+        UploadId: string;
+        Origin: string;
+        CSRFToken: string;
+        IdempotencyKey: string;
+    };
     requestBodies: never;
     headers: {
         /** @description Correlation identifier generated or accepted by the service. */
@@ -170,6 +872,670 @@ export interface operations {
                     "application/json": components["schemas"]["PlatformProbe"];
                 };
             };
+        };
+    };
+    signUp: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignUpRequest"];
+            };
+        };
+        responses: {
+            /** @description A pending account and encrypted key bundle were created, or the same idempotent result was recovered. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignUpResult"];
+                };
+            };
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    signIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInRequest"];
+            };
+        };
+        responses: {
+            /** @description A mobile session was created. Pending sessions are restricted to review status and logout operations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Access and refresh tokens were rotated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    signOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description The current mobile session was revoked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusMessage"];
+                };
+            };
+        };
+    };
+    getApprovalStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Product-visible approval status. Key-grant waiting remains PENDING. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalStatus"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimal real profile for an approved member. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    updateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description The current approved member nickname was updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getKeyBundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current member encrypted key bundle and, when ready, its family envelope. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeyMaterial"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateKeyBundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateKeyBundleRequest"];
+            };
+        };
+        responses: {
+            /** @description The password-wrapped bundle was replaced without changing the registered public key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeyMaterial"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    listPendingKeyGrants: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Eligible bootstrap or member grant work. Public keys are only disclosed to the target bootstrap member or an approved family member. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingKeyGrantPage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    completeKeyGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grant_id: components["parameters"]["GrantId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteKeyGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description The envelope was committed and the target account became APPROVED, or an identical completion was replayed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompleteKeyGrantResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    createAvatarUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAvatarUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description A short-lived upload grant restricted to one avatar object was issued. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarUploadResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    completeAvatarUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Object metadata was verified and the avatar became the current profile image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    getAvatarReadGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A short-lived read grant for the current avatar. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectGrant"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    createMediaUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMediaUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description A resumable ciphertext multipart session was created, replayed, or converged to an existing same-account media. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaUploadSession"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    getMediaUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped persisted upload truth. Object grants are omitted from status reads. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaUploadSession"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    reportMediaUploadPart: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                upload_id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportMediaPartRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact part ETag, ciphertext size, and digest were persisted; identical reports are idempotent. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaPartResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    completeMediaUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                upload_id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteMediaUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description OSS multipart state was verified and a completed owner media was committed transactionally. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompleteMediaUploadResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    listCompletedOwnerMedia: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed metadata owned by the authenticated member; no object URL or key envelope is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerMediaPage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    adminSignIn: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: components["parameters"]["Origin"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Administrator session cookie was issued and a CSRF token returned. */
+            200: {
+                headers: {
+                    /** @description Secure, HttpOnly, SameSite=Strict administrator session cookie. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    restoreAdminSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active session was restored and its CSRF token rotated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    adminSignOut: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: components["parameters"]["Origin"];
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator session was revoked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusMessage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listApprovals: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending applications ordered oldest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalPage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Masked application detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Approval"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    approveApplication: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: components["parameters"]["Origin"];
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                approval_id: components["parameters"]["ApprovalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review decision is committed and a key-grant task exists. Repeats return ALREADY_PROCESSED. */
+            200: {
+                headers: {
+                    /** @description Rotated CSRF token for the next state-changing request. */
+                    "X-CSRF-Token"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApproveResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
 }
