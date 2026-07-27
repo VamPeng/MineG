@@ -20,14 +20,16 @@ class MineGAppViewModelTest {
     assertEquals(AppRoute.PrivateSpace, viewModel.state.value.currentRoute)
     assertEquals(LibraryAccess.FULL, viewModel.state.value.libraryAccess)
 
-    viewModel.selectTab(MainTab.FAMILY_ALBUM)
-    assertEquals(AppRoute.FamilyAlbum, viewModel.state.value.currentRoute)
-    assertEquals(MainTab.FAMILY_ALBUM, viewModel.state.value.selectedTab)
+    viewModel.selectLibraryTab(LibraryTab.SHARED)
+    assertEquals(AppRoute.PrivateSpace, viewModel.state.value.currentRoute)
+    assertEquals(MainTab.PRIVATE_SPACE, viewModel.state.value.selectedTab)
+    assertEquals(LibraryTab.SHARED, viewModel.state.value.selectedLibraryTab)
 
     viewModel.openFamilyMedia("family-01")
     assertIs<AppRoute.FamilyMediaDetail>(viewModel.state.value.currentRoute)
     assertTrue(viewModel.back())
-    assertEquals(AppRoute.FamilyAlbum, viewModel.state.value.currentRoute)
+    assertEquals(AppRoute.PrivateSpace, viewModel.state.value.currentRoute)
+    assertEquals(LibraryTab.SHARED, viewModel.state.value.selectedLibraryTab)
   }
 
   @Test
@@ -109,6 +111,23 @@ class MineGAppViewModelTest {
     viewModel.toggleShare(media.id)
     assertFalse(viewModel.state.value.privateSpace.items.first { it.id == media.id }.isShared)
     assertFalse(viewModel.state.value.familyAlbum.items.any { it.id == media.id })
+  }
+
+  @Test
+  fun `profile opens media shared by the current member`() {
+    val viewModel = MineGAppViewModel()
+
+    viewModel.selectTab(MainTab.PROFILE)
+    viewModel.navigate(AppRoute.SharedByMe)
+
+    assertEquals(AppRoute.SharedByMe, viewModel.state.value.currentRoute)
+    assertTrue(viewModel.state.value.familyAlbum.items.any(MediaItem::sharedByMe))
+
+    val sharedMedia = viewModel.state.value.familyAlbum.items.first(MediaItem::sharedByMe)
+    viewModel.openFamilyMedia(sharedMedia.id)
+    assertIs<AppRoute.FamilyMediaDetail>(viewModel.state.value.currentRoute)
+    assertTrue(viewModel.back())
+    assertEquals(AppRoute.SharedByMe, viewModel.state.value.currentRoute)
   }
 
   @Test

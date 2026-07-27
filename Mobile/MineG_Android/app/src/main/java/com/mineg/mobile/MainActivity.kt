@@ -200,15 +200,11 @@ private fun AuthFrame(title: String, subtitle: String, semanticId: String, conte
 @Composable
 private fun BrandLockup() {
   Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-    Box(
-      Modifier
-        .size(38.dp)
-        .clip(RoundedCornerShape(11.dp))
-        .background(mineGBrandGradient()),
-      contentAlignment = Alignment.Center,
-    ) {
-      Text("M", color = MineGColorTokens.OnBrandPrimary, fontWeight = FontWeight.ExtraBold)
-    }
+    com.mineg.mobile.app.MineGAssetImage(
+      assetPath = "mineg_logo.png",
+      contentDescription = "MineG Logo",
+      modifier = Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)),
+    )
     Text("MineG", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
   }
 }

@@ -8,12 +8,12 @@ sealed interface AppRoute {
   data object Permission : AppRoute
 
   data object PrivateSpace : AppRoute
-  data object FamilyAlbum : AppRoute
   data object Backup : AppRoute
   data object Profile : AppRoute
 
   data class PrivateMediaDetail(val mediaId: String) : AppRoute
   data class FamilyMediaDetail(val mediaId: String) : AppRoute
+  data object SharedByMe : AppRoute
   data class LocalAlbum(val albumId: String) : AppRoute
   data object BackupSettings : AppRoute
   data object ProfileEdit : AppRoute
@@ -25,21 +25,19 @@ enum class LegalDocument { TERMS, PRIVACY }
 
 enum class MainTab(val label: String) {
   PRIVATE_SPACE("私人空间"),
-  FAMILY_ALBUM("家庭相册"),
   BACKUP("备份"),
   PROFILE("我的"),
 }
 
 fun MainTab.route(): AppRoute = when (this) {
   MainTab.PRIVATE_SPACE -> AppRoute.PrivateSpace
-  MainTab.FAMILY_ALBUM -> AppRoute.FamilyAlbum
   MainTab.BACKUP -> AppRoute.Backup
   MainTab.PROFILE -> AppRoute.Profile
 }
 
 enum class PageLoadState { LOADING, CONTENT, EMPTY, ERROR }
 enum class MediaKind { PHOTO, VIDEO, GIF, LIVE_PHOTO }
-enum class FamilyFilter { ALL, SHARED_BY_ME }
+enum class LibraryTab { PRIVATE, SHARED }
 enum class LibraryAccess { NOT_DETERMINED, FULL, LIMITED, RESTRICTED, DENIED, SYSTEM_RESTRICTED }
 
 enum class BackupStatus {
@@ -75,6 +73,7 @@ data class UserProfile(
   val nickname: String,
   val maskedPhone: String,
   val avatarLabel: String,
+  val avatarUrl: String? = null,
 )
 
 data class MediaItem(
@@ -89,6 +88,7 @@ data class MediaItem(
   val sharedByMe: Boolean = false,
   val isShared: Boolean = false,
   val colorSeed: Int,
+  val imageUrl: String? = null,
 )
 
 data class LocalAlbum(
@@ -96,6 +96,7 @@ data class LocalAlbum(
   val name: String,
   val mediaCount: Int,
   val mediaIds: List<String>,
+  val coverUrls: List<String> = emptyList(),
 )
 
 data class DeletedMedia(
@@ -122,7 +123,6 @@ data class PrivateSpaceUiState(
 
 data class FamilyAlbumUiState(
   val loadState: PageLoadState = PageLoadState.CONTENT,
-  val filter: FamilyFilter = FamilyFilter.ALL,
   val items: List<MediaItem> = emptyList(),
   val errorMessage: String? = null,
 )
@@ -163,6 +163,7 @@ data class MineGAppState(
   val currentRoute: AppRoute = AppRoute.PrivateSpace,
   val backStack: List<AppRoute> = emptyList(),
   val selectedTab: MainTab = MainTab.PRIVATE_SPACE,
+  val selectedLibraryTab: LibraryTab = LibraryTab.PRIVATE,
   val auth: AuthUiState = AuthUiState(),
   val profile: UserProfile,
   val libraryAccess: LibraryAccess = LibraryAccess.FULL,
@@ -178,7 +179,6 @@ data class MineGAppState(
   val isMainDestination: Boolean
     get() = currentRoute in setOf(
       AppRoute.PrivateSpace,
-      AppRoute.FamilyAlbum,
       AppRoute.Backup,
       AppRoute.Profile,
     )

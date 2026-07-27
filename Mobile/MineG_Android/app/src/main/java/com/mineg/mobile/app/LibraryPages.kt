@@ -3,6 +3,7 @@
 package com.mineg.mobile.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -44,6 +46,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -62,53 +65,131 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mineg.mobile.ui.theme.mineGBrandGradient
 import com.mineg.mobile.ui.theme.mineGColors
+import coil3.compose.AsyncImage
 
 @Composable
 fun PrivateSpacePage(
-  state: PrivateSpaceUiState,
+  privateState: PrivateSpaceUiState,
+  sharedState: FamilyAlbumUiState,
+  selectedLibraryTab: LibraryTab,
   selectedTab: MainTab,
+  onSelectLibraryTab: (LibraryTab) -> Unit,
   onSelectTab: (MainTab) -> Unit,
-  onOpenMedia: (String) -> Unit,
+  onOpenPrivateMedia: (String) -> Unit,
+  onOpenSharedMedia: (String) -> Unit,
 ) {
   Scaffold(
     containerColor = MaterialTheme.colorScheme.background,
     bottomBar = { MineGBottomBar(selectedTab, onSelectTab) },
   ) { padding ->
     Column(Modifier.padding(padding).fillMaxSize()) {
-      MineGPageTitle("MineG 私人空间", "只有你可以查看的加密媒体")
-      MineGCard(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-          Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.mineGColors.success)
-          Column(Modifier.padding(start = 12.dp).weight(1f)) {
-            Text("端到端加密保护", fontWeight = FontWeight.SemiBold)
-            Text("${state.items.size} 项 Mock 云端媒体", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-          }
-          Text("安全", color = MaterialTheme.mineGColors.success, fontWeight = FontWeight.Bold)
+      LibraryTabSwitcher(selectedLibraryTab, onSelectLibraryTab)
+      Box(Modifier.weight(1f)) {
+        when (selectedLibraryTab) {
+          LibraryTab.PRIVATE -> PrivateSpaceContent(privateState, onOpenPrivateMedia)
+          LibraryTab.SHARED -> SharedAlbumContent(sharedState, sharedState.items, onOpenSharedMedia)
         }
       }
-      when (state.loadState) {
-        PageLoadState.LOADING -> PageLoading()
-        PageLoadState.EMPTY -> EmptyState("私人空间还是空的", "完成首次备份后，照片和视频会出现在这里。")
-        PageLoadState.ERROR -> EmptyState("暂时无法加载", state.errorMessage ?: "请检查网络后重试。")
-        PageLoadState.CONTENT -> LazyVerticalGrid(
-          columns = GridCells.Fixed(3),
-          modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp),
-          contentPadding = PaddingValues(bottom = 16.dp),
-          horizontalArrangement = Arrangement.spacedBy(4.dp),
-          verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-          items(state.items, key = MediaItem::id) { media ->
-            MediaPlaceholder(
-              media,
-              Modifier.fillMaxWidth().aspectRatio(1f),
-              onClick = { onOpenMedia(media.id) },
-            )
+    }
+  }
+}
+
+@Composable
+private fun LibraryTabSwitcher(
+  selectedTab: LibraryTab,
+  onSelectTab: (LibraryTab) -> Unit,
+) {
+  Row(
+    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp).clip(RoundedCornerShape(28.dp))
+      .background(MaterialTheme.colorScheme.surfaceContainer).padding(4.dp),
+    horizontalArrangement = Arrangement.spacedBy(4.dp),
+  ) {
+    LibraryTabButton(
+      selected = selectedTab == LibraryTab.PRIVATE,
+      label = "私人",
+      icon = Icons.Outlined.Lock,
+      modifier = Modifier.weight(1f),
+      onClick = { onSelectTab(LibraryTab.PRIVATE) },
+    )
+    LibraryTabButton(
+      selected = selectedTab == LibraryTab.SHARED,
+      label = "共享",
+      icon = Icons.Outlined.Share,
+      modifier = Modifier.weight(1f),
+      onClick = { onSelectTab(LibraryTab.SHARED) },
+    )
+  }
+}
+
+@Composable
+private fun PrivateSpaceContent(
+  state: PrivateSpaceUiState,
+  onOpenMedia: (String) -> Unit,
+) {
+  when (state.loadState) {
+    PageLoadState.LOADING -> Box(Modifier.fillMaxSize()) { PageLoading() }
+    PageLoadState.EMPTY -> Box(Modifier.fillMaxSize()) { EmptyState("私人空间还是空的", "完成首次备份后，照片和视频会出现在这里。") }
+    PageLoadState.ERROR -> Box(Modifier.fillMaxSize()) { EmptyState("暂时无法加载", state.errorMessage ?: "请检查网络后重试。") }
+    PageLoadState.CONTENT -> LazyVerticalGrid(
+      columns = GridCells.Fixed(3),
+      modifier = Modifier.fillMaxSize(),
+      contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 0.dp, bottom = 28.dp),
+      horizontalArrangement = Arrangement.spacedBy(3.dp),
+      verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+      items(state.items, key = MediaItem::id) { media ->
+        MediaPlaceholder(
+          media,
+          Modifier.fillMaxWidth().aspectRatio(1f),
+          onClick = { onOpenMedia(media.id) },
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun SharedAlbumContent(
+  state: FamilyAlbumUiState,
+  visibleItems: List<MediaItem>,
+  onOpenMedia: (String) -> Unit,
+) {
+  LazyColumn(
+    Modifier.fillMaxSize(),
+    contentPadding = PaddingValues(bottom = 18.dp),
+  ) {
+    if (state.loadState == PageLoadState.LOADING) {
+      item {
+        Box(Modifier.fillMaxWidth().height(280.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+      }
+    } else if (state.loadState == PageLoadState.ERROR) {
+      item { EmptyState("共享相册加载失败", state.errorMessage ?: "请检查网络后重试。") }
+    } else if (state.loadState == PageLoadState.EMPTY || visibleItems.isEmpty()) {
+      item { EmptyState("暂无共享内容", "在私人媒体详情中主动共享后，内容会出现在这里。") }
+    } else {
+      visibleItems.groupBy(MediaItem::dateGroup).forEach { (group, media) ->
+        item { Text(group, fontWeight = FontWeight.Medium, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 10.dp)) }
+        items(media.chunked(3), key = { row -> row.joinToString { it.id } }) { row ->
+          Row(
+            Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 1.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+          ) {
+            row.forEach { item ->
+              MediaPlaceholder(
+                item,
+                Modifier.weight(1f).height(112.dp),
+                showOwner = true,
+                onClick = { onOpenMedia(item.id) },
+              )
+            }
+            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
           }
         }
       }
@@ -117,58 +198,38 @@ fun PrivateSpacePage(
 }
 
 @Composable
-fun FamilyAlbumPage(
+private fun LibraryTabButton(
+  selected: Boolean,
+  label: String,
+  icon: ImageVector,
+  modifier: Modifier,
+  onClick: () -> Unit,
+) {
+  androidx.compose.material3.Surface(
+    modifier = modifier.height(46.dp).clickable(onClick = onClick),
+    shape = RoundedCornerShape(24.dp),
+    color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
+    shadowElevation = if (selected) 1.dp else 0.dp,
+  ) {
+    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+      Icon(icon, null, modifier = Modifier.size(18.dp), tint = if (selected) MaterialTheme.mineGColors.success else MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("  $label", fontWeight = FontWeight.SemiBold, color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+  }
+}
+
+@Composable
+fun SharedByMePage(
   state: FamilyAlbumUiState,
-  selectedTab: MainTab,
-  onSelectTab: (MainTab) -> Unit,
-  onFilter: (FamilyFilter) -> Unit,
+  onBack: () -> Unit,
   onOpenMedia: (String) -> Unit,
 ) {
-  val visibleItems = if (state.filter == FamilyFilter.ALL) state.items else state.items.filter(MediaItem::sharedByMe)
   Scaffold(
     containerColor = MaterialTheme.colorScheme.background,
-    bottomBar = { MineGBottomBar(selectedTab, onSelectTab) },
+    topBar = { DetailTopBar("我分享的", onBack) },
   ) { padding ->
-    LazyColumn(
-      Modifier.padding(padding).fillMaxSize(),
-      contentPadding = PaddingValues(bottom = 18.dp),
-    ) {
-      item { MineGPageTitle("MineG 家庭相册", "家人主动共享的只读回忆") }
-      item {
-        Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-          FilterChip(state.filter == FamilyFilter.ALL, onClick = { onFilter(FamilyFilter.ALL) }, label = { Text("全部") })
-          FilterChip(state.filter == FamilyFilter.SHARED_BY_ME, onClick = { onFilter(FamilyFilter.SHARED_BY_ME) }, label = { Text("我分享的") })
-        }
-      }
-      if (state.loadState == PageLoadState.LOADING) {
-        item {
-          Box(Modifier.fillMaxWidth().height(280.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        }
-      } else if (state.loadState == PageLoadState.ERROR) {
-        item { EmptyState("家庭相册加载失败", state.errorMessage ?: "请检查网络后重试。") }
-      } else if (state.loadState == PageLoadState.EMPTY || visibleItems.isEmpty()) {
-        item { EmptyState("暂无共享内容", "在私人媒体详情中主动共享后，内容会出现在这里。") }
-      } else {
-        visibleItems.groupBy(MediaItem::dateGroup).forEach { (group, media) ->
-          item { Text(group, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 10.dp)) }
-          items(media.chunked(3), key = { row -> row.joinToString { it.id } }) { row ->
-            Row(
-              Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 2.dp),
-              horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-              row.forEach { item ->
-                MediaPlaceholder(
-                  item,
-                  Modifier.weight(1f).height(136.dp),
-                  showOwner = true,
-                  onClick = { onOpenMedia(item.id) },
-                )
-              }
-              repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-          }
-        }
-      }
+    Box(Modifier.padding(padding).fillMaxSize()) {
+      SharedAlbumContent(state, state.items.filter(MediaItem::sharedByMe), onOpenMedia)
     }
   }
 }
@@ -198,35 +259,34 @@ fun BackupPage(
       verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
       item {
-        MineGPageTitle("本地相册", "设备中的照片和视频") {
+        MineGPageTitle("本地相册") {
           IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "备份设置") }
         }
       }
-      item { BackupStatusCard(state, Modifier.padding(horizontal = 20.dp)) }
-      item { Text("设备相册", fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) }
+      item { BackupStatusCard(state, state.albums.firstOrNull()?.coverUrls?.firstOrNull(), Modifier.padding(horizontal = 20.dp)) }
       items(state.albums, key = LocalAlbum::id) { album ->
-        MineGCard(Modifier.fillMaxWidth().padding(horizontal = 20.dp).clickable { onOpenAlbum(album.id) }) {
-          Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Column(Modifier.weight(1f)) {
-                Text(album.name, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Text("${album.mediaCount} 项", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).clickable { onOpenAlbum(album.id) }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            Text(album.name, fontWeight = FontWeight.Bold, fontSize = 19.sp, modifier = Modifier.weight(1f))
+            Text("${album.mediaCount} 项", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+          }
+          album.coverUrls.take(6).chunked(3).forEachIndexed { rowIndex, row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+              row.forEachIndexed { index, url ->
+                Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceContainer)) {
+                  PrototypeCroppedImage(
+                    MockVisualAssets.mediaCrops[Math.floorMod(album.id.hashCode() + rowIndex * 3 + index, MockVisualAssets.mediaCrops.size)],
+                    Modifier.matchParentSize(),
+                  )
+                  AsyncImage(url, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                  if (index == 2 && album.id != "album-screenshots") {
+                    Box(Modifier.align(Alignment.BottomEnd).padding(6.dp).size(20.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
+                      Text("▶", color = Color.White, fontSize = 8.sp)
+                    }
+                  }
+                }
               }
-              Text("查看", color = MaterialTheme.colorScheme.primary)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-              album.mediaIds.take(3).forEachIndexed { index, _ ->
-                Box(
-                  Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(
-                    Brush.linearGradient(
-                      listOf(
-                        MaterialTheme.colorScheme.primaryContainer,
-                        if (index % 2 == 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer,
-                      ),
-                    ),
-                  ),
-                )
-              }
+              repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
           }
         }
@@ -236,28 +296,45 @@ fun BackupPage(
 }
 
 @Composable
-private fun BackupStatusCard(state: BackupUiState, modifier: Modifier = Modifier) {
+private fun BackupStatusCard(state: BackupUiState, heroUrl: String?, modifier: Modifier = Modifier) {
   val presentation = backupPresentation(state.status)
-  MineGCard(modifier.fillMaxWidth()) {
-    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(
-          Modifier.size(44.dp).clip(CircleShape).background(presentation.container),
-          contentAlignment = Alignment.Center,
-        ) { Icon(presentation.icon, null, tint = presentation.foreground) }
-        Column(Modifier.weight(1f)) {
-          Text(presentation.title, fontWeight = FontWeight.Bold)
-          Text(presentation.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+  Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+      Text("同步状态", fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+      androidx.compose.material3.Surface(color = presentation.container, shape = CircleShape) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+          Icon(presentation.icon, null, tint = presentation.foreground, modifier = Modifier.size(16.dp))
+          Text(
+            if (state.status == BackupStatus.UPLOADING) " 仅 Wi-Fi · 4.8 MB/s" else " ${presentation.title}",
+            color = presentation.foreground,
+            fontWeight = FontWeight.Medium,
+            fontSize = 12.sp,
+          )
         }
       }
+    }
+    Box(
+      Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+      PrototypeCroppedImage(MockVisualAssets.backupHero, Modifier.matchParentSize())
+      heroUrl?.let { AsyncImage(it, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop) }
+      Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.76f)))))
+      Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+          Text(presentation.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 23.sp, modifier = Modifier.weight(1f))
+          if (state.status in setOf(BackupStatus.UPLOADING, BackupStatus.SCANNING)) {
+            Text("${(state.progress * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+          }
+        }
+        Text(presentation.description, color = Color.White.copy(alpha = 0.86f), fontSize = 13.sp)
       if (state.status in setOf(BackupStatus.UPLOADING, BackupStatus.SCANNING)) {
-        LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape))
-        Text(
-          if (state.status == BackupStatus.UPLOADING) "${state.currentMediaTitle} · ${(state.progress * 100).toInt()}%"
-          else "已扫描 ${state.indexedCount} / ${state.totalCount} 项",
-          fontSize = 12.sp,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        LinearProgressIndicator(
+          progress = { state.progress },
+          modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+          color = if (state.status == BackupStatus.UPLOADING) MaterialTheme.mineGColors.success else MaterialTheme.colorScheme.primary,
+          trackColor = Color.White.copy(alpha = 0.35f),
         )
+      }
       }
     }
   }
@@ -295,22 +372,29 @@ fun BackupSettingsPage(state: BackupUiState, onBack: () -> Unit, onAutoBackup: (
       Text("选择备份方式", fontWeight = FontWeight.Bold, fontSize = 20.sp)
       Text("设置会立即生效。关闭自动备份后，你仍然可以浏览本地相册。", color = MaterialTheme.colorScheme.onSurfaceVariant)
       MineGCard(Modifier.fillMaxWidth()) {
-        BackupSettingRow("自动备份", "发现新的本地媒体后自动上传", state.autoBackupEnabled, onAutoBackup)
-        BackupSettingRow("允许移动网络备份", "无 Wi-Fi 时继续上传，可能产生流量费用", state.allowCellularBackup, onCellular, state.autoBackupEnabled)
+        BackupSettingRow(Icons.Outlined.CloudQueue, "自动备份", "发现新的本地媒体后自动上传", state.autoBackupEnabled, onAutoBackup)
+        HorizontalDivider(color = MaterialTheme.mineGColors.divider)
+        BackupSettingRow(Icons.Outlined.Storage, "允许移动网络备份", "无 Wi-Fi 时继续上传，可能产生流量费用", state.allowCellularBackup, onCellular, state.autoBackupEnabled)
       }
-      MineGCard(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-          Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.mineGColors.success)
-          Text("备份媒体默认只保存在私人空间。只有主动共享的媒体才会出现在家庭相册中。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+      Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.mineGColors.successContainer).padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.mineGColors.success)
+        Text("备份媒体默认只保存在你的私人空间。只有主动共享的媒体才会出现在家庭相册中。", color = MaterialTheme.mineGColors.onSuccessContainer, fontSize = 13.sp)
       }
     }
   }
 }
 
 @Composable
-private fun BackupSettingRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
+private fun BackupSettingRow(icon: ImageVector, title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
   Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    Box(
+      Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.mineGColors.successContainer),
+      contentAlignment = Alignment.Center,
+    ) { Icon(icon, null, tint = MaterialTheme.mineGColors.success) }
+    Spacer(Modifier.size(12.dp))
     Column(Modifier.weight(1f)) {
       Text(title, fontWeight = FontWeight.SemiBold)
       Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
@@ -349,7 +433,14 @@ fun PrivateMediaDetailPage(
   onShare: () -> Unit,
   onDelete: () -> Unit,
 ) {
-  Scaffold(topBar = { DetailTopBar(media?.title ?: "媒体详情", onBack) }) { padding ->
+  Scaffold(
+    topBar = {
+      DetailTopBar("Memory", onBack) {
+        Icon(Icons.Outlined.Lock, "已加密", tint = MaterialTheme.mineGColors.success)
+      }
+    },
+    containerColor = MaterialTheme.colorScheme.background,
+  ) { padding ->
     if (media == null) {
       Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) { Text("媒体不存在") }
       return@Scaffold
@@ -358,13 +449,39 @@ fun PrivateMediaDetailPage(
       Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
       verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-      MediaPlaceholder(media, Modifier.fillMaxWidth().height(430.dp))
+      Box(Modifier.fillMaxWidth().height(430.dp)) {
+        MediaPlaceholder(media, Modifier.matchParentSize())
+        androidx.compose.material3.Surface(
+          modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
+          color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+          shape = CircleShape,
+          shadowElevation = 2.dp,
+        ) {
+          Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.mineGColors.success, modifier = Modifier.size(20.dp))
+            Text(" 仅私人空间可见", fontWeight = FontWeight.Medium)
+          }
+        }
+      }
       Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
           Text(media.title, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-          Text("${media.capturedAt} · ${media.sizeLabel}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text(media.capturedAt.substringBefore(" "), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 17.sp)
         }
-        Icon(Icons.Outlined.Lock, "已加密", tint = MaterialTheme.mineGColors.success)
+        Box(Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+          Text(media.owner.avatarLabel, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+      }
+      HorizontalDivider(color = MaterialTheme.mineGColors.divider)
+      Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+      ) {
+        Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.mineGColors.success, modifier = Modifier.size(28.dp))
+        Column {
+          Text("加密存储", fontWeight = FontWeight.Medium)
+          Text("此照片已进行端到端加密，仅您和选定的家庭成员可以查看。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+        }
       }
       when (actionState) {
         MediaActionState.DOWNLOADING -> MineGCard(Modifier.fillMaxWidth()) {
@@ -443,10 +560,11 @@ private fun ActionBanner(message: String, error: Boolean) {
 }
 
 @Composable
-fun DetailTopBar(title: String, onBack: () -> Unit) {
+fun DetailTopBar(title: String, onBack: () -> Unit, action: (@Composable () -> Unit)? = null) {
   TopAppBar(
     title = { Text(title, fontWeight = FontWeight.SemiBold) },
     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") } },
+    actions = { action?.invoke() },
     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
   )
 }

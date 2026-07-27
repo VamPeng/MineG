@@ -175,7 +175,7 @@ fun ReviewPendingPage(state: AuthUiState, onRefresh: () -> Unit, onBackToLogin: 
         }
         Text(if (state.reviewSyncing) "正在同步审核状态" else "申请审核中", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(
-          "管理员审核并完成家庭密钥授权后，你将进入私人空间。Mock 模式下点击刷新即可继续。",
+          "管理员审核并完成家庭密钥授权后，你将进入私人空间。",
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           lineHeight = 22.sp,
         )
@@ -288,9 +288,11 @@ private fun AuthPageFrame(
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") }
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(mineGBrandGradient()), contentAlignment = Alignment.Center) {
-          Text("M", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onPrimary)
-        }
+        MineGAssetImage(
+          assetPath = "mineg_logo.png",
+          contentDescription = "MineG Logo",
+          modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)),
+        )
         Text("  MineG", fontWeight = FontWeight.Bold, fontSize = 21.sp)
       }
       Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

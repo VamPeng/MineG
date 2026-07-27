@@ -3,7 +3,7 @@
 <html lang="zh-CN"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>MineG 家庭相册</title>
+<title>MineG 共享相册</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -143,24 +143,23 @@
       min-height: max(884px, 100dvh);
     }
   </style>
-  <script defer data-mineg-nav="family" src="../../../assets/mineg-navigation.js"></script>
+  <script defer data-mineg-nav="private" src="../../../assets/mineg-navigation.js"></script>
   </head>
 <body class="font-body-md text-body-md-mobile flex flex-col min-h-screen pb-20">
 <!-- Content Canvas -->
 <main class="flex-1 px-1 pt-2">
-<!-- Share Filter -->
-<section class="sticky top-0 z-30 bg-surface/90 px-3 py-2 backdrop-blur-md" aria-label="分享来源筛选">
-<div class="flex w-full rounded-full bg-surface-container-high p-1" role="group" aria-label="筛选家庭相册">
-<button class="filter-option flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 font-label-sm text-label-sm font-semibold" type="button" data-filter-value="all" aria-pressed="true">
-<span class="material-symbols-outlined text-[18px]" aria-hidden="true">photo_library</span>
-<span>全部</span>
-</button>
-<button class="filter-option flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 font-label-sm text-label-sm font-semibold" type="button" data-filter-value="mine" aria-pressed="false">
-<span class="material-symbols-outlined text-[18px]" aria-hidden="true">ios_share</span>
-<span>我分享的</span>
-</button>
+<!-- Home Content Tabs -->
+<section class="sticky top-0 z-30 bg-surface/90 px-3 py-2 backdrop-blur-md" data-home-tabs aria-label="首页内容">
+<div class="flex w-full rounded-full bg-surface-container-high p-1" role="tablist" aria-label="首页内容">
+<a class="filter-option flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 font-label-sm text-label-sm font-semibold" href="../../03-private-space/01-private-space-overview/index.html" role="tab" aria-selected="false">
+<span class="material-symbols-outlined text-[18px]" aria-hidden="true">lock</span>
+<span>私人</span>
+</a>
+<a class="filter-option flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 font-label-sm text-label-sm font-semibold" href="index.html" role="tab" aria-selected="true" aria-current="page" style="background:#fff;color:#436444;box-shadow:0 1px 4px rgba(31,27,23,.12)">
+<span class="material-symbols-outlined text-[18px]" aria-hidden="true">share</span>
+<span>共享</span>
+</a>
 </div>
-<p class="sr-only" id="filter-summary" aria-live="polite">正在展示全部家庭相册内容</p>
 </section>
 <!-- Date Header -->
 <div class="px-4 py-3" data-date-group="today">
@@ -266,13 +265,9 @@
 <!-- BottomNavBar -->
 <nav class="fixed bottom-0 w-full z-50 bg-surface/80 dark:bg-on-background/80 backdrop-blur-md shadow-sm border-t border-surface-container-high">
 <div class="flex justify-around items-center w-full px-2 py-3">
-<div class="flex flex-col items-center justify-center text-outline dark:text-outline-variant hover:opacity-80 transition-opacity">
-<span class="material-symbols-outlined text-[24px]" data-icon="cloud_off">cloud_off</span>
-<span class="font-label-sm text-label-sm">私人空间</span>
-</div>
 <div class="flex flex-col items-center justify-center bg-primary-container dark:bg-on-primary-fixed-variant text-on-primary-container dark:text-on-primary-fixed rounded-full px-4 py-1 active:scale-90 transition-transform duration-200">
-<span class="material-symbols-outlined text-[24px]" data-icon="group_work">group_work</span>
-<span class="font-label-sm text-label-sm">家庭相册</span>
+<span class="material-symbols-outlined text-[24px]" data-icon="lock">lock</span>
+<span class="font-label-sm text-label-sm">私人空间</span>
 </div>
 <div class="flex flex-col items-center justify-center text-outline dark:text-outline-variant hover:opacity-80 transition-opacity">
 <span class="material-symbols-outlined text-[24px]" data-icon="cloud_upload">cloud_upload</span>
@@ -287,37 +282,27 @@
 <!-- Micro-interaction Script -->
 <script>
         const mediaItems = [...document.querySelectorAll('.media-grid-item')];
-        const filterButtons = [...document.querySelectorAll('[data-filter-value]')];
-        const filterSummary = document.querySelector('#filter-summary');
+        const mineMode = new URLSearchParams(window.location.search).get('view') === 'mine';
 
-        function applyShareFilter(filter) {
-            mediaItems.forEach(item => {
-                const shouldShow = filter === 'all' || item.dataset.sharedByMe === 'true';
-                item.hidden = !shouldShow;
-            });
+        if (mineMode) {
+            document.title = 'MineG 我分享的';
+            document.querySelector('script[data-mineg-nav]').dataset.minegNav = 'profile';
+            document.querySelector('[data-home-tabs]').outerHTML = `
+              <header class="sticky top-0 z-30 flex min-h-14 items-center bg-surface/95 px-3 backdrop-blur-md">
+                <a class="grid h-10 w-10 place-items-center rounded-full text-primary" href="../../08-profile/01-profile-overview/index.html" aria-label="返回个人中心">
+                  <span class="material-symbols-outlined">arrow_back</span>
+                </a>
+                <h1 class="flex-1 pr-10 text-center text-lg font-semibold">我分享的</h1>
+              </header>`;
 
+            mediaItems.forEach(item => { item.hidden = item.dataset.sharedByMe !== 'true'; });
             document.querySelectorAll('[data-media-grid]').forEach(grid => {
-                const hasVisibleItems = [...grid.querySelectorAll('.media-grid-item')]
-                    .some(item => !item.hidden);
-                const dateGroup = grid.dataset.dateGroup;
-                document.querySelectorAll(`[data-date-group="${dateGroup}"]`).forEach(element => {
+                const hasVisibleItems = [...grid.querySelectorAll('.media-grid-item')].some(item => !item.hidden);
+                document.querySelectorAll(`[data-date-group="${grid.dataset.dateGroup}"]`).forEach(element => {
                     element.hidden = !hasVisibleItems;
                 });
             });
-
-            filterButtons.forEach(button => {
-                button.setAttribute('aria-pressed', String(button.dataset.filterValue === filter));
-            });
-
-            const visibleCount = mediaItems.filter(item => !item.hidden).length;
-            filterSummary.textContent = filter === 'mine'
-                ? `正在展示我分享的 ${visibleCount} 项内容`
-                : `正在展示全部 ${visibleCount} 项家庭相册内容`;
         }
-
-        filterButtons.forEach(button => {
-            button.addEventListener('click', () => applyShareFilter(button.dataset.filterValue));
-        });
 
         mediaItems.forEach(item => {
             item.addEventListener('touchstart', function() {

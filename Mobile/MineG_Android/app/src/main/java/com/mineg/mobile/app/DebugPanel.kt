@@ -55,13 +55,13 @@ fun DebugStatePanel(
       )
 
       DebugSection("主页面") {
-        DebugChip("私人空间") { onNavigate(AppRoute.PrivateSpace) }
-        DebugChip("家庭相册") { onNavigate(AppRoute.FamilyAlbum) }
+        DebugChip("私人/共享") { onNavigate(AppRoute.PrivateSpace) }
         DebugChip("备份") { onNavigate(AppRoute.Backup) }
         DebugChip("我的") { onNavigate(AppRoute.Profile) }
       }
 
       DebugSection("次级页面") {
+        DebugChip("我分享的") { onNavigate(AppRoute.SharedByMe) }
         DebugChip("回收站") { onNavigate(AppRoute.RecycleBin) }
         DebugChip("备份设置") { onNavigate(AppRoute.BackupSettings) }
         DebugChip("帮助反馈") { onNavigate(AppRoute.HelpFeedback) }
@@ -75,8 +75,12 @@ fun DebugStatePanel(
       }
 
       when (state.currentRoute) {
-        AppRoute.PrivateSpace -> LoadStateSection("私人空间状态", onPrivateState)
-        AppRoute.FamilyAlbum -> LoadStateSection("家庭相册状态", onFamilyState)
+        AppRoute.PrivateSpace -> if (state.selectedLibraryTab == LibraryTab.PRIVATE) {
+          LoadStateSection("私人内容状态", onPrivateState)
+        } else {
+          LoadStateSection("共享内容状态", onFamilyState)
+        }
+        AppRoute.SharedByMe -> LoadStateSection("我分享的状态", onFamilyState)
         AppRoute.RecycleBin -> LoadStateSection("回收站状态", onRecycleState)
         AppRoute.Backup -> DebugSection("备份状态") {
           BackupStatus.entries.forEach { status -> DebugChip(status.debugLabel()) { onBackupStatus(status) } }

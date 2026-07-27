@@ -37,7 +37,6 @@ class MineGAppViewModel : ViewModel() {
   fun debugNavigate(route: AppRoute) {
     when (route) {
       AppRoute.PrivateSpace -> selectTab(MainTab.PRIVATE_SPACE)
-      AppRoute.FamilyAlbum -> selectTab(MainTab.FAMILY_ALBUM)
       AppRoute.Backup -> selectTab(MainTab.BACKUP)
       AppRoute.Profile -> selectTab(MainTab.PROFILE)
       else -> navigate(route)
@@ -81,6 +80,7 @@ class MineGAppViewModel : ViewModel() {
         currentRoute = tab.route(),
         backStack = emptyList(),
         selectedTab = tab,
+        selectedLibraryTab = if (tab == MainTab.PRIVATE_SPACE) LibraryTab.PRIVATE else it.selectedLibraryTab,
         selectedMediaAction = MediaActionState.IDLE,
         dialog = null,
         debugPanelVisible = false,
@@ -184,8 +184,17 @@ class MineGAppViewModel : ViewModel() {
     }
   }
 
-  fun setFamilyFilter(filter: FamilyFilter) {
-    mutableState.update { it.copy(familyAlbum = it.familyAlbum.copy(filter = filter)) }
+  fun selectLibraryTab(tab: LibraryTab) {
+    mutableState.update {
+      it.copy(
+        currentRoute = AppRoute.PrivateSpace,
+        backStack = emptyList(),
+        selectedTab = MainTab.PRIVATE_SPACE,
+        selectedLibraryTab = tab,
+        selectedMediaAction = MediaActionState.IDLE,
+        dialog = null,
+      )
+    }
   }
 
   fun openPrivateMedia(mediaId: String) = navigate(AppRoute.PrivateMediaDetail(mediaId))
@@ -248,6 +257,8 @@ class MineGAppViewModel : ViewModel() {
         mutableState.value = current.copy(
           currentRoute = AppRoute.PrivateSpace,
           backStack = emptyList(),
+          selectedTab = MainTab.PRIVATE_SPACE,
+          selectedLibraryTab = LibraryTab.PRIVATE,
           privateSpace = current.privateSpace.copy(items = current.privateSpace.items.filterNot { it.id == dialog.mediaId }),
           familyAlbum = current.familyAlbum.copy(items = current.familyAlbum.items.filterNot { it.id == dialog.mediaId }),
           recycleBin = current.recycleBin.copy(
