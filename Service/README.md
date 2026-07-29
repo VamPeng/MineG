@@ -2,6 +2,8 @@
 
 私人相册后端服务相关代码与文档。
 
+> vNext 方向：服务目标运行位置将从 ECS 迁到家庭 Linux 节点，App 通过 ECS 完成 WebRTC 信令后使用 DataChannel 与本服务直连；照片改由家庭节点本地 `ObjectStore` 接收和发送。具体边界见[家庭节点私人云架构 vNext](../Requirement/private-cloud-architecture-vnext.md)。当前 REST + 阿里云 OSS 实现继续保留，待直连原型和迁移方案验证后再分阶段替换。
+
 当前职责范围：
 
 - 注册、登录和账号审核状态。

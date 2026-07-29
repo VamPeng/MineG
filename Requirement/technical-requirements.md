@@ -1,5 +1,7 @@
 # MineG 技术需求
 
+> 架构变更提示：2026-07-29 已启动[家庭节点私人云架构 vNext](./private-cloud-architecture-vnext.md)重设计。家庭 Linux 节点、ECS 协调节点、WebRTC 直连、本地对象存储和 MVP 加密范围暂以该草案为先；本文其余 ECS 业务后端、阿里云 OSS 直传和端到端加密内容用于现有实现追溯，待 P0/P3 验证后统一改版。
+
 ## 1. 文档信息
 
 - 项目名称：MineG
