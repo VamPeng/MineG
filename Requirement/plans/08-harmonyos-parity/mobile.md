@@ -9,7 +9,7 @@
 - 建立 ArkTS/ArkUI 工程、Node-API Bridge 和全部 PlatformPort，严格处理 native 引用、线程、回调和释放。
 - 使用 Asset Store Kit 保存 Token/设备包装密钥，PhotoAccessHelper 读取授权、相册、媒体和动态资源。
 - 使用系统后台任务与网络约束恢复上传；外部回调先持久化到 C++ 核心再驱动 UI。
-- 依序实现账号准入、资料、权限、本地相册、加密队列、私人、家庭、回收站、帮助反馈。
+- 复用 C++ Core 已完成的账号、资料、媒体、备份、家庭、回收站与反馈数据层；ArkTS 只实现 Bridge、PlatformPort、UiState 转换和原生页面，不创建 ArkTS 业务 Client/DTO/缓存。
 - 使用 Media Kit 展示视频/动态照片；原文件写回必须等待系统确认再生成下载回执。
 - ArkUI 页面遵守冻结页面/元素语义 ID、操作名称、状态、排序、确认和错误规则。
 - 运行与 Android/iOS 相同的加密向量、C ABI、状态机、API、UI 语义和端到端测试。
@@ -24,4 +24,5 @@
 
 - HarmonyOS 通过 F-01～F-14 与产品 MVP 验收，结果与 Android/iOS 一致。
 - 三端公共契约测试全绿，差异仅限经记录的平台适配层。
+- ArkTS 生产代码中的业务 API/RPC 路径、领域响应解析和业务 Preferences/数据库缓存扫描为零，登记例外除外。
 - Android、iOS 回归继续通过，形成三端发布候选输入。

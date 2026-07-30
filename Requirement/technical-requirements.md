@@ -1,16 +1,15 @@
 # MineG 技术需求
 
-> 架构变更提示：2026-07-29 已启动[家庭节点私人云架构 vNext](./private-cloud-architecture-vnext.md)重设计。家庭 Linux 节点、ECS 协调节点、WebRTC 直连、本地对象存储和 MVP 加密范围暂以该草案为先；本文其余 ECS 业务后端、阿里云 OSS 直传和端到端加密内容用于现有实现追溯，待 P0/P3 验证后统一改版。
-
 ## 1. 文档信息
 
 - 项目名称：MineG
-- 文档版本：v1.1
+- 文档版本：v1.2
 - 文档状态：设计对齐后的实施技术基线
 - 核定日期：2026-07-26
+- 最近修订：2026-07-30（补充移动端领域数据主权与平台 Effect 边界）
 - 产品基线：[MineG 产品需求 v2.0](./product-requirements.md)
 - 功能基线：[MineG 功能需求 v1.0](./functional-requirements.md)
-- 移动端契约：[MineG 三端一致性契约 v1.0](../Mobile/three-platform-consistency-contract.md)
+- 移动端契约：[MineG 三端一致性契约 v1.1](../Mobile/three-platform-consistency-contract.md)
 - 适用范围：Go 后端、Web 审核管理端、Android、iOS、HarmonyOS、C++ 共享核心和必要运维工具
 
 本版结束分散选型状态。技术栈、职责边界、功能实现逻辑和交付顺序均作为首版方案确认；实施时只能在保持契约和产品行为不变的前提下调整补丁版本或内部实现。
@@ -30,7 +29,10 @@
 
 - 后端为模块化单体，不拆微服务。
 - PostgreSQL 是服务端业务状态唯一真实来源；MVP 不使用 Redis。
-- 移动端 C++17 数据核心是本地媒体索引、任务队列和可恢复状态唯一真实来源。
+- 移动端 C++17 数据核心是账号上下文、用户资料、业务列表、本地媒体索引、任务队列和可恢复状态的唯一客户端领域数据来源。
+- 来自服务端、需要缓存、跨页面共享、跨进程恢复或参与业务判断的数据，必须由 C++ Core 统一建模、解析、校验、合并、持久化并提供查询；平台代码不得建立第二份业务真实来源。
+- API/RPC 路径、请求与响应 DTO、错误映射、分页、幂等、Token 刷新及业务状态迁移必须由 C++ Core 编排；平台 `TransportPort` 只执行 Core 产生的传输 Effect 并回传原始结果。
+- 原生 ViewModel 只把 Core 领域快照转换为 `UiState`；不得直接请求业务接口、解析业务响应、持久化领域缓存或用页面列表代替领域状态。
 - Android 功能在关键方法、数据桥接、UI 操作和状态进入三端一致性契约前不得合入。
 - 原文件、缩略图和预览在客户端加密后上传；后端不生成媒体预览。
 - App 与 OSS 直接传输密文大文件，Go 后端不代理完整媒体流量。
@@ -58,9 +60,10 @@ Android / iOS / HarmonyOS
   ├─ 原生 UI 与平台能力适配器
   ├─ C ABI 绑定层
   └─ C++17 共享数据核心
-       ├─ SQLite 本地索引与任务队列
+       ├─ 领域模型、API/RPC 编排、响应解析与错误映射
+       ├─ SQLite 本地索引、缓存、账号上下文与任务队列
        ├─ 加密、去重、状态机、Repository
-       └─ TransportPort / MediaSourcePort / SecureStorePort
+       └─ 产生 PlatformEffect，由平台 Port 执行
              │
              ├─ HTTPS JSON ──> Go 模块化单体 ──> PostgreSQL
              │                       │
@@ -75,12 +78,62 @@ Vue 3 管理端 ──HTTPS──> Go 管理 API ──> PostgreSQL
 
 | 层 | 负责 | 不负责 |
 | --- | --- | --- |
-| 原生 UI | 页面、导航、输入、系统弹窗、无障碍、播放器生命周期 | 业务数据库、上传状态机、权限判定 |
-| 平台适配器 | 相册、权限、后台调度、网络状态、安全存储、系统相册写入 | 服务端授权、业务幂等、跨平台状态定义 |
-| C++ 核心 | 本地模型、SQLite、任务状态、加密、去重、上传编排、公共命令/查询/事件 | 持有平台对象、直接显示 UI |
+| 原生 UI | 页面、导航、输入草稿、系统弹窗、无障碍、播放器生命周期、领域快照到 `UiState` 的展示转换 | 业务接口、业务 DTO、领域缓存、列表合并、上传状态机、权限门禁决策 |
+| 平台适配器 | 相册和权限原语、后台执行机会、网络字节传输、安全存储、系统相册写入 | API/RPC 语义、响应解析、服务端授权、业务幂等、跨平台状态定义 |
+| C++ 核心 | 领域模型、API/RPC 编排、响应解析、错误映射、SQLite、账号上下文、任务状态、加密、去重、上传编排、公共命令/查询/事件 | 持有平台对象、直接显示 UI、实现平台网络或系统安全存储 |
 | Go 后端 | 认证、审核、授权、媒体元数据、上传会话、共享、回收站、审计 | 读取媒体明文、生成明文缩略图 |
 | Web 管理端 | 管理员登录、待审核列表、通过申请 | 家庭媒体、成员资料编辑、永久清理 |
 | 运维 CLI | 清理预览、二次确认、OSS 永久删除、审计 | 在线用户功能、日常审核 |
+
+### 4.2 移动端数据主权与运行时读取
+
+移动端以“谁决定数据语义和下一步状态”判定数据所有权，而不以“数据最终存在于哪种语言的内存”判定。原生 UI 可以短期持有 Core 输出的不可变快照，但不能成为领域数据的创建者、合并者或恢复来源。
+
+以下数据必须由 C++ Core 拥有：
+
+- 账号会话语义、当前用户 ID、审核状态、下一业务步骤和退出清理状态；
+- 用户资料、家庭成员、私人/家庭媒体、回收站、备份任务及反馈提交结果；
+- 服务端 API/RPC 请求模型、响应 DTO、错误模型、游标、排序、去重、幂等和重试判断；
+- 需要离线回退、跨页面共享、跨进程恢复或账号隔离的业务缓存；
+- 权限、网络、存储和后台执行机会转换后的业务门禁与任务状态。
+
+以下数据可以只存在于原生层：
+
+- 输入框未提交内容、焦点、滚动位置、动画、弹窗和导航栈；
+- Android URI、PhotoKit 对象、HarmonyOS PhotoAsset、系统权限对象和播放器实例；
+- 平台网络连接、KeyStore/Keychain/HUKS 句柄、WorkManager/BGTaskScheduler/系统后台任务对象；
+- 可丢弃且能从 Core 快照重新生成的图片解码缓存和展示格式。
+
+当平台数据参与业务判断时，平台必须先把它转换为公共 Port 结果交给 Core，由 Core 决定状态迁移。媒体正文使用文件描述符、受控路径、流或不透明句柄跨边界，不要求把大字节数组复制进 C++ 堆内存。
+
+```text
+Core Command/Query
+  ├─ 直接返回领域结果
+  └─ 返回 PlatformEffect
+       ├─ TransportEffect
+       ├─ SecureStoreEffect
+       ├─ MediaSourceEffect
+       ├─ BackgroundSchedulerEffect
+       └─ File/SystemAlbum Effect
+              │
+              v
+       平台 Port 执行原语
+              │
+              v
+       PlatformEffectResult 回到 Core
+              │
+              v
+       Core 校验、持久化、迁移状态并发布领域事件
+```
+
+禁止以下实现进入生产路径：
+
+- 在 Kotlin、Swift 或 ArkTS 中硬编码业务 API/RPC 路径并解析领域响应；
+- 在平台 ViewModel、Repository 或偏好设置中维护可作为恢复来源的用户、媒体、任务或审核状态；
+- 平台收到 HTTP 或对象上传结果后自行决定业务成功、重试、去重或下一状态；
+- 仅通过三端同名接口或复制测试用例宣称一致，而业务算法仍分别实现三次。
+
+确需绕过 Core 的领域数据必须登记版本化例外，写明数据所有者、原因、生命周期、安全边界、受影响平台和移除条件；未登记例外按架构缺陷处理。
 
 ## 5. 已选技术栈
 
@@ -111,6 +164,8 @@ Vue 3 管理端 ──HTTPS──> Go 管理 API ──> PostgreSQL
 - HarmonyOS：ArkTS、ArkUI、PhotoAccessHelper、Media Kit 与系统后台任务接口。
 - 公共核心：C++17、CMake、SQLite C API、nlohmann/json、libsodium。
 - Android 通过 JNI、iOS 通过 C/Objective-C++、HarmonyOS 通过 Node-API 调用稳定 C ABI。
+- 三端原生工程只实现 UI、Bridge 与 PlatformPort；不得各自建立账号、资料、媒体或上传业务 Client。
+- Core 通过版本化 `PlatformEffect` 请求网络、安全存储、媒体源、后台调度、文件与系统相册能力；平台把原始结果回传 Core，不解释领域语义。
 - 三端公共命名、桥接方法、页面/元素语义 ID 和变更规则遵守[三端一致性契约](../Mobile/three-platform-consistency-contract.md)。
 - 不使用 Flutter、React Native、Kotlin Multiplatform 或共享 Web UI。
 
@@ -399,6 +454,8 @@ KeyBundle / KeyEnvelope
 | `MediaPlaybackPort` | 平台播放器与实况照片展示 |
 | `SystemAlbumWriterPort` | 私人原文件写回系统相册 |
 
+Port 只实现平台原语。`TransportPort` 不得拥有业务端点表、解析业务 DTO、刷新 Token 或决定重试状态；`SecureStorePort` 不得决定凭据生命周期；`BackgroundSchedulerPort` 不得把系统任务状态当成业务任务真相。上述决策统一由 C++ Core 产生 Effect 并消费 EffectResult。
+
 ## 12. 三端平台实现
 
 ### 12.1 Android
@@ -593,6 +650,18 @@ KeyBundle / KeyEnvelope
 - 验证照片、视频、GIF、实况/动态资源中的代表样本。
 - 冻结 F-07 与单媒体上传涉及的命令、事件、进度和错误契约。
 
+### M3-D：Android 数据层主权迁移门禁
+
+M1～M3 已验证的产品行为和历史验收保留，但 2026-07-30 复核发现账号、资料、媒体 API、上传编排和部分业务缓存仍位于 Kotlin。进入 M4 功能扩展前，必须按[Android 数据层迁移技术方案](../Mobile/docs/android-data-layer-migration.md)完成以下纠偏：
+
+- 建立 Foundation v2 的 PlatformEffect/EffectResult 与可恢复 operation；
+- 把账号、Session、审核、Profile、KeyGrant、私人媒体查询、扫描决策和单媒体上传状态机迁入 C++ Core；
+- 清除 Android 专属领域缓存和 ViewModel 模拟领域成功；
+- 建立平台生产代码数据主权扫描门禁；
+- 保持 Android 真实后端闭环、进程恢复、安全与账号隔离回归通过。
+
+M3-D 未完成时不得启动 iOS/HarmonyOS 业务数据层，也不得在 Android 新增业务 Client、DTO、领域缓存或平台状态机。传输实现差异必须收敛在 Core 协议适配与 PlatformPort，不得重新穿透到页面层。
+
 ### M4：Android 完整队列与备份状态
 
 - 历史/增量扫描、恢复、Wi-Fi/移动网络、空间不足、服务异常、完成状态。
@@ -628,6 +697,7 @@ KeyBundle / KeyEnvelope
 | 1 | B1 | A1～A3 | M1 Android | 注册审核登录闭环 |
 | 2 | B2 | 结束 MVP 范围 | M2 Android | 密钥、资料、权限和本地相册 |
 | 3 | B3 | — | M3 Android | 单条加密备份纵向闭环 |
+| 3D | B1～B3 回归 | — | M3-D Android/C++ 数据层迁移 | Core 数据主权与 PlatformEffect 门禁通过 |
 | 4 | B3/B4 | — | M4 Android | 完整自动备份与状态 |
 | 5 | B4 | — | M5 Android | 私人浏览、保存和删除 |
 | 6 | B5/B6 | — | M6 Android | 家庭共享、回收站、帮助反馈 |
@@ -645,6 +715,8 @@ KeyBundle / KeyEnvelope
 - PostgreSQL：每个 migration 从空库和上一发布版本升级测试。
 - C++：状态机、加密格式、损坏检测、去重、SQLite 和崩溃恢复测试。
 - 三端绑定：读取同一契约清单，验证 C ABI、CoreClient、Port 名称、字段、错误、回调和生命周期。
+- 数据主权：CI 扫描 Kotlin、Swift、ArkTS 生产代码中的业务 API/RPC 路径、领域响应 JSON 解析、业务 SharedPreferences/UserDefaults/Preferences 缓存和平台端状态迁移；未登记例外必须阻断。
+- Effect 契约：同一组 Core 命令在三端测试替身下产生相同 PlatformEffect，并对相同 EffectResult 得到相同领域结果、持久化状态和事件。
 - 三端 UI：Android 阶段先验证公共页面/元素语义 ID 与交互清单；iOS、HarmonyOS 实现后加入同一门禁。
 - UI：关键流程截图/语义测试，不把 Stitch HTML 作为生产运行依赖。
 - 端到端：注册审核、单条备份、断点续传、分享、取消分享、删除、恢复、退出。
@@ -690,6 +762,8 @@ KeyBundle / KeyEnvelope
 | T-013 | 去重 | 账号私有键控内容指纹，不跨成员比较 |
 | T-014 | 管理后台 | 仅登录、待审核列表和通过申请 |
 | T-015 | 永久清理 | 独立 CLI 两阶段清单，在线身份无删除权 |
+| T-016 | 移动端数据主权 | 服务端/缓存/跨页面/可恢复领域数据由 C++ Core 唯一拥有，原生层只持有 UiState 与平台原语 |
+| T-017 | 平台副作用 | C++ Core 产生版本化 PlatformEffect，三端 Port 执行并回传 EffectResult，不复制业务编排 |
 
 以上决策均为“已确认”。后续只有实施验证发现不可满足的系统限制时，才新增带证据的变更记录。
 

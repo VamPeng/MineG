@@ -1,5 +1,7 @@
 # 阶段 00 验收记录
 
+> 2026-07-30 架构复核附注：本文保留阶段 00 当时的验收事实。后续数据主权审查确认 v1 基座尚未提供 Core `PlatformEffect`/`EffectResult` 回路，因此本记录不能作为“平台业务数据层允许自行实现”的依据；兼容基座迁移见 [`Mobile/docs/android-data-layer-migration.md`](../../../Mobile/docs/android-data-layer-migration.md)。
+
 ## 结论
 
 阶段 00 的后端、管理端与 Android/C++ 基座已完成，跨端基础契约从 `BASELINED` 转为 `FROZEN`。本阶段未实现账号、管理员真实登录、媒体上传或 iOS/HarmonyOS 空壳。
