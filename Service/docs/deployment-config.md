@@ -1,5 +1,7 @@
 # Deployment 配置交接
 
+OSS 临时云凭据、ECS RAM Role、App 签名 URL 与本地 STS 联调模式的完整说明见[《OSS 身份、ECS RAM Role 与 App 上传授权》](../../Deployment/private-album-infra/docs/02-oss-ram-role.md)。
+
 部署系统必须注入以下配置，不得写入镜像或仓库：
 
 | 变量 | 必需 | 说明 |

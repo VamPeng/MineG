@@ -11,6 +11,7 @@
 - [ ] 应用端口
 - [ ] 数据库类型与持久化路径
 - [ ] 必需的环境变量清单
+- [ ] 已阅读[《OSS 身份、ECS RAM Role 与 App 上传授权》](./02-oss-ram-role.md)，确认本地 STS 与 ECS RAM Role 是两种 Service 凭据来源，App 只接收签名 URL
 
 ## 2. 安全
 

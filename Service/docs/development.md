@@ -39,7 +39,7 @@ go run ./cmd/api
 
 `admin-bootstrap` 只允许在空的 `admin_users` 表上成功一次；密码不会写入日志。移动端注册、登录、单媒体上传和管理员接口均位于 `/api/v1`。管理端状态变更要求与 `MINEG_ADMIN_ORIGIN` 完全一致的 `Origin`、有效 Session Cookie 和 `X-CSRF-Token`。
 
-本地不配置四个 `MINEG_OSS_*` 变量时，头像对象接口明确返回集成不可用；不会回退为后端正文代理。隔离 OSS 或部署环境必须同时配置地域、私有 Bucket、内网 HTTPS Origin 和 ECS RAM Role，服务启动时会拒绝部分配置。
+当前本地启动脚本不配置 OSS，头像和媒体对象接口会明确返回 `OBJECT_STORAGE_UNAVAILABLE`，不会回退为后端正文代理。本地通过临时 STS 凭据连接开发 Bucket 的方式尚待实现；当前行为、目标配置、四个临时凭据字段和 App 签名授权边界见[《OSS 身份、ECS RAM Role 与 App 上传授权》](../../Deployment/private-album-infra/docs/02-oss-ram-role.md)。
 
 探针为 `GET /api/v1/platform/probe`。它仅验证 Android/C++ 到 HTTPS JSON API 的纵向链路，不是业务接口。生产环境必须由入口代理终止 HTTPS；服务进程只监听内网 HTTP。
 
