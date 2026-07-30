@@ -1,7 +1,6 @@
 package com.mineg.mobile.core
 
 import com.mineg.mobile.contracts.ApiRequest
-import com.mineg.mobile.contracts.BackgroundSchedulerPort
 import com.mineg.mobile.contracts.CoreOperationStatus
 import com.mineg.mobile.contracts.FilePort
 import com.mineg.mobile.contracts.MediaScanCursor
@@ -27,7 +26,6 @@ class PlatformEffectDispatcher(
   private val transport: TransportPort,
   private val secureStore: SecureStorePort,
   private val mediaSource: MediaSourcePort,
-  private val scheduler: BackgroundSchedulerPort,
   private val files: FilePort,
 ) : AutoCloseable {
   private val openedMediaResources = ConcurrentHashMap<String, OpenedMediaResource>()
@@ -38,7 +36,6 @@ class PlatformEffectDispatcher(
       PlatformEffectType.TRANSPORT -> dispatchTransport(payload)
       PlatformEffectType.SECURE_STORE -> dispatchSecureStore(payload)
       PlatformEffectType.MEDIA_SOURCE -> dispatchMediaSource(effect, payload)
-      PlatformEffectType.BACKGROUND_SCHEDULER -> dispatchScheduler(payload)
       PlatformEffectType.FILE -> dispatchFile(payload)
     }
     PlatformEffectResult(
@@ -251,26 +248,6 @@ class PlatformEffectDispatcher(
       }
       else -> unsupportedAction(payload)
     }
-
-  private fun dispatchScheduler(payload: JSONObject): JSONObject = when (payload.requireAction()) {
-    "scheduleBackup" -> {
-      scheduler.scheduleBackup()
-      JSONObject().put("scheduled", true)
-    }
-    "cancelBackup" -> {
-      scheduler.cancelBackup()
-      JSONObject().put("cancelled", true)
-    }
-    "reportExecutionWindow" -> JSONObject().put("executionWindow", scheduler.reportExecutionWindow())
-    "configureBackup" -> {
-      scheduler.configureBackup(
-        payload.getString("accountId"),
-        payload.getBoolean("allowCellularBackup"),
-      )
-      JSONObject().put("configured", true)
-    }
-    else -> unsupportedAction(payload)
-  }
 
   private fun dispatchFile(payload: JSONObject): JSONObject = when (payload.requireAction()) {
     "createEncryptedTempFile" -> JSONObject()

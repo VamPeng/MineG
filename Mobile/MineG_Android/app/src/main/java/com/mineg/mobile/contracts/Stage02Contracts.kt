@@ -24,7 +24,7 @@ data class PendingKeyGrant(
 )
 
 data class BackupSettings(
-  val autoBackupEnabled: Boolean = true,
+  val autoBackupEnabled: Boolean = false,
   val allowCellularBackup: Boolean = false,
   val updatedAt: String? = null,
 )

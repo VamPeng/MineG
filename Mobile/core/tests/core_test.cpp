@@ -669,19 +669,10 @@ int main() {
                reinterpret_cast<const uint8_t *>(logout_response.data()),
                logout_response.size(), &step),
            MINEG_OK, "confirm server sign out");
-    assert(as_string(step).find("BackgroundSchedulerEffect") != std::string::npos);
-    mineg_buffer_free(&step);
-    const std::string scheduler_cancelled =
-        effect_result(9104, 3, "BackgroundSchedulerEffect", "{\"cancelled\":true}");
-    expect(mineg_core_resume_operation(
-               account_core, 9104,
-               reinterpret_cast<const uint8_t *>(scheduler_cancelled.data()),
-               scheduler_cancelled.size(), &step),
-           MINEG_OK, "cancel scheduler before deleting session");
     assert(as_string(step).find("deleteSecrets") != std::string::npos);
     mineg_buffer_free(&step);
     const std::string secrets_deleted =
-        effect_result(9104, 4, "SecureStoreEffect", "{\"deleted\":true}");
+        effect_result(9104, 3, "SecureStoreEffect", "{\"deleted\":true}");
     expect(mineg_core_resume_operation(
                account_core, 9104,
                reinterpret_cast<const uint8_t *>(secrets_deleted.data()),
@@ -993,7 +984,7 @@ int main() {
   expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(settings_query.data()),
                           settings_query.size(), &result),
          MINEG_OK, "default backup settings");
-  assert(as_string(result).find("\"autoBackupEnabled\":true") != std::string::npos);
+  assert(as_string(result).find("\"autoBackupEnabled\":false") != std::string::npos);
   assert(as_string(result).find("\"allowCellularBackup\":false") != std::string::npos);
   mineg_buffer_free(&result);
   const std::string settings_command =

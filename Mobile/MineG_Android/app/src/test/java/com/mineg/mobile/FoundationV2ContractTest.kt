@@ -2,7 +2,6 @@ package com.mineg.mobile
 
 import com.mineg.mobile.contracts.ApiRequest
 import com.mineg.mobile.contracts.ApiResponse
-import com.mineg.mobile.contracts.BackgroundSchedulerPort
 import com.mineg.mobile.contracts.CoreOperationStatus
 import com.mineg.mobile.contracts.DerivedMediaResource
 import com.mineg.mobile.contracts.FilePort
@@ -53,7 +52,6 @@ class FoundationV2ContractTest {
       "TransportEffect",
       "SecureStoreEffect",
       "MediaSourceEffect",
-      "BackgroundSchedulerEffect",
       "FileEffect",
       "WAITING_FOR_EFFECT",
     ).forEach { assertContains(manifest, "\"$it\"") }
@@ -86,9 +84,8 @@ class FoundationV2ContractTest {
     val transport = FakeTransportPort()
     val secureStore = FakeSecureStorePort()
     val mediaSource = FakeMediaSourcePort()
-    val scheduler = FakeSchedulerPort()
     val files = FakeFilePort()
-    PlatformEffectDispatcher(transport, secureStore, mediaSource, scheduler, files).use { dispatcher ->
+    PlatformEffectDispatcher(transport, secureStore, mediaSource, files).use { dispatcher ->
       val transportResult = dispatcher.dispatch(
         effect(
           PlatformEffectType.TRANSPORT,
@@ -131,12 +128,6 @@ class FoundationV2ContractTest {
       )
       assertEquals("Camera", JSONObject(mediaResult.payloadJson!!).getJSONArray("items").getJSONObject(0).getString("name"))
 
-      val schedulerResult = dispatcher.dispatch(
-        effect(PlatformEffectType.BACKGROUND_SCHEDULER, """{"action":"scheduleBackup"}"""),
-      )
-      assertTrue(JSONObject(schedulerResult.payloadJson!!).getBoolean("scheduled"))
-      assertTrue(scheduler.scheduled)
-
       val fileResult = dispatcher.dispatch(
         effect(PlatformEffectType.FILE, """{"action":"getAvailableSpace"}"""),
       )
@@ -158,7 +149,6 @@ class FoundationV2ContractTest {
       FakeTransportPort(fail = true),
       FakeSecureStorePort(),
       FakeMediaSourcePort(),
-      FakeSchedulerPort(),
       FakeFilePort(),
     )
     val result = dispatcher.dispatch(
@@ -218,18 +208,6 @@ private class FakeMediaSourcePort : MediaSourcePort {
     platformAssetRef: String,
     mediaType: LocalMediaType,
   ): List<DerivedMediaResource> = emptyList()
-}
-
-private class FakeSchedulerPort : BackgroundSchedulerPort {
-  var scheduled = false
-  override fun scheduleBackup() {
-    scheduled = true
-  }
-  override fun cancelBackup() {
-    scheduled = false
-  }
-  override fun reportExecutionWindow() = "fake-window"
-  override fun configureBackup(accountId: String, allowCellularBackup: Boolean) = Unit
 }
 
 private class FakeFilePort : FilePort {

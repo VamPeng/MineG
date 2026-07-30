@@ -136,7 +136,7 @@ data class BackupUiState(
   val progress: Float = 0f,
   val indexedCount: Int = 0,
   val totalCount: Int = 0,
-  val autoBackupEnabled: Boolean = true,
+  val autoBackupEnabled: Boolean = false,
   val allowCellularBackup: Boolean = false,
   val currentMediaTitle: String = "",
   val albums: List<LocalAlbum> = emptyList(),

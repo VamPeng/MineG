@@ -44,7 +44,7 @@
 
 | 平台 | 最低版本 | 实施要求 |
 | --- | --- | --- |
-| Android | Android 10 / API 29 | Kotlin、Jetpack Compose、MediaStore、WorkManager |
+| Android | Android 10 / API 29 | Kotlin、Jetpack Compose、MediaStore；WorkManager 从 M4 真实后台队列开始引入 |
 | iOS | iOS 13 | SwiftUI 为主，UIKit/PhotoKit/AVFoundation 包装补齐能力 |
 | HarmonyOS | HarmonyOS 6.0 | ArkTS、ArkUI、PhotoAccessHelper、系统后台任务能力 |
 | 后端 | Linux x86_64 | 容器化 Go 服务 |
@@ -113,7 +113,7 @@ Core Command/Query
        ├─ TransportEffect
        ├─ SecureStoreEffect
        ├─ MediaSourceEffect
-       ├─ BackgroundSchedulerEffect
+       ├─ BackgroundSchedulerEffect（仅存在真实后台队列时）
        └─ File/SystemAlbum Effect
               │
               v
@@ -159,7 +159,7 @@ Core Command/Query
 
 ### 5.3 移动端
 
-- Android：Kotlin、Jetpack Compose、Coroutines、WorkManager。
+- Android：Kotlin、Jetpack Compose、Coroutines；WorkManager 从 M4 真实后台队列开始使用。
 - iOS：Swift、SwiftUI；iOS 13 不足的导航、媒体和生命周期能力使用 UIKit/PhotoKit/AVFoundation 包装。
 - HarmonyOS：ArkTS、ArkUI、PhotoAccessHelper、Media Kit 与系统后台任务接口。
 - 公共核心：C++17、CMake、SQLite C API、nlohmann/json、libsodium。
@@ -448,7 +448,7 @@ KeyBundle / KeyEnvelope
 | `MediaSourcePort` | 权限状态、相册分页、资源句柄、变化监听 |
 | `SecureStorePort` | Token、设备密钥包装密钥、安装标识 |
 | `TransportPort` | JSON API、STS 上传下载、进度和错误 |
-| `BackgroundSchedulerPort` | 任务约束、恢复、停止和系统回调 |
+| `BackgroundSchedulerPort` | M4 起真实后台队列的任务约束、恢复、停止和系统回调 |
 | `ConnectivityPort` | 网络类型、计量状态和变化 |
 | `FilePort` | 密文临时文件、磁盘空间和安全清理 |
 | `MediaPlaybackPort` | 平台播放器与实况照片展示 |
@@ -462,7 +462,7 @@ Port 只实现平台原语。`TransportPort` 不得拥有业务端点表、解�
 
 - Android 10～12 使用对应存储权限与 MediaStore；Android 13+ 使用图片/视频媒体权限；Android 14+ 检测 Selected Photos Access 并视为非完整授权。
 - 全库自动备份使用 MediaStore，不用 Photo Picker 代替完整权限。
-- WorkManager 使用唯一任务和账号标签；默认 `UNMETERED`，开启移动网络后改为 `CONNECTED`。
+- M4 真实后台队列启用后，WorkManager 使用唯一任务和账号标签；默认 `UNMETERED`，开启移动网络后改为 `CONNECTED`。M2/M3-D 的前台本地索引不使用 WorkManager。
 - 长时间上传只在系统要求和产品允许时使用 long-running Worker/前台服务，并展示系统强制通知。
 - Compose 页面订阅 C++ 核心事件，不直接观察 WorkManager 作为业务真相。
 - 下载使用 MediaStore 写回系统相册并保存下载回执。
@@ -640,7 +640,7 @@ Port 只实现平台原语。`TransportPort` 不得拥有业务端点表、解�
 
 ### M2：Android 权限、设置和本地相册
 
-- 统一权限页、完整授权检测、默认开启设置、相册分页和三列网格。
+- 统一权限页、完整授权检测、默认关闭的自动备份设置、相册分页和三列网格。
 - 扫描状态先使用本地真实索引，不接假上传进度。
 - 冻结 F-04～F-06 的 Port 方法、权限状态、相册模型和 UI 操作契约。
 
@@ -654,11 +654,11 @@ Port 只实现平台原语。`TransportPort` 不得拥有业务端点表、解�
 
 M1～M3 已验证的产品行为和历史验收保留，但 2026-07-30 复核发现账号、资料、媒体 API、上传编排和部分业务缓存仍位于 Kotlin。进入 M4 功能扩展前，必须按[Android 数据层迁移技术方案](../Mobile/docs/android-data-layer-migration.md)完成以下纠偏：
 
-- 建立 Foundation v2 的 PlatformEffect/EffectResult 与可恢复 operation；
+- 建立 Foundation v2 的 PlatformEffect/EffectResult；需要跨进程继续的账号/上传流程使用可恢复 operation，批次 D 前台扫描固定从头重做；
 - 把账号、Session、审核、Profile、KeyGrant、私人媒体查询、扫描决策和单媒体上传状态机迁入 C++ Core；
 - 清除 Android 专属领域缓存和 ViewModel 模拟领域成功；
 - 建立平台生产代码数据主权扫描门禁；
-- 保持 Android 真实后端闭环、进程恢复、安全与账号隔离回归通过。
+- 保持 Android 真实后端闭环、需要恢复的流程、安全与账号隔离回归通过；批次 D 只验证最后完整索引不被半成品替换，重启后重新扫描。
 
 M3-D 未完成时不得启动 iOS/HarmonyOS 业务数据层，也不得在 Android 新增业务 Client、DTO、领域缓存或平台状态机。传输实现差异必须收敛在 Core 协议适配与 PlatformPort，不得重新穿透到页面层。
 

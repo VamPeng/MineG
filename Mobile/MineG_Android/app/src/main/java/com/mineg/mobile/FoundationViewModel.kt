@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.mineg.mobile.contracts.ApiRequest
 import com.mineg.mobile.contracts.LibraryPermissionState
 import com.mineg.mobile.core.CoreClient
-import com.mineg.mobile.platform.AndroidBackgroundSchedulerPort
 import com.mineg.mobile.platform.AndroidConnectivityPort
 import com.mineg.mobile.platform.AndroidFilePort
 import com.mineg.mobile.platform.AndroidMediaSourcePort
@@ -37,7 +36,6 @@ class FoundationViewModel(application: Application) : AndroidViewModel(applicati
     allowPrivateHttp = BuildConfig.DEBUG,
   )
   private val mediaSource = AndroidMediaSourcePort(application)
-  private val scheduler = AndroidBackgroundSchedulerPort(application)
   private val connectivity = AndroidConnectivityPort(application)
   private val files = AndroidFilePort(application)
   private val operationIds = AtomicLong(1)
@@ -101,7 +99,6 @@ class FoundationViewModel(application: Application) : AndroidViewModel(applicati
             files.deleteTempFile(outputPath)
           }
         }
-        scheduler.scheduleBackup()
         mutableState.value = FoundationUiState(
           FoundationPageState.SUCCESS,
           "SQLite 重启恢复、C ABI、HTTPS JSON、安全存储、媒体句柄与流式加密均通过。",

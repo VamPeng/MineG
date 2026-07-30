@@ -110,7 +110,7 @@
 
 | 页面 | 用途 |
 |---|---|
-| `01-auto-backup-default-on-decision-a` | 备份设置；自动备份默认开启，并可设置是否允许移动网络备份 |
+| `01-auto-backup-default-on-decision-a` | 备份设置视觉基线；目录名保留历史命名，当前自动备份默认关闭 |
 | `03-backup-uploading` | 本地相册主页面；展示当前同步图片和上传进度 |
 | `04-backup-permission-required` | 权限未获取；沿用原统一相册授权说明页 |
 | `05-backup-waiting-for-wifi` | 本地相册；同步等待 Wi-Fi |
@@ -128,7 +128,7 @@
 
 | 页面 | 原用途 |
 |---|---|
-| `02-auto-backup-manual-opt-in-decision-b-dep` | 决策 B：用户手动开启自动备份 |
+| `02-auto-backup-manual-opt-in-decision-b-dep` | 历史手动开启方案；其“默认关闭”行为已成为当前需求，页面本身仍仅作视觉追溯 |
 | `08-backup-session-expired-dep` | 原登录状态过期提示页；现已改为自动退出至登录页 |
 
 以上页面仅用于历史设计追溯，不属于当前需求流程。

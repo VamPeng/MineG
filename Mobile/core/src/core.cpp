@@ -186,8 +186,7 @@ uint64_t top_level_json_u64(const std::string &json, const std::string &field) {
 
 bool supported_effect_type(const std::string &effect_type) {
   return effect_type == "TransportEffect" || effect_type == "SecureStoreEffect" ||
-         effect_type == "MediaSourceEffect" ||
-         effect_type == "BackgroundSchedulerEffect" || effect_type == "FileEffect";
+         effect_type == "MediaSourceEffect" || effect_type == "FileEffect";
 }
 
 bool valid_json(sqlite3 *database, const std::string &json) {
@@ -687,7 +686,7 @@ void Core::open_and_migrate(const std::string &database_path) {
       "INSERT OR IGNORE INTO schema_migrations(version) VALUES(2);"
       "CREATE TABLE IF NOT EXISTS backup_settings("
       "  user_id TEXT NOT NULL, device_installation_id TEXT NOT NULL,"
-      "  auto_backup_enabled INTEGER NOT NULL DEFAULT 1 CHECK(auto_backup_enabled IN (0,1)),"
+      "  auto_backup_enabled INTEGER NOT NULL DEFAULT 0 CHECK(auto_backup_enabled IN (0,1)),"
       "  allow_cellular_backup INTEGER NOT NULL DEFAULT 0 CHECK(allow_cellular_backup IN (0,1)),"
       "  updated_at TEXT NOT NULL, PRIMARY KEY(user_id, device_installation_id)"
       ");"
@@ -1017,8 +1016,13 @@ void Core::issue_session_write_locked(AccountOperation &operation,
 void Core::issue_session_cleanup_locked(AccountOperation &operation,
                                         const std::string &completion) {
   operation.continuation = completion;
-  set_account_effect_locked(operation, "BackgroundSchedulerEffect",
-                            "{\"action\":\"cancelBackup\"}", "CANCEL_SCHEDULER");
+  set_account_effect_locked(
+      operation, "SecureStoreEffect",
+      "{\"action\":\"deleteSecrets\",\"names\":[\"account.accessToken\","
+      "\"account.refreshToken\",\"account.accessExpiresAt\","
+      "\"account.refreshExpiresAt\",\"keys.userPublicKey\","
+      "\"keys.deviceUnlockBlob\"]}",
+      "DELETE_SESSION");
 }
 
 mineg_error_code_t Core::issue_account_request_locked(AccountOperation &operation,
@@ -1659,16 +1663,6 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
       issue_session_cleanup_locked(operation, "SIGNED_OUT");
       return account_operation_step_locked(operation, result);
     }
-    if (operation.stage == "CANCEL_SCHEDULER") {
-      set_account_effect_locked(
-          operation, "SecureStoreEffect",
-          "{\"action\":\"deleteSecrets\",\"names\":[\"account.accessToken\","
-          "\"account.refreshToken\",\"account.accessExpiresAt\","
-          "\"account.refreshExpiresAt\",\"keys.userPublicKey\","
-          "\"keys.deviceUnlockBlob\"]}",
-          "DELETE_SESSION");
-      return account_operation_step_locked(operation, result);
-    }
     if (operation.stage == "DELETE_SESSION") {
       clear_account_session_locked();
       finish_account_error_locked(operation, code.empty() ? "SECURE_STORE_ERROR" : code,
@@ -1773,16 +1767,6 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
     }
     const mineg_error_code_t code = issue_account_request_locked(operation, continuation);
     if (code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
-    return account_operation_step_locked(operation, result);
-  }
-  if (operation.stage == "CANCEL_SCHEDULER") {
-    set_account_effect_locked(
-        operation, "SecureStoreEffect",
-        "{\"action\":\"deleteSecrets\",\"names\":[\"account.accessToken\","
-        "\"account.refreshToken\",\"account.accessExpiresAt\","
-        "\"account.refreshExpiresAt\",\"keys.userPublicKey\","
-        "\"keys.deviceUnlockBlob\"]}",
-        "DELETE_SESSION");
     return account_operation_step_locked(operation, result);
   }
   if (operation.stage == "DELETE_SESSION") {
@@ -2373,7 +2357,7 @@ mineg_error_code_t Core::update_backup_settings_locked(const std::string &comman
   const std::string device_id = extract_json_string(command, "deviceInstallationId");
   const std::string updated_at = extract_json_string(command, "updatedAt");
   if (user_id.empty() || device_id.empty() || updated_at.empty()) return MINEG_INVALID_ARGUMENT;
-  const bool auto_backup = extract_json_boolean(command, "autoBackupEnabled", true);
+  const bool auto_backup = extract_json_boolean(command, "autoBackupEnabled", false);
   const bool cellular = extract_json_boolean(command, "allowCellularBackup", false);
   sqlite3_stmt *statement = nullptr;
   const char *sql =
@@ -2816,7 +2800,7 @@ std::string Core::read_backup_settings_locked(const std::string &query) {
   sqlite3_bind_text(statement, 2, device_id.c_str(), -1, SQLITE_TRANSIENT);
   if (sqlite3_step(statement) != SQLITE_ROW) {
     sqlite3_finalize(statement);
-    return "{\"version\":1,\"settings\":{\"autoBackupEnabled\":true,"
+    return "{\"version\":1,\"settings\":{\"autoBackupEnabled\":false,"
            "\"allowCellularBackup\":false,\"updatedAt\":null}}";
   }
   const bool auto_backup = sqlite3_column_int(statement, 0) == 1;

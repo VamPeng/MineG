@@ -10,7 +10,6 @@ import com.mineg.mobile.contracts.AlbumCursor
 import com.mineg.mobile.contracts.ApiRequest
 import com.mineg.mobile.contracts.ApprovalStatus
 import com.mineg.mobile.contracts.BackupSettings
-import com.mineg.mobile.contracts.BackgroundSchedulerPort
 import com.mineg.mobile.contracts.KeyGrantKind
 import com.mineg.mobile.contracts.KeyMaterial
 import com.mineg.mobile.contracts.LibraryPermissionState
@@ -53,7 +52,6 @@ class AndroidAccountClient(
   private val core: CoreClient,
   private val secureStore: SecureStorePort,
   private val transport: TransportPort,
-  private val scheduler: BackgroundSchedulerPort,
   private val mediaSource: MediaSourcePort,
   private val files: FilePort,
 ) : AccountClient, Stage02Client, Stage03Client, OwnerMediaClient {
@@ -126,7 +124,6 @@ class AndroidAccountClient(
 
   override suspend fun signOut() {
     val refreshToken = session?.refreshToken ?: readSecret(REFRESH_TOKEN)
-    scheduler.cancelBackup()
     try {
       if (!refreshToken.isNullOrBlank()) {
         val body = JSONObject().put("refresh_token", refreshToken).toString().toByteArray()
@@ -380,12 +377,6 @@ class AndroidAccountClient(
         .put("updatedAt", updatedAt)
         .toString(),
     )
-    scheduler.configureBackup(userId, settings.allowCellularBackup)
-    if (settings.autoBackupEnabled && mediaSource.getPermissionSnapshot().library == LibraryPermissionState.FULL) {
-      scheduler.scheduleBackup()
-    } else {
-      scheduler.cancelBackup()
-    }
   }
 
   override fun scanLocalMedia(userId: String): LocalScanState {
@@ -399,12 +390,8 @@ class AndroidAccountClient(
           .put("updatedAt", Instant.now().toString())
           .toString(),
       )
-      scheduler.cancelBackup()
       return readScanState(userId)
     }
-    val installationId = installationID()
-    val settings = getBackupSettings(userId, installationId)
-    if (!settings.autoBackupEnabled) return readScanState(userId)
     val previousScan = readScanState(userId)
     val resume = previousScan.status == LocalScanStatus.SCANNING && previousScan.scanGeneration.isNotBlank()
     val scanGeneration = if (resume) previousScan.scanGeneration else UUID.randomUUID().toString()
@@ -459,8 +446,6 @@ class AndroidAccountClient(
       )
       cursor = next
     } while (cursor != null)
-    scheduler.configureBackup(userId, settings.allowCellularBackup)
-    scheduler.scheduleBackup()
     return readScanState(userId)
   }
 
@@ -988,7 +973,6 @@ class AndroidAccountClient(
   }
 
   private fun clearLocalSession() {
-    scheduler.cancelBackup()
     listOf(ACCESS_TOKEN, REFRESH_TOKEN, ACCESS_EXPIRY, REFRESH_EXPIRY, KEY_PUBLIC, KEY_UNLOCK_BLOB).forEach(secureStore::deleteSecret)
     core.lockKeys()
     session = null

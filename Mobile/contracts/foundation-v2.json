@@ -36,7 +36,6 @@
     "TransportEffect",
     "SecureStoreEffect",
     "MediaSourceEffect",
-    "BackgroundSchedulerEffect",
     "FileEffect"
   ],
   "platformEffectEnvelope": {

@@ -18,7 +18,7 @@
 | 01 账号、审核与准入 | [后端](./01-account-review/backend.md) / [前端](./01-account-review/frontend.md) / [移动端](./01-account-review/mobile.md) | B1 / A1～A3 / M1 | F-01、F-02，F-03 基础展示 | 注册、审核动作、待密钥准入闭环 | 00 |
 | 02 密钥、资料、权限与本地相册 | [后端](./02-keys-profile-local-media/backend.md) / [前端](./02-keys-profile-local-media/frontend.md) / [移动端](./02-keys-profile-local-media/mobile.md) | B2 / A3 冻结 / M2 | F-03、F-04、F-05、F-06 | key grant、资料、授权与本地索引 | 01 |
 | 03 单媒体加密备份 | [后端](./03-single-media-backup/backend.md) / [前端](./03-single-media-backup/frontend.md) / [移动端](./03-single-media-backup/mobile.md) | B3 / 管理端回归 / M3 | F-07、F-08 单媒体子集 | 单照片及代表性媒体上传闭环 | 02 |
-| 03D Android 数据层主权迁移 | 后端 B1～B3 回归 / 管理端回归 / [Android/C++ 迁移](../../Mobile/docs/android-data-layer-migration.md) | M3-D | 不新增功能 | Core 数据主权、PlatformEffect 与平台扫描门禁 | 03 |
+| 03D Android 数据层主权迁移 | 后端 B1～B3 回归 / 管理端回归 / [Android/C++ 迁移](../../Mobile/docs/android-data-layer-migration.md) / [批次 D 需求](./02-keys-profile-local-media/batch-d-requirements.md) / [批次 D 技术方案](../../Mobile/docs/batch-d-local-index-settings.md) | M3-D | 不新增功能 | Core 数据主权、PlatformEffect 与平台扫描门禁 | 03 |
 | 04 完整队列与自动备份 | [后端](./04-backup-queue/backend.md) / [前端](./04-backup-queue/frontend.md) / [移动端](./04-backup-queue/mobile.md) | B3+B4 / 管理端回归 / M4 | F-08 完整队列 | 历史/增量扫描、断点续传、备份状态 | 03D |
 | 05 私人媒体闭环 | [后端](./05-private-media/backend.md) / [前端](./05-private-media/frontend.md) / [移动端](./05-private-media/mobile.md) | B4+B6 删除子集 / 管理端回归 / M5 | F-09、F-10、F-13 删除子集 | 私人空间、原文件保存和逻辑删除 | 04 |
 | 06 家庭、回收站与反馈 | [后端](./06-family-trash-feedback/backend.md) / [前端](./06-family-trash-feedback/frontend.md) / [移动端](./06-family-trash-feedback/mobile.md) | B5+B6+B7 功能子集 / 管理端回归 / M6 | F-11、F-12、F-13、F-14 | 分享、家庭只读、恢复、帮助反馈 | 05 |

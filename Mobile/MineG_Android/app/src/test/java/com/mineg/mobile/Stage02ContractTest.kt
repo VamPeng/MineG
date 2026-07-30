@@ -1,6 +1,7 @@
 package com.mineg.mobile
 
 import com.mineg.mobile.contracts.BackgroundSchedulerPort
+import com.mineg.mobile.contracts.BackupSettings
 import com.mineg.mobile.contracts.LibraryPermissionState
 import com.mineg.mobile.contracts.MediaSourcePort
 import com.mineg.mobile.contracts.Stage02Client
@@ -57,6 +58,12 @@ class Stage02ContractTest {
       listOf("NOT_DETERMINED", "FULL", "LIMITED", "RESTRICTED", "DENIED", "SYSTEM_RESTRICTED"),
       LibraryPermissionState.entries.map { it.name },
     )
+  }
+
+  @Test
+  fun currentBackupSettingsDefaultToManualOptIn() {
+    assertFalse(BackupSettings().autoBackupEnabled)
+    assertFalse(BackupSettings().allowCellularBackup)
   }
 
   @Test

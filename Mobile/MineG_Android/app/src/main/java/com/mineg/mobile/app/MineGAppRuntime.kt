@@ -20,7 +20,6 @@ import com.mineg.mobile.contracts.Profile
 import com.mineg.mobile.core.CoreClient
 import com.mineg.mobile.core.CoreOperationRunner
 import com.mineg.mobile.core.PlatformEffectDispatcher
-import com.mineg.mobile.platform.AndroidBackgroundSchedulerPort
 import com.mineg.mobile.platform.AndroidFilePort
 import com.mineg.mobile.platform.AndroidMediaSourcePort
 import com.mineg.mobile.platform.AndroidSecureStorePort
@@ -61,16 +60,14 @@ internal class AndroidMineGAppRuntime(context: Context) : MineGAppRuntime {
   private val mediaSource = AndroidMediaSourcePort(applicationContext)
   private val secureStore = AndroidSecureStorePort(applicationContext)
   private val transport = AndroidTransportPort(BuildConfig.MINEG_API_BASE_URL, allowPrivateHttp = BuildConfig.DEBUG)
-  private val scheduler = AndroidBackgroundSchedulerPort(applicationContext)
   private val files = AndroidFilePort(applicationContext)
-  private val dispatcher = PlatformEffectDispatcher(transport, secureStore, mediaSource, scheduler, files)
+  private val dispatcher = PlatformEffectDispatcher(transport, secureStore, mediaSource, files)
   private val coreAccount = CoreAccountClient(core, CoreOperationRunner(core, dispatcher))
   private val coreStage02 = CoreStage02Client(core, CoreOperationRunner(core, dispatcher))
   private val account = AndroidAccountClient(
     core = core,
     secureStore = secureStore,
     transport = transport,
-    scheduler = scheduler,
     mediaSource = mediaSource,
     files = files,
   )

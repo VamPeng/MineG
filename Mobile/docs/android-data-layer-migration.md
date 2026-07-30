@@ -11,10 +11,10 @@
 
 ### 1.1 实施进度（2026-07-30）
 
-- 批次 A 已完成：新增 `foundation-v2`、ABI 5、SQLite v5 可恢复 operation、Android 通用 Effect Dispatcher、五类 Port 测试替身和默认拒绝的数据主权扫描门禁。
+- 批次 A 已完成：新增 `foundation-v2`、ABI 5、SQLite v5 可恢复 operation、Android 通用 Effect Dispatcher、四类当前生效的 Port 测试替身和默认拒绝的数据主权扫描门禁。
 - 批次 B 的生产账号主链已完成：新增 `account-v2` 与 SQLite v6，注册、登录、Session 恢复/轮换/退出、审核查询和 Profile 查询/更新由 Core operation 驱动；Token 仅通过批量 `SecureStoreEffect` 原子写入，Android 专属 `mineg_profile_cache` 已移除。
 - 批次 C 的生产主链已实现：新增 `stage02-v2` 与 SQLite v7，Key Grant 协调、头像创建授权/对象上传/完成确认、私人媒体列表与账号隔离缓存均由 Core operation 驱动；主页只消费 Core 返回的 Profile/PrivateMedia Snapshot。
-- `AndroidAccountClient` 仍作为扫描、备份设置、单媒体上传和未退役旧账号 UI 的过渡依赖保留；旧路径中的 KeyGrant、头像和私人媒体实现继续按 AND-DATA-012 登记，不再由当前 `MainActivity` 生产入口调用。不得据此将整体 M3-D 标记完成。
+- `AndroidAccountClient` 仍作为扫描、备份设置、单媒体上传和未退役旧账号 UI 的过渡依赖保留；旧路径中的 KeyGrant、头像和私人媒体实现继续按 AND-DATA-012 登记，不再由当前 `MainActivity` 生产入口调用。批次 D 按[前台本地索引技术方案](./batch-d-local-index-settings.md)重新实现，不继承现有 Kotlin 恢复循环。不得据此将整体 M3-D 标记完成。
 - 当前迁移实现版本：C ABI 5、SQLite v7；既有 ABI 4/SQLite v4 行为继续兼容。
 
 本文件列出 Android 已实现但仍在 Kotlin/Compose 层拥有领域数据、接口编排、业务缓存或状态迁移的代码。迁移目标不是让 C++ 直接持有 Android 网络、权限或系统对象，而是让 C++ Core 成为业务请求、领域数据和状态机的唯一所有者，Android 只保留 UI、Bridge 与 PlatformPort。
@@ -76,9 +76,10 @@ Screen
                    ├─ AndroidTransportPort
                    ├─ AndroidSecureStorePort
                    ├─ AndroidMediaSourcePort
-                   ├─ AndroidBackgroundSchedulerPort
                    └─ AndroidFile/SystemAlbum Port
 ```
+
+后台队列尚未进入当前生产范围；原有空 `WorkManager` Worker 与 Android 调度实现已移除。批次 D 只执行前台扫描与设置持久化，阶段 04 在真实队列存在后再引入 `BackgroundSchedulerPort` 的 Android 实现。
 
 ### 4.1 Effect 最小信封
 
@@ -122,8 +123,8 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 | AND-DATA-003 | P0 | Key grant 与头像 | 生产主链已迁移；旧路径例外保留 | 旧账号 UI 仍编译 | Core 编排；平台只执行图片预处理、SecureStore 与 Transport Effect |
 | AND-DATA-004 | P0 | 私人媒体主页列表 | 生产主链已迁移；旧路径例外保留 | 旧 Client 方法仍编译 | Core 查询、账号隔离 SQLite 快照与离线回退 |
 | AND-DATA-005 | P0 | 单媒体上传 | 已实现，当前新入口未直接调用 | 上传状态机和服务端 DTO | Core 完整状态机；TransportPort 只上传字节/分片 |
-| AND-DATA-006 | P1 | 本地扫描 | 当前生效 | 恢复判断、分页循环、generation、调度 | Core 扫描 operation；MediaSourcePort 返回批次 |
-| AND-DATA-007 | P1 | 备份设置与门禁 | UI 部分生效 | ViewModel 本地状态；旧 Client 含真实设置逻辑 | Core Settings/Task Snapshot + Scheduler Effect |
+| AND-DATA-006 | P1 | 本地扫描 | 当前生效 | 权限门禁、分页循环、generation、持久化游标 | Core 非恢复型前台扫描；MediaSourcePort 只返回批次 |
+| AND-DATA-007 | P1 | 备份设置 | UI 部分生效 | ViewModel 本地状态；旧 Client 含真实设置逻辑 | Core Settings Snapshot；不创建任务或调度 Effect |
 | AND-DATA-008 | P0 | 分享/删除/恢复/下载/反馈 | 页面生效但业务为模拟 | ViewModel 直接增删列表或标记成功 | 正式实现时直接进入 Core；联调前不得宣称完成 |
 | AND-DATA-009 | P1 | 审核轮询与页面准入 | 当前生效 | 轮询、错误分流、资料准入判断 | Core 审核 operation；ViewModel 只响应领域状态 |
 | AND-DATA-010 | P1 | 业务校验 | 当前生效 | 手机号、密码、昵称规则 | Core 权威校验；平台可保留等价的即时展示预校验 |
@@ -226,12 +227,14 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 
 迁移内容：
 
-- 是否允许扫描、是否恢复、generation、cursor 和批次循环；
+- 是否允许扫描、generation、内存 cursor 和批次循环；
 - MediaSourceEffect 的分页参数与平台结果；
-- 批次事务、相册关系、扫描完成和后续任务创建；
+- 批次事务、相册关系、完成代次切换和候选代次清理；
 - Core Query 输出仍由 Bridge 转换成不可变平台 Snapshot。
 
-完成条件：Android MediaSourcePort 只读取权限、相册、媒体和资源句柄；不决定扫描状态或是否创建备份工作。
+批次 D 不恢复未完成扫描。执行游标只存在当前 Core 内存，进程结束后下次从第一页重新扫描；SQLite 只保留最后完成的可见索引和不可见的候选索引行，不保存下一执行步骤。
+
+完成条件：Android MediaSourcePort 只读取权限、相册、媒体和资源句柄；不决定扫描状态或是否创建备份工作；Android 不保存扫描游标。
 
 ### AND-DATA-007：备份设置与门禁
 
@@ -239,15 +242,16 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 
 - `AndroidAccountClient.kt`：`getBackupSettings`、`updateBackupSettings`；
 - `MineGAppViewModel.kt`：`setAutoBackupEnabled`、`setCellularBackupEnabled` 当前仅修改 UiState；
-- `AndroidBackgroundSchedulerPort`：保存系统调度所需派生配置。
+- 当前不创建后台任务；自动备份调度推迟到阶段 04。
 
 迁移内容：
 
-- Settings command/query、权限/网络/用户开关到任务门禁的 Core 决策；
-- SchedulerEffect 只描述申请或取消执行机会；
-- 系统调度派生配置可以保留，但不得成为业务设置真相。
+- Settings command/query，以及按账号和 App 安装实例隔离的 SQLite 记录；
+- 默认自动备份关闭、移动网络关闭；
+- 设置变更只发布 Core 事件，不启动扫描、上传或后台任务；
+- 本地相册浏览不受自动备份开关限制。
 
-完成条件：切换设置后必须先由 Core 持久化并发布事件，再更新 UI 和调度系统任务；进程重启以后 Core 状态仍为准。
+完成条件：切换设置后必须先由 Core 持久化并发布事件，再更新 UI；正常重启以后 Core 状态仍为准；批次 D 不包含调度系统任务。
 
 ### AND-DATA-008：页面中的模拟领域操作
 
@@ -288,10 +292,11 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 - `AndroidTransportPort`：HTTPS/对象字节传输、超时、取消和原始响应；
 - `AndroidSecureStorePort`：Android Keystore AES-GCM 包装与原子读写；
 - `AndroidMediaSourcePort`：权限、MediaStore 分页、资源描述符和派生资源；
-- `AndroidBackgroundSchedulerPort`：WorkManager 执行机会；
 - `AndroidConnectivityPort`：网络连接与计量状态；
 - `AndroidFilePort`：临时文件、空间和安全删除；
 - Compose Screen 与 ViewModel 中纯展示 `UiState`、导航、弹窗和输入草稿。
+
+阶段 04 若需要后台执行机会，再依据真实扫描/上传队列重新建立 Android WorkManager 适配器；批次 D 不保留空 Worker 或无业务作用的调度 Effect。
 
 这些实现后续要改为统一消费 Core Effect。平台派生缓存必须可丢弃、可从 Core 重建，并在文档中明确不具备业务权威性。
 
@@ -301,7 +306,7 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 
 - `foundation-v2`：PlatformEffect、EffectResult、operation 恢复、取消、序列和错误；
 - `account-v2`：账号/Session/审核/Profile Core 命令、查询、事件和 SecureStore/Transport Effect；
-- `stage02-v2`：Profile/Avatar/KeyGrant/Scan/Settings 的 Core 所有权；
+- `stage02-v2`：2.0.0 已登记 Profile/Avatar/KeyGrant/PrivateMedia；批次 D 以兼容的 2.1.0 增加前台 Scan/Settings 所有权；
 - `stage03-v2`：完整上传状态机和分片 Effect；
 - `platform-data-exceptions-v1`：确需保留的平台领域数据例外，初始应为空或仅包含有明确移除条件的诊断路径。
 
@@ -331,9 +336,13 @@ v2 通过并切换生产入口后，v1 进入 `DEPRECATED`，至少保留一个�
 
 ### 批次 D：扫描与备份设置
 
+需求见[批次 D 需求](../../Requirement/plans/02-keys-profile-local-media/batch-d-requirements.md)，详细设计见[批次 D 技术方案](./batch-d-local-index-settings.md)。
+
 1. 迁移 AND-DATA-006、007；
-2. WorkManager/MediaStore 退回纯 Port；
-3. 验证权限撤销、进程重启、10 万索引和账号切换。
+2. MediaStore 退回纯 Port，扫描由非恢复型前台 Core command 驱动；
+3. 每次扫描从第一页开始，以完成代次原子替换当前索引；
+4. 持久化备份偏好，但不创建上传任务或后台任务；
+5. 验证权限门禁、设置持久化、10 万索引、账号隔离，以及重启后重新从头扫描。
 
 ### 批次 E：单媒体上传
 
@@ -360,6 +369,8 @@ v2 通过并切换生产入口后，v1 进入 `DEPRECATED`，至少保留一个�
 - 退出、账号切换和应用进程重建不显示其他账号资料、媒体或任务；
 - 日志、SQLite、偏好设置和崩溃信息不包含明文密码、Token、密钥或不必要个人数据；
 - ViewModel 只保存可丢弃 UiState，不能在无 Core 结果时模拟领域成功。
+
+批次 D 不建设恢复、重试、取消和后台调度状态机，因此不要求为扫描覆盖乱序 EffectResult、断点续扫或 Worker 恢复矩阵。它只验证：进程结束后旧的完整索引不被半成品替换，下一次扫描从空游标重新开始。其余批次仍按各自真实风险执行上述验收。
 
 以下情况必须停止扩展并先修正架构：
 

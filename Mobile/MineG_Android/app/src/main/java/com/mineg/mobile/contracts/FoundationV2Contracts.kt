@@ -15,7 +15,6 @@ enum class PlatformEffectType(val wireName: String) {
   TRANSPORT("TransportEffect"),
   SECURE_STORE("SecureStoreEffect"),
   MEDIA_SOURCE("MediaSourceEffect"),
-  BACKGROUND_SCHEDULER("BackgroundSchedulerEffect"),
   FILE("FileEffect");
 
   companion object {

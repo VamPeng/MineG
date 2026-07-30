@@ -21,7 +21,6 @@ import com.mineg.mobile.contracts.LocalScanState
 import com.mineg.mobile.contracts.Profile
 import com.mineg.mobile.contracts.SingleMediaBackup
 import com.mineg.mobile.core.CoreClient
-import com.mineg.mobile.platform.AndroidBackgroundSchedulerPort
 import com.mineg.mobile.platform.AndroidSecureStorePort
 import com.mineg.mobile.platform.AndroidTransportPort
 import com.mineg.mobile.platform.AndroidMediaSourcePort
@@ -68,7 +67,6 @@ data class AccountUiState(
 
 class AccountViewModel(application: Application) : AndroidViewModel(application) {
   private val core = CoreClient()
-  private val scheduler = AndroidBackgroundSchedulerPort(application)
   private val mediaSource = AndroidMediaSourcePort(application)
   private val account: AndroidAccountClient
   private val mutableState = MutableStateFlow(AccountUiState())
@@ -82,7 +80,6 @@ class AccountViewModel(application: Application) : AndroidViewModel(application)
       core = core,
       secureStore = AndroidSecureStorePort(application),
       transport = AndroidTransportPort(BuildConfig.MINEG_API_BASE_URL, allowPrivateHttp = BuildConfig.DEBUG),
-      scheduler = scheduler,
       mediaSource = mediaSource,
       files = AndroidFilePort(application),
     )
@@ -328,7 +325,6 @@ class AccountViewModel(application: Application) : AndroidViewModel(application)
     if (permission == LibraryPermissionState.FULL) {
       loadBackupOverview()
     } else {
-      scheduler.cancelBackup()
       mutableState.value = mutableState.value.copy(
         screen = AccountScreen.PERMISSION,
         permissionState = permission,
@@ -346,7 +342,6 @@ class AccountViewModel(application: Application) : AndroidViewModel(application)
     if (permission == LibraryPermissionState.FULL) {
       loadBackupOverview()
     } else {
-      scheduler.cancelBackup()
       mutableState.value = mutableState.value.copy(
         screen = AccountScreen.PERMISSION,
         permissionState = permission,
@@ -357,7 +352,6 @@ class AccountViewModel(application: Application) : AndroidViewModel(application)
   }
 
   fun deferPermission() {
-    scheduler.cancelBackup()
     mutableState.value = mutableState.value.copy(screen = AccountScreen.PROFILE, message = null)
   }
 
