@@ -2,13 +2,14 @@
 
 ## 1. 契约信息
 
-- 契约版本：v1.0
+- 契约版本：v1.1
 - 核定日期：2026-07-26
+- 最近修订：2026-07-30（明确 C++ 领域数据主权与 PlatformEffect 边界）
 - 适用平台：Android、iOS、HarmonyOS
 - 首个参考实现：Android
 - 上位基线：[功能需求](../Requirement/functional-requirements.md)、[技术需求](../Requirement/technical-requirements.md)
 
-本契约约束三端可见的业务名称、数据语义、桥接接口、UI 操作和状态。Android 先实现完整功能，但不能把 Android SDK 类型或 Compose 细节写入公共契约；iOS 和 HarmonyOS 后续按已经冻结的契约实现。
+本契约约束三端可见的业务名称、数据语义、数据所有权、桥接接口、UI 操作和状态。Android 先实现完整功能，但不能把 Android SDK 类型或 Compose 细节写入公共契约；iOS 和 HarmonyOS 后续按已经冻结的契约实现。v1.1 对分层所有权作强制澄清，不回写已发布的 `contracts/*-v1.json`；现存不符合项按第 15 节迁移，不视为可以继续复制的平台参考实现。
 
 ## 2. 执行规则
 
@@ -17,17 +18,20 @@
 3. 平台能力不同，只允许适配实现不同；对用户的业务结果、状态迁移和错误语义必须一致。
 4. 新增字段和枚举值可以向后兼容；删除、改名或改变既有语义必须提升契约主版本并提供迁移方案。
 5. 公共名称以本文件和共享契约清单为准，不以任一平台内部类名为准。
+6. 领域数据必须由 C++ Core 唯一拥有；同名平台接口、相同 DTO 或相同测试结果不能替代共享实现。
+7. 已冻结业务语义若缺少 Core 命令或 PlatformEffect，新增兼容契约版本补齐，不直接改写历史冻结清单。
 
 ## 3. 一致性级别
 
 | 级别 | 必须一致 | 允许不同 |
 | --- | --- | --- |
+| L0：数据主权 | 领域模型所有者、API/RPC 编排、缓存、状态机、Core 命令/查询/事件与 PlatformEffect | UI 临时状态和平台原语实现 |
 | L1：名称一致 | 领域模型、字段、业务方法、事件、错误码、页面与操作语义标识 | 语言保留字导致的受控映射 |
 | L2：语义一致 | 前置条件、状态迁移、幂等性、排序、分页、空值和错误含义 | `suspend`、`async`、回调等语言写法 |
 | L3：体验一致 | 页面入口、关键操作、确认规则、加载/空/错/成功状态 | 系统权限弹窗、返回手势、原生控件外观 |
 | L4：平台专属 | 无公共等价能力的系统实现细节 | MediaStore、PhotoKit、PhotoAccessHelper 等内部名称 |
 
-L1～L3 是验收项。L4 只能存在于平台适配器内部。
+L0～L3 是验收项。L4 只能存在于平台适配器内部。
 
 ## 4. 命名规范
 
@@ -63,15 +67,17 @@ L1～L3 是验收项。L4 只能存在于平台适配器内部。
 
 ```text
 Screen → ViewModel → UseCase → CoreClient → C ABI → C++ Core
-                                  ↓
-                              PlatformPort
+                                  ↑                 │
+                                  │                 └─ PlatformEffect
+                                  │                         ↓
+                                  └──────── PlatformEffectResult ← PlatformPort
 ```
 
 - `Screen`：渲染状态并发送用户操作。
-- `ViewModel`：把公共状态转换成页面状态，不定义新的业务状态机。
+- `ViewModel`：把 Core 领域快照转换成页面状态，不定义新的业务状态机，也不持久化领域缓存。
 - `UseCase`：暴露一个可测试的业务动作或查询。
 - `CoreClient`：三端数据桥接统一入口。
-- `PlatformPort`：相册、安全存储、网络、后台调度等平台能力。
+- `PlatformPort`：执行 Core 请求的相册、安全存储、网络、后台调度等平台原语，不解释业务结果。
 
 ### 5.2 CoreClient 基础接口
 
@@ -87,7 +93,7 @@ Screen → ViewModel → UseCase → CoreClient → C ABI → C++ Core
 | `cancel` | 取消调用方不再需要的进行中操作 |
 | `close` | 释放句柄并阻止新调用 |
 
-Android 的 JNI、iOS 的 Objective-C++、HarmonyOS 的 Node-API 只负责类型、线程、回调和生命周期转换，不复制业务判断。
+Android 的 JNI、iOS 的 Objective-C++、HarmonyOS 的 Node-API 只负责类型、线程、回调、Effect 转发和生命周期转换，不复制业务判断。
 
 ### 5.3 PlatformPort 基础接口
 
@@ -115,6 +121,36 @@ Port 类型名三端必须一致：`MediaSourcePort`、`SecureStorePort`、`Tran
 - 状态只使用契约枚举；客户端不得以显示文案推断状态。
 - 错误统一包含 `code`、`messageKey`、`retryable`、`requestId` 和可选 `details`；UI 根据 `code` 和 `retryable` 决策，不解析错误文本。
 - 平台相册标识只作为 `platformAssetRef` 保存在本机，不上传为跨端业务主键。
+
+### 5.5 领域数据主权
+
+满足任一条件的数据均属于领域数据，必须由 C++ Core 建模并作为唯一客户端真实来源：
+
+- 来自服务端 API/RPC；
+- 需要本地缓存、离线回退或跨进程恢复；
+- 被两个及以上页面、UseCase 或后台任务共享；
+- 参与权限门禁、页面准入、排序、分页、去重、重试、幂等或状态迁移；
+- 代表账号、资料、成员、媒体、分享、回收站、反馈结果、备份设置或任务状态。
+
+原生层可以持有 Core 输出的不可变快照和派生 `UiState`，但不得把该副本用于恢复、合并、冲突裁决或后台任务真相。输入草稿、焦点、滚动位置、动画、弹窗、导航栈和可重建图片缓存不属于领域数据。
+
+平台对象只允许存在于 Port 内部。若权限、连接、存储空间、媒体可用性或系统任务回调影响业务，Port 必须返回公共结果，由 Core 决定领域状态。大媒体数据使用文件描述符、流、受控路径或不透明句柄，不要求复制进 Core 内存。
+
+### 5.6 PlatformEffect 与结果回传
+
+Core 命令需要外部副作用时返回版本化 `PlatformEffect`；平台执行后通过同一 operation ID 回传 `PlatformEffectResult`，Core 再继续状态机。首批 Effect 类型至少覆盖：
+
+| Effect | Core 决定 | Port 只负责 |
+| --- | --- | --- |
+| `TransportEffect` | API/RPC 操作、路径/方法、业务头和正文、幂等与后续状态 | 建连、TLS/DTLS、发送字节、接收状态/头/正文、取消 |
+| `SecureStoreEffect` | 凭据逻辑名称、读取/替换/删除时机 | KeyStore/Keychain/HUKS 加解密和原子读写 |
+| `MediaSourceEffect` | 扫描批次、恢复游标、索引与任务迁移 | 权限原语、媒体分页和资源句柄 |
+| `BackgroundSchedulerEffect` | 是否需要任务、账号和业务约束 | 向系统申请/取消执行机会并报告执行窗口 |
+| `File/SystemAlbumEffect` | 文件生命周期、校验和业务完成条件 | 临时文件、空间查询、安全删除和系统相册写入 |
+
+平台不得在 EffectResult 返回后自行解析领域 DTO、刷新 Token、重试业务请求、更新业务缓存或决定成功状态。HTTPS REST 或后续其他传输只改变 `TransportPort`，不改变 ViewModel 与领域 UseCase。
+
+任何绕过 Core 的领域数据必须进入版本化 `platformDataExceptions` 清单，至少登记所有者、原因、平台、生命周期、安全边界、测试和移除条件；没有清单项的绕过实现不得合入。
 
 ## 6. 关键业务方法
 
@@ -170,12 +206,12 @@ Android `testTag`、iOS `accessibilityIdentifier`、HarmonyOS 自动化测试 ke
 每个 Android 功能按以下顺序完成：
 
 1. 在契约登记模型、字段、方法、事件、错误码、页面 ID 和关键操作。
-2. 先补共享核心/C ABI/Port 的契约测试，再实现 Android Bridge、UseCase、ViewModel 和 Screen。
+2. 先补共享核心/C ABI/PlatformEffect/Port 的契约测试，证明领域数据所有权和状态机已在 Core，再实现 Android Bridge、UseCase、ViewModel 和 Screen。
 3. 使用真实后端或正式测试替身完成 Android 正常、空、错、权限失效和恢复路径。
 4. 生成该功能的契约清单快照并标记 `FROZEN`。
 5. iOS、HarmonyOS 开工时先跑同一套清单和测试，不根据 Android 源码反向猜测行为。
 
-Android 功能未登记契约不得合入；契约未通过测试不得算 Android 功能完成。
+Android 功能未登记契约不得合入；契约未通过测试不得算 Android 功能完成。仅在 Android 中实现业务 Client、DTO 解析、领域缓存或状态迁移，即使端到端流程可运行，也不能标记为 `FROZEN`。
 
 ## 9. 一致性验证
 
@@ -184,6 +220,8 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 - PlatformPort：使用统一场景用例验证成功、取消、权限失效、网络切换和进程恢复。
 - UI：使用同一页面/元素语义 ID 清单和关键交互场景；允许平台截图不同，不允许操作缺失或结果不同。
 - API：移动端模型必须通过 OpenAPI 兼容性检查，禁止平台自行维护不同字段含义。
+- 数据主权：CI 扫描 Kotlin、Swift、ArkTS 生产代码中的业务 API/RPC 路径、领域响应解析、业务偏好缓存和平台端状态迁移；只允许命中登记的例外。
+- Effect：相同命令与 EffectResult 测试向量在三端必须得到相同 Core 状态、事件和错误，Port 测试不得包含领域判断。
 - CI 在 Android 阶段校验“契约 + Android”；iOS/HarmonyOS 开始后逐端加入同一门禁。
 
 ## 10. 首版状态
@@ -237,3 +275,11 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 - 本地状态：SQLite v4 在网络副作用前保存任务、资源、分片、服务端上传 ID 和已确认 ETag；核心测试覆盖 multipart 中途进程重启、篡改、块重排、截断与清单错配失败关闭。
 - 平台适配：`MediaSourcePort` 流式打开原资源并尽力生成 `THUMBNAIL` 或 `VIDEO_COVER`；`TransportPort.uploadPart` 只消费服务签发的精确 PUT 授权。
 - 当前状态：`BASELINED`；隔离 OSS 上的真实照片、视频、GIF、Live/动态资源及过期授权/断网/完成响应丢失矩阵通过后转为 `FROZEN`。
+
+## 15. 2026-07-30 数据主权修订记录
+
+- 修订原因：代码审核确认 Android `AndroidAccountClient` 仍拥有账号、资料、密钥协调、媒体 API 与单媒体上传编排，`MineGAppRuntime` 存在 Android 专属资料缓存，部分 ViewModel 直接修改领域列表；这些实现会迫使 iOS/HarmonyOS 复制数据层。
+- 修订结论：既有 v1 清单冻结的是业务名称、模型、安全边界和用户可见语义，不再作为“数据层已完成共享”的证据。历史验收记录保持不变，不回写或伪造原结论。
+- 迁移要求：新增 Foundation/Account/Stage02/Stage03 的兼容契约版本，补齐 PlatformEffect、Core 业务命令、Core 查询/事件和平台数据例外清单；完成前 Android 相关实现标记为过渡实现。
+- 开发门禁：迁移完成前不得启动 iOS/HarmonyOS 业务数据层，也不得在 Android 新增业务 API DTO、领域 SharedPreferences 缓存或 ViewModel 领域状态机。
+- 迁移清单：以 [`docs/android-data-layer-migration.md`](./docs/android-data-layer-migration.md) 为当前实施输入。

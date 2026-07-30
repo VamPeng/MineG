@@ -10,7 +10,7 @@
 - 使用 Keychain 保存 Token/设备包装密钥，PhotoKit 处理授权、相册、媒体、多资源与 iCloud 下载。
 - 使用 background `URLSessionUploadTask` 和固定 session identifier 直传密文；BGTaskScheduler 只争取执行机会。
 - SwiftUI 实现冻结页面/元素语义与操作；iOS 13 不足的导航、视频、Live Photo 和生命周期用 UIKit/AVFoundation 包装。
-- 依序完成账号准入、资料、权限、本地相册、加密备份、私人、家庭、回收站、帮助反馈。
+- 复用 C++ Core 已完成的账号、资料、媒体、备份、家庭、回收站与反馈数据层；Swift 只实现 Bridge、PlatformPort、UiState 转换和原生页面，不创建 Swift 业务 Client/DTO/缓存。
 - 使用 PhotoKit change request 写回原文件，系统确认后生成下载回执；保持多资源组成和原质量。
 - 运行与 Android 相同的加密向量、状态机、API、UI 语义和端到端测试。
 
@@ -24,4 +24,5 @@
 
 - iOS 通过 F-01～F-14 和产品 MVP 验收，业务结果与 Android 一致。
 - 全部公共契约测试通过；平台差异均记录且不改变公共语义。
+- Swift 生产代码中的业务 API/RPC 路径、领域响应解析和业务 UserDefaults/CoreData 缓存扫描为零，登记例外除外。
 - Android 全量回归继续通过，证明兼容修复未破坏参考实现。

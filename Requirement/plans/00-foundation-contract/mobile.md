@@ -1,5 +1,7 @@
 # 阶段 00 移动端执行计划：一致性契约与 Android 基座
 
+> 2026-07-30 数据主权修订：本阶段历史交付与验收记录保持不变；现有 v1 基座缺少 Core `PlatformEffect`/`EffectResult` 回路，后续按 [`Mobile/docs/android-data-layer-migration.md`](../../../Mobile/docs/android-data-layer-migration.md) 增补兼容契约版本，不把 Android 业务 Client 视为基座能力。
+
 ## 目标与范围
 
 对应 M0。仅要求 Android 可运行，打通 Android—稳定 C ABI—C++17 核心—SQLite/libsodium—平台端口的最小纵向链路，并冻结公共基座契约。

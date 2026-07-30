@@ -1,5 +1,7 @@
 # 阶段 01 移动端执行计划：Android 账号准入
 
+> 2026-07-30 数据主权修订：本阶段已验证的产品行为和安全结论保留；账号 API/RPC、Session/Token 生命周期、审核状态、资料解析与业务缓存必须迁入 C++ Core。当前 Android 实现属于过渡实现，迁移范围见 [`Mobile/docs/android-data-layer-migration.md`](../../../Mobile/docs/android-data-layer-migration.md)。
+
 ## 目标与范围
 
 对应 M1，在 Android 完成 F-01～F-03 的账号准入主路径，并先登记、后冻结三端公共契约。

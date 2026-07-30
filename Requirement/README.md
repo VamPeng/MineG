@@ -4,8 +4,8 @@
 
 - [MVP 产品需求基线 v2.0](./product-requirements.md)
 - [MVP 功能实现基线 v1.0](./functional-requirements.md)
-- [实施技术基线 v1.1](./technical-requirements.md)
-- [移动端三端一致性契约 v1.0](../Mobile/three-platform-consistency-contract.md)
+- [实施技术基线 v1.2](./technical-requirements.md)
+- [移动端三端一致性契约 v1.1](../Mobile/three-platform-consistency-contract.md)
 - [Stitch 有效设计索引](./Prototype/Stitch/README.md)
 - [MVP 分阶段执行计划](./plans/README.md)
 
