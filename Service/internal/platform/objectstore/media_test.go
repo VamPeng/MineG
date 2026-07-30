@@ -19,7 +19,7 @@ func TestMemoryMediaObjectsScopesPartsAndVerifiesCiphertext(t *testing.T) {
 	wholeDigest := sha256.Sum256(append(append([]byte(nil), first...), last...))
 	plan := MediaResourcePlan{
 		ID: "resource-1", ObjectKey: "media/owner/session/resource-1.cipher",
-		CiphertextSize: int64(len(first) + len(last)), SHA256: wholeDigest[:],
+		Purpose: "MEDIA_CIPHERTEXT", ContentSize: int64(len(first) + len(last)), SHA256: wholeDigest[:],
 		Parts: []MediaPartPlan{
 			{Number: 1, Size: int64(len(first)), SHA256: firstDigest[:]},
 			{Number: 2, Size: int64(len(last)), SHA256: lastDigest[:]},
@@ -77,7 +77,7 @@ func TestMediaUploadRejectsBrokenFourMiBMapping(t *testing.T) {
 	objects := NewMemoryMediaObjects(time.Now)
 	_, err := objects.BeginMediaUpload(context.Background(), "media/owner/session/", []MediaResourcePlan{{
 		ID: "resource-1", ObjectKey: "media/owner/session/resource-1.cipher",
-		CiphertextSize: 34, SHA256: digest,
+		Purpose: "MEDIA_CIPHERTEXT", ContentSize: 34, SHA256: digest,
 		Parts: []MediaPartPlan{{Number: 1, Size: 17, SHA256: digest}, {Number: 2, Size: 17, SHA256: digest}},
 	}}, time.Minute)
 	if err == nil {

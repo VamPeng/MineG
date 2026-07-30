@@ -130,7 +130,7 @@ fun LoginPage(
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.mineGColors.success, modifier = Modifier.size(17.dp))
-      Text(" 端到端加密保护", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+      Text(" 私有存储 · 安全传输", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }
   }
 }
@@ -211,7 +211,7 @@ fun ReviewPendingPage(state: AuthUiState, onRefresh: () -> Unit, onBackToLogin: 
         }
         Text(if (state.reviewSyncing) "正在同步审核状态" else "申请审核中", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(
-          "管理员审核并完成家庭密钥授权后，你将进入私人空间。",
+          "管理员审核通过后，你将直接进入私人空间。",
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           lineHeight = 22.sp,
         )
@@ -295,9 +295,9 @@ fun LegalPage(document: LegalDocument, onBack: () -> Unit) {
       Text(if (privacy) "MineG 隐私政策" else "MineG 服务协议", fontSize = 26.sp, fontWeight = FontWeight.Bold)
       Text(
         if (privacy) {
-          "MineG 仅处理账号准入、加密媒体元数据和实现服务所需的信息。原文件、缩略图和预览均在设备端加密，服务端与管理员无法读取媒体明文或私钥。"
+          "MineG 处理账号准入、媒体元数据和实现服务所需的信息。媒体上传与加载不做客户端应用层加密，通过 HTTPS/TLS 传输并保存在私有云存储中；审核管理页面不提供媒体浏览能力，云资源高权限访问受审批和审计约束。"
         } else {
-          "使用 MineG 即表示你同意仅上传本人有权处理的媒体，并妥善保管登录凭据。MVP 不提供密码找回；遗失密码可能导致加密内容无法恢复。"
+          "使用 MineG 即表示你同意仅上传本人有权处理的媒体，并妥善保管登录凭据。MVP 不提供密码找回；媒体通过公网 ECS 和私有云存储提供服务。"
         },
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         lineHeight = 25.sp,

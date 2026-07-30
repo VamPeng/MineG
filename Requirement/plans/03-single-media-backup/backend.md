@@ -1,30 +1,24 @@
-# 阶段 03 后端执行计划：单媒体上传与对象存储
+# 阶段 03 后端执行计划：单媒体原始内容上传
 
 ## 目标与范围
 
-对应 B3。支持一条客户端加密媒体通过受限 STS 直传私有 OSS，后端核对密文对象后事务性创建可查询媒体。
+对应 B3。支持一条未做客户端应用层加密的媒体，经公网 ECS 获取短期授权并分片直传私有阿里云 OSS；ECS 核对对象长度、SHA-256、分片与 ETag 后，事务性创建本人可查询媒体。
 
 ## 实施任务
 
-- 新增 `albums`、`media`、`media_resources`、`media_album_links`、`media_key_envelopes`、`upload_sessions`、`upload_parts` migration、索引与 sqlc 查询。
-- 实现 `POST/GET /uploads`、分片上报和完成接口；所有写操作接受幂等键并校验用户、会话、用途和状态迁移。
-- 由服务端生成对象键和最小权限 STS 范围；在线角色无列举全桶和永久删除权限。
-- 接收账号内键控去重指纹并执行 `(owner_id, dedupe_fingerprint, content_revision)` 唯一约束，不做跨用户比较。
-- 完成时通过 OSS Head/ListParts 核对对象键、分片号、ETag、密文长度和客户端签名资源清单，再事务性创建媒体/资源/相册关系。
-- 建立过期会话、无效对象、重复完成、分片乱序和并发去重的回收/审计策略。
+- `stage03-v2` 创建请求只接收原始内容摘要、MIME、资源长度和分片计划，不接收 Media Key、加密清单或密文字段。
+- 上传用途为 `MEDIA_ORIGINAL`，对象键由服务端生成在 `media/<owner>/<session>/` 下，并以 `.original` 区分新对象。
+- OSS multipart 授权限定对象键、PUT、Content-Length 和短有效期；客户端不持有长期云凭据。
+- 完成前使用 `ListParts`、ETag、总长度和 `HeadObject` 的 `mineg-content-sha256` 元数据核对。
+- 新媒体不写 `media_key_envelopes`；旧 `MEDIA_CIPHERTEXT` 表字段与接口仅保留迁移兼容。
+- 同账号按 `(owner_id, content_sha256, content_revision)` 幂等收敛，不做跨账号去重查询。
 
-## 接口与数据交接
+## 完成门槛
 
-- 冻结上传会话、STS 用途、资源清单、分片记录、完成结果和去重命中 DTO。
-- 明确一个 4 MiB 加密逻辑块对应一个 multipart part；后端只处理密文尺寸和摘要。
-- 为阶段 04 输出上传状态查询和可恢复的服务端任务真相。
-
-## 验证与完成门槛
-
-- 照片密文可由 Android 直传隔离 OSS，后端确认前不可见，确认后进入本人查询。
-- 越权前缀、过期 STS、对象缺失、摘要不符、重复完成和同账号并发上传均失败或幂等收敛。
-- 数据库、日志、追踪和 OSS 中均无明文资源或明文 Media Key。
+- PostgreSQL migration 6、OpenAPI 0.5.0、内存对象存储与真实 PostgreSQL 集成测试通过。
+- 原始媒体完成前不可见，确认后进入 `/api/v1/media`；重复创建、分片上报和完成可幂等收敛。
+- 真实 ECS + 私有 OSS 的授权、越权、过期和摘要错配验收通过后才转为 `FROZEN`。
 
 ## 不在本阶段
 
-批量队列、私人详情 API、分享、回收站和服务端预览生成。
+批量队列、后台恢复调度、派生预览矩阵、私人详情读取授权、分享与回收站。

@@ -6,9 +6,11 @@ import com.mineg.mobile.contracts.AccountNextStep
 import com.mineg.mobile.contracts.AccountRouteSnapshot
 import com.mineg.mobile.contracts.ApprovalStatus
 import com.mineg.mobile.contracts.LocalAlbum
-import com.mineg.mobile.contracts.LocalScanState
-import com.mineg.mobile.contracts.LocalScanStatus
+import com.mineg.mobile.contracts.BackupSettings
+import com.mineg.mobile.contracts.LocalLibrarySummary
+import com.mineg.mobile.contracts.LocalMedia
 import com.mineg.mobile.contracts.OwnerMediaSummary
+import com.mineg.mobile.account.OriginalMediaUploadResult
 import com.mineg.mobile.contracts.Profile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -212,10 +214,15 @@ class MineGAppViewModelTest {
     override suspend fun updateProfile(nickname: String): Profile = profile.copy(nickname = nickname).also { profile = it }
     override suspend fun updateAvatar(uri: Uri): Profile = profile.copy(avatarUrl = uri.toString()).also { profile = it }
     override suspend fun listOwnerMedia(limit: Int): List<OwnerMediaSummary> = media
-    override suspend fun refreshLocalLibrary(userId: String): LocalLibrarySnapshot = LocalLibrarySnapshot(
-      scan = LocalScanState(0, "", LocalScanStatus.COMPLETE, 12, "generation", "2026-07-30T08:00:00Z"),
+    override suspend fun loadLocalLibrary(userId: String, forceRefresh: Boolean): LocalLibrarySnapshot = LocalLibrarySnapshot(
+      summary = LocalLibrarySummary("generation", 12, "2026-07-30T08:00:00Z"),
       albums = listOf(LocalAlbum("album-1", "相机", 12, null)),
     )
+    override suspend fun getBackupSettings(userId: String): BackupSettings = BackupSettings()
+    override suspend fun updateBackupSettings(userId: String, settings: BackupSettings): BackupSettings = settings
+    override suspend fun listLocalMedia(userId: String, albumRef: String, limit: Int): List<LocalMedia> = emptyList()
+    override suspend fun backupSingleMedia(userId: String, platformAssetRef: String) =
+      OriginalMediaUploadResult("upload-1", "media-1", false)
 
     override suspend fun signOut() {
       signOutCalled = true

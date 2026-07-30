@@ -12,9 +12,9 @@
 ### 1.1 实施进度（2026-07-30）
 
 - 批次 A 已完成：新增 `foundation-v2`、ABI 5、SQLite v5 可恢复 operation、Android 通用 Effect Dispatcher、四类当前生效的 Port 测试替身和默认拒绝的数据主权扫描门禁。
-- 批次 B 的生产账号主链已完成：新增 `account-v2` 与 SQLite v6，注册、登录、Session 恢复/轮换/退出、审核查询和 Profile 查询/更新由 Core operation 驱动；Token 仅通过批量 `SecureStoreEffect` 原子写入，Android 专属 `mineg_profile_cache` 已移除。
-- 批次 C 的生产主链已实现：新增 `stage02-v2` 与 SQLite v7，Key Grant 协调、头像创建授权/对象上传/完成确认、私人媒体列表与账号隔离缓存均由 Core operation 驱动；主页只消费 Core 返回的 Profile/PrivateMedia Snapshot。
-- `AndroidAccountClient` 仍作为扫描、备份设置、单媒体上传和未退役旧账号 UI 的过渡依赖保留；旧路径中的 KeyGrant、头像和私人媒体实现继续按 AND-DATA-012 登记，不再由当前 `MainActivity` 生产入口调用。批次 D 按[前台本地索引技术方案](./batch-d-local-index-settings.md)重新实现，不继承现有 Kotlin 恢复循环。不得据此将整体 M3-D 标记完成。
+- 批次 B/E1 的生产账号主链已完成：新增 `account-v3` 与 SQLite v6，注册、登录、Session 恢复/轮换/退出、审核查询和 Profile 查询/更新由 Core operation 驱动；注册不生成 key bundle，审核直接准入，Token 仅通过批量 `SecureStoreEffect` 原子写入，Android 专属 `mineg_profile_cache` 已移除。
+- 批次 C 的现行生产主链已实现：新增 `stage02-v2` 与 SQLite v7，头像创建授权/对象上传/完成确认、私人媒体列表与账号隔离缓存均由 Core operation 驱动；主页只消费 Core 返回的 Profile/PrivateMedia Snapshot。Key Grant operation 只保留旧客户端兼容，不再由生产入口调用。
+- `AndroidAccountClient` 只作为未退役旧账号 UI 与旧上传代码的编译兼容实现保留，当前 `MainActivity`/`MineGAppRuntime` 不再实例化它。批次 D 按[前台本地索引技术方案](./batch-d-local-index-settings.md)重新实现，不继承现有 Kotlin 恢复循环。不得据此将整体 M3-D 标记完成。
 - 当前迁移实现版本：C ABI 5、SQLite v7；既有 ABI 4/SQLite v4 行为继续兼容。
 
 本文件列出 Android 已实现但仍在 Kotlin/Compose 层拥有领域数据、接口编排、业务缓存或状态迁移的代码。迁移目标不是让 C++ 直接持有 Android 网络、权限或系统对象，而是让 C++ Core 成为业务请求、领域数据和状态机的唯一所有者，Android 只保留 UI、Bridge 与 PlatformPort。
@@ -28,7 +28,6 @@ MainActivity
   → MineGAppViewModel
   → AndroidMineGAppRuntime
   → CoreAccountClient / CoreStage02Client
-  → AndroidAccountClient（仅扫描、设置、上传过渡路径）
   → AndroidTransportPort / AndroidSecureStorePort / AndroidMediaSourcePort
   → Service
 ```
@@ -344,11 +343,22 @@ v2 通过并切换生产入口后，v1 进入 `DEPRECATED`，至少保留一个�
 4. 持久化备份偏好，但不创建上传任务或后台任务；
 5. 验证权限门禁、设置持久化、10 万索引、账号隔离，以及重启后重新从头扫描。
 
-### 批次 E：单媒体上传
+### 批次 E1：账号准入去密钥依赖
+
+手动验证使用[批次 E1 账号直接准入清单](./batch-e1-account-admission-validation.md)。
+
+1. 新增 `account-v3`，注册不生成或提交 key bundle；
+2. 管理员审核后服务端直接写入 `APPROVED`，不创建 key-grant 任务；
+3. Android 生产账号主链不调用 `CoordinateFamilyKeyGrants`，待审核文案不再承诺家庭密钥授权；
+4. 旧 key bundle、family envelope、key-grant 表/API/C ABI 只保留兼容，不删除、不进入新流程；
+5. 通过服务端、Core、Android 契约测试及专用数据库迁移闭环后，将 `account-v3` 从 `BASELINED` 转为 `FROZEN`。
+
+### 批次 E2：单媒体无加密上传
 
 1. 迁移 AND-DATA-005；
-2. 用隔离对象存储验证断网、授权过期、分片重试和完成响应丢失；
-3. `stage03-v2` 达标后再决定 M3 是否转为 `FROZEN`。
+2. 删除新上传契约中的 Media Key、密文清单和密文资源要求，改为长度/SHA-256 与受控原资源传输；
+3. 用真实 ECS + 隔离私有 OSS 验证断网、授权过期、分片重试和完成响应丢失；
+4. `stage03-v2` 达标后再决定 M3 是否转为 `FROZEN`。
 
 ### 批次 F：后续领域与旧路径
 

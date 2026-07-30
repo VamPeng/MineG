@@ -48,7 +48,7 @@ cd Mobile/MineG_Android
 ./gradlew :app:assembleRelease -PminegReleaseApiBaseUrl=https://api.example.com
 ```
 
-阶段 01 默认页面是账号准入流程。注册提交期间会在 C++ 内生成并加密用户密钥材料；私钥明文不返回 Kotlin 层。待审核页可见时每 10 秒轮询，连续失败按 10/20/40/60 秒退避，手动和回前台刷新不受退避限制。
+阶段 01 默认页面是账号准入流程。`account-v3` 注册不生成或提交用户密钥材料；管理员审核通过后直接进入 `APPROVED`。待审核页可见时每 10 秒轮询，连续失败按 10/20/40/60 秒退避，手动和回前台刷新不受退避限制。
 
 连接设备后运行 JNI 生命周期测试：
 
@@ -56,7 +56,7 @@ cd Mobile/MineG_Android
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-真实账号闭环测试默认跳过；只对专用临时数据库执行时，可通过 instrumentation runner 参数启用 `AccountFlowInstrumentedTest`。测试覆盖注册 → 管理员 Cookie/CSRF 登录 → 幂等通过 → 首成员家庭密钥 bootstrap → 进入资料页 → 退出 → 协议确认重新登录 → 相册权限页。不得把真实生产账号、密码或数据库用于该测试。
+真实账号闭环测试默认跳过；只对专用临时数据库执行时，可通过 instrumentation runner 参数启用 `AccountFlowInstrumentedTest`。测试覆盖无 key bundle 注册 → 管理员 Cookie/CSRF 登录 → 幂等通过并直接 `APPROVED` → 进入资料页 → 退出 → 协议确认重新登录 → 相册权限页。不得把真实生产账号、密码或数据库用于该测试。
 
 阶段 02 的权限验收必须分别验证 Android 14 的完整授权、部分照片授权、拒绝和系统设置撤销；非 `FULL` 状态不得创建扫描或 WorkManager 任务。OEM 若拦截 adb 安装，需要由设备所有者在手机上确认，自动化不得代为放宽“未知来源安装”设置。
 

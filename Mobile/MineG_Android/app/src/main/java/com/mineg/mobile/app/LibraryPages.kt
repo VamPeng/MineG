@@ -244,6 +244,7 @@ fun BackupPage(
   onSettings: () -> Unit,
   onOpenAlbum: (String) -> Unit,
   onStartBackup: () -> Unit,
+  onRefresh: () -> Unit,
 ) {
   Scaffold(
     containerColor = MaterialTheme.colorScheme.background,
@@ -251,7 +252,7 @@ fun BackupPage(
     floatingActionButton = {
       if (!state.autoBackupEnabled) FloatingActionButton(onClick = onStartBackup) {
         Icon(Icons.Outlined.CloudQueue, contentDescription = null)
-        Text(" 开始备份")
+        Text(" 开启备份偏好")
       }
     },
   ) { padding ->
@@ -262,6 +263,7 @@ fun BackupPage(
     ) {
       item {
         MineGPageTitle("本地相册") {
+          IconButton(onClick = onRefresh) { Icon(Icons.Outlined.Refresh, "刷新本地索引") }
           IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "备份设置") }
         }
       }
@@ -354,7 +356,7 @@ private data class BackupPresentation(
 
 @Composable
 private fun backupPresentation(status: BackupStatus): BackupPresentation = when (status) {
-  BackupStatus.PERMISSION_REQUIRED -> BackupPresentation("需要相册权限", "授予完整权限后才会开始备份", Icons.Outlined.Lock, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+  BackupStatus.PERMISSION_REQUIRED -> BackupPresentation("需要相册权限", "授予完整权限后才能建立本地索引", Icons.Outlined.Lock, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
   BackupStatus.SCANNING -> BackupPresentation("正在扫描媒体库", "首次扫描会分批进行，不影响浏览", Icons.Outlined.Refresh, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
   BackupStatus.UPLOADING -> BackupPresentation("正在安全备份", "媒体已在设备端加密", Icons.Outlined.CloudQueue, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
   BackupStatus.WAITING_WIFI -> BackupPresentation("等待 Wi-Fi", "连接 Wi-Fi 后自动继续", Icons.Outlined.CloudQueue, MaterialTheme.mineGColors.warning, MaterialTheme.mineGColors.warningContainer)
@@ -362,7 +364,7 @@ private fun backupPresentation(status: BackupStatus): BackupPresentation = when 
   BackupStatus.DEVICE_STORAGE_FULL -> BackupPresentation("设备空间不足", "释放设备空间后重试", Icons.Outlined.Storage, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.errorContainer)
   BackupStatus.CLOUD_STORAGE_FULL -> BackupPresentation("服务空间不足", "请稍后重试或联系管理员", Icons.Outlined.Storage, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.errorContainer)
   BackupStatus.SERVICE_UNAVAILABLE -> BackupPresentation("服务暂时不可用", "本地相册仍可浏览，稍后自动重试", Icons.Outlined.ErrorOutline, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.errorContainer)
-  BackupStatus.INDEXED -> BackupPresentation("本地索引已完成", "已读取真实本地相册；备份队列状态需由任务层提供", Icons.Outlined.Collections, MaterialTheme.mineGColors.success, MaterialTheme.mineGColors.successContainer)
+  BackupStatus.INDEXED -> BackupPresentation("本地索引已完成", "当前仅建立本地索引，尚未发生云端备份", Icons.Outlined.Collections, MaterialTheme.mineGColors.success, MaterialTheme.mineGColors.successContainer)
   BackupStatus.COMPLETE -> BackupPresentation("同步完成", "符合条件的媒体均已安全备份", Icons.Outlined.CloudDone, MaterialTheme.mineGColors.success, MaterialTheme.mineGColors.successContainer)
   BackupStatus.PAUSED -> BackupPresentation("自动备份已关闭", "你仍可以浏览本地相册", Icons.Outlined.CloudOff, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceContainerHigh)
 }
@@ -375,11 +377,11 @@ fun BackupSettingsPage(state: BackupUiState, onBack: () -> Unit, onAutoBackup: (
   ) { padding ->
     Column(Modifier.padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
       Text("选择备份方式", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-      Text("设置会立即生效。关闭自动备份后，你仍然可以浏览本地相册。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("设置会立即保存，供后续备份队列使用；当前阶段不会开始上传。关闭自动备份后，你仍然可以浏览本地相册。", color = MaterialTheme.colorScheme.onSurfaceVariant)
       MineGCard(Modifier.fillMaxWidth()) {
-        BackupSettingRow(Icons.Outlined.CloudQueue, "自动备份", "发现新的本地媒体后自动上传", state.autoBackupEnabled, onAutoBackup)
+        BackupSettingRow(Icons.Outlined.CloudQueue, "自动备份", "保存偏好；当前阶段不会创建上传任务", state.autoBackupEnabled, onAutoBackup)
         HorizontalDivider(color = MaterialTheme.mineGColors.divider)
-        BackupSettingRow(Icons.Outlined.Storage, "允许移动网络备份", "无 Wi-Fi 时继续上传，可能产生流量费用", state.allowCellularBackup, onCellular, state.autoBackupEnabled)
+        BackupSettingRow(Icons.Outlined.Storage, "允许移动网络备份", "保存后续队列的网络偏好，当前不会触发网络任务", state.allowCellularBackup, onCellular)
       }
       Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.mineGColors.successContainer).padding(16.dp),
@@ -409,19 +411,30 @@ private fun BackupSettingRow(icon: ImageVector, title: String, subtitle: String,
 }
 
 @Composable
-fun LocalAlbumPage(album: LocalAlbum?, media: List<MediaItem>, onBack: () -> Unit) {
+fun LocalAlbumPage(album: LocalAlbum?, state: BackupUiState, onUpload: (String) -> Unit, onBack: () -> Unit) {
   Scaffold(topBar = { DetailTopBar(album?.name ?: "本地相册", onBack) }) { padding ->
     if (album == null) {
       Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) { Text("相册不存在") }
     } else {
-      LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = Modifier.padding(padding).fillMaxSize().padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-      ) {
-        items(media.filter { it.id in album.mediaIds }, key = MediaItem::id) { item ->
-          MediaPlaceholder(item, Modifier.fillMaxWidth().aspectRatio(1f))
+      Column(Modifier.padding(padding).fillMaxSize()) {
+        state.uploadMessage?.let { message ->
+          Text(message, Modifier.fillMaxWidth().padding(12.dp), color = MaterialTheme.colorScheme.primary)
+        }
+        LazyVerticalGrid(
+          columns = GridCells.Fixed(3),
+          modifier = Modifier.fillMaxSize().padding(3.dp),
+          horizontalArrangement = Arrangement.spacedBy(3.dp),
+          verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+          items(state.localMedia, key = MediaItem::id) { item ->
+            MediaPlaceholder(
+              item,
+              Modifier.fillMaxWidth().aspectRatio(1f).clickable(
+                enabled = state.status != BackupStatus.UPLOADING,
+                onClick = { onUpload(item.id) },
+              ),
+            )
+          }
         }
       }
     }
@@ -484,14 +497,14 @@ fun PrivateMediaDetailPage(
       ) {
         Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.mineGColors.success, modifier = Modifier.size(28.dp))
         Column {
-          Text("加密存储", fontWeight = FontWeight.Medium)
-          Text("此照片已进行端到端加密，仅您和选定的家庭成员可以查看。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+          Text("私有存储", fontWeight = FontWeight.Medium)
+          Text("此照片保存在私有云存储中，仅您和当前获准的家庭成员可以查看。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
       }
       when (actionState) {
         MediaActionState.DOWNLOADING -> MineGCard(Modifier.fillMaxWidth()) {
           Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("正在下载并解密原文件", fontWeight = FontWeight.Bold)
+            Text("正在下载并校验原文件", fontWeight = FontWeight.Bold)
             LinearProgressIndicator(progress = { 0.62f }, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
               TextButton(onClick = { onFinishDownload(false) }) { Text("模拟失败") }

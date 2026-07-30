@@ -78,11 +78,13 @@ type ResourceInput struct {
 	ID             string
 	Type           string
 	CiphertextSize int64
+	ContentSize    int64
 	SHA256         []byte
 	Parts          []PartInput
 }
 
 type CreateInput struct {
+	ProtocolVersion   string
 	IdempotencyKey    string
 	ClientMediaID     string
 	Dedupe            []byte
@@ -92,6 +94,8 @@ type CreateInput struct {
 	ManifestDigest    []byte
 	EncryptedManifest []byte
 	EncryptedMediaKey []byte
+	ContentSHA256     []byte
+	MimeType          string
 	Resources         []ResourceInput
 	RequestID         string
 }
@@ -100,7 +104,8 @@ type ResourceStatus struct {
 	ID             string                      `json:"resource_id"`
 	Type           string                      `json:"resource_type"`
 	ObjectKey      string                      `json:"object_key,omitempty"`
-	CiphertextSize int64                       `json:"ciphertext_size"`
+	CiphertextSize int64                       `json:"ciphertext_size,omitempty"`
+	ContentSize    int64                       `json:"content_size,omitempty"`
 	SHA256         []byte                      `json:"-"`
 	PartCount      int32                       `json:"part_count"`
 	UploadedParts  int32                       `json:"uploaded_parts"`
@@ -186,14 +191,26 @@ func (s *Service) Create(ctx context.Context, actor Actor, input CreateInput) (S
 		OwnerID: actor.RawUserID, DedupeFingerprint: input.Dedupe, ContentRevision: input.ContentRevision,
 	}); dedupeErr == nil {
 		now := s.now().UTC()
-		row, createErr := queries.CreateDeduplicatedUploadSession(ctx, dbgen.CreateDeduplicatedUploadSessionParams{
-			ID: toPGUUID(uuid.New()), OwnerID: actor.RawUserID, IdempotencyKey: input.IdempotencyKey,
-			RequestHash: requestHash[:], DedupeFingerprint: input.Dedupe, ContentRevision: input.ContentRevision,
-			ClientMediaID: toPGUUID(uuid.MustParse(input.ClientMediaID)), MediaType: input.MediaType, CapturedAt: pgTime(input.CapturedAt),
-			ManifestDigest: input.ManifestDigest, EncryptedManifest: input.EncryptedManifest,
-			EncryptedMediaKey: input.EncryptedMediaKey, MediaID: media.ID,
-			ExpiresAt: pgTime(now.Add(sessionLifetime)), CompletedAt: pgTime(now),
-		})
+		var row dbgen.MinegUploadSession
+		var createErr error
+		if input.ProtocolVersion == "stage03-v2" {
+			row, createErr = queries.CreateDeduplicatedOriginalUploadSession(ctx, dbgen.CreateDeduplicatedOriginalUploadSessionParams{
+				ID: toPGUUID(uuid.New()), OwnerID: actor.RawUserID, IdempotencyKey: input.IdempotencyKey,
+				RequestHash: requestHash[:], DedupeFingerprint: input.Dedupe, ContentRevision: input.ContentRevision,
+				ClientMediaID: toPGUUID(uuid.MustParse(input.ClientMediaID)), MediaType: input.MediaType,
+				CapturedAt: pgTime(input.CapturedAt), MimeType: pgtype.Text{String: input.MimeType, Valid: true},
+				MediaID: media.ID, ExpiresAt: pgTime(now.Add(sessionLifetime)), CompletedAt: pgTime(now),
+			})
+		} else {
+			row, createErr = queries.CreateDeduplicatedUploadSession(ctx, dbgen.CreateDeduplicatedUploadSessionParams{
+				ID: toPGUUID(uuid.New()), OwnerID: actor.RawUserID, IdempotencyKey: input.IdempotencyKey,
+				RequestHash: requestHash[:], DedupeFingerprint: input.Dedupe, ContentRevision: input.ContentRevision,
+				ClientMediaID: toPGUUID(uuid.MustParse(input.ClientMediaID)), MediaType: input.MediaType, CapturedAt: pgTime(input.CapturedAt),
+				ManifestDigest: input.ManifestDigest, EncryptedManifest: input.EncryptedManifest,
+				EncryptedMediaKey: input.EncryptedMediaKey, MediaID: media.ID,
+				ExpiresAt: pgTime(now.Add(sessionLifetime)), CompletedAt: pgTime(now),
+			})
+		}
 		if createErr != nil {
 			if isUnique(createErr) {
 				return s.recoverCreateRace(ctx, actor, input.IdempotencyKey, requestHash)
@@ -208,7 +225,11 @@ func (s *Service) Create(ctx context.Context, actor Actor, input CreateInput) (S
 	sessionID := uuid.New()
 	prefix := fmt.Sprintf("media/%s/%s/", actor.UserID, sessionID.String())
 	for index := range resources {
-		resources[index].ObjectKey = prefix + resources[index].ID + ".cipher"
+		extension := ".original"
+		if input.ProtocolVersion != "stage03-v2" {
+			extension = ".cipher"
+		}
+		resources[index].ObjectKey = prefix + resources[index].ID + extension
 	}
 	grant, err := s.objects.BeginMediaUpload(ctx, prefix, resources, grantLifetime)
 	if err != nil {
@@ -238,23 +259,42 @@ func (s *Service) Create(ctx context.Context, actor Actor, input CreateInput) (S
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
-		row, err = q.CreateUploadSession(ctx, dbgen.CreateUploadSessionParams{
-			ID: toPGUUID(sessionID), OwnerID: actor.RawUserID, IdempotencyKey: input.IdempotencyKey,
-			RequestHash: requestHash[:], DedupeFingerprint: input.Dedupe, ContentRevision: input.ContentRevision,
-			ClientMediaID: toPGUUID(uuid.MustParse(input.ClientMediaID)), MediaType: input.MediaType, CapturedAt: pgTime(input.CapturedAt),
-			ManifestDigest: input.ManifestDigest, EncryptedManifest: input.EncryptedManifest,
-			EncryptedMediaKey: input.EncryptedMediaKey, ExpiresAt: pgTime(now.Add(sessionLifetime)),
-		})
+		if input.ProtocolVersion == "stage03-v2" {
+			row, err = q.CreateOriginalUploadSession(ctx, dbgen.CreateOriginalUploadSessionParams{
+				ID: toPGUUID(sessionID), OwnerID: actor.RawUserID, IdempotencyKey: input.IdempotencyKey,
+				RequestHash: requestHash[:], DedupeFingerprint: input.Dedupe, ContentRevision: input.ContentRevision,
+				ClientMediaID: toPGUUID(uuid.MustParse(input.ClientMediaID)), MediaType: input.MediaType,
+				CapturedAt: pgTime(input.CapturedAt), MimeType: pgtype.Text{String: input.MimeType, Valid: true},
+				ExpiresAt: pgTime(now.Add(sessionLifetime)),
+			})
+		} else {
+			row, err = q.CreateUploadSession(ctx, dbgen.CreateUploadSessionParams{
+				ID: toPGUUID(sessionID), OwnerID: actor.RawUserID, IdempotencyKey: input.IdempotencyKey,
+				RequestHash: requestHash[:], DedupeFingerprint: input.Dedupe, ContentRevision: input.ContentRevision,
+				ClientMediaID: toPGUUID(uuid.MustParse(input.ClientMediaID)), MediaType: input.MediaType, CapturedAt: pgTime(input.CapturedAt),
+				ManifestDigest: input.ManifestDigest, EncryptedManifest: input.EncryptedManifest,
+				EncryptedMediaKey: input.EncryptedMediaKey, ExpiresAt: pgTime(now.Add(sessionLifetime)),
+			})
+		}
 		if err != nil {
 			return err
 		}
 		for index, resource := range normalized.Resources {
 			resourceGrant := grant.Resources[index]
 			resourceID := toPGUUID(uuid.MustParse(resource.ID))
-			if err := q.CreateUploadResource(ctx, dbgen.CreateUploadResourceParams{
+			if input.ProtocolVersion == "stage03-v2" {
+				if err := q.CreateOriginalUploadResource(ctx, dbgen.CreateOriginalUploadResourceParams{
+					ID: resourceID, UploadSessionID: row.ID, ResourceType: resource.Type,
+					ObjectKey: resourceGrant.ObjectKey, MultipartUploadID: resourceGrant.UploadID,
+					ContentSize: pgtype.Int8{Int64: resource.ContentSize, Valid: true}, ContentSha256: resource.SHA256,
+					PartCount: int32(len(resource.Parts)),
+				}); err != nil {
+					return err
+				}
+			} else if err := q.CreateUploadResource(ctx, dbgen.CreateUploadResourceParams{
 				ID: resourceID, UploadSessionID: row.ID, ResourceType: resource.Type,
 				ObjectKey: resourceGrant.ObjectKey, MultipartUploadID: resourceGrant.UploadID,
-				CiphertextSize: resource.CiphertextSize, CiphertextSha256: resource.SHA256, PartCount: int32(len(resource.Parts)),
+				CiphertextSize: pgtype.Int8{Int64: resource.CiphertextSize, Valid: true}, CiphertextSha256: resource.SHA256, PartCount: int32(len(resource.Parts)),
 			}); err != nil {
 				return err
 			}
@@ -375,7 +415,7 @@ func (s *Service) Complete(ctx context.Context, actor Actor, uploadID string, in
 	if err := validateActor(actor); err != nil {
 		return CompleteResult{}, err
 	}
-	if !idempotencyPattern.MatchString(input.IdempotencyKey) || len(input.ManifestDigest) != sha256.Size {
+	if !idempotencyPattern.MatchString(input.IdempotencyKey) {
 		return CompleteResult{}, validation("UPLOAD_COMPLETE_INVALID", "Invalid upload completion", "The completion idempotency key or manifest digest is invalid.")
 	}
 	sessionID, err := parseUUID(uploadID, "UPLOAD_ID_INVALID")
@@ -394,8 +434,11 @@ func (s *Service) Complete(ctx context.Context, actor Actor, uploadID string, in
 		if err != nil {
 			return err
 		}
-		if !bytes.Equal(session.ManifestDigest, input.ManifestDigest) {
+		if session.Purpose == "MEDIA_CIPHERTEXT" && (len(input.ManifestDigest) != sha256.Size || !bytes.Equal(session.ManifestDigest, input.ManifestDigest)) {
 			return conflict("UPLOAD_MANIFEST_MISMATCH", "Upload manifest mismatch", "The completion manifest does not match the session.")
+		}
+		if session.Purpose == "MEDIA_ORIGINAL" && len(input.ManifestDigest) != 0 {
+			return validation("UPLOAD_COMPLETE_INVALID", "Invalid upload completion", "Original media completion does not accept an encrypted manifest digest.")
 		}
 		if session.State == "COMPLETED" {
 			return nil
@@ -467,12 +510,22 @@ func (s *Service) Complete(ctx context.Context, actor Actor, uploadID string, in
 		if locked.State != "VERIFYING" {
 			return conflict("UPLOAD_STATE_CONFLICT", "Upload state conflict", "The upload left verification unexpectedly.")
 		}
-		media, err := q.CreateCompletedMedia(ctx, dbgen.CreateCompletedMediaParams{
-			ID: locked.ClientMediaID, OwnerID: actor.RawUserID, SourceUploadID: locked.ID,
-			MediaType: locked.MediaType, DedupeFingerprint: locked.DedupeFingerprint,
-			ContentRevision: locked.ContentRevision, CapturedAt: locked.CapturedAt,
-			ManifestDigest: locked.ManifestDigest, EncryptedManifest: locked.EncryptedManifest,
-		})
+		var media dbgen.MinegMedium
+		if locked.Purpose == "MEDIA_ORIGINAL" {
+			media, err = q.CreateCompletedOriginalMedia(ctx, dbgen.CreateCompletedOriginalMediaParams{
+				ID: locked.ClientMediaID, OwnerID: actor.RawUserID, SourceUploadID: locked.ID,
+				MediaType: locked.MediaType, DedupeFingerprint: locked.DedupeFingerprint,
+				ContentRevision: locked.ContentRevision, CapturedAt: locked.CapturedAt,
+				MimeType: locked.MimeType,
+			})
+		} else {
+			media, err = q.CreateCompletedMedia(ctx, dbgen.CreateCompletedMediaParams{
+				ID: locked.ClientMediaID, OwnerID: actor.RawUserID, SourceUploadID: locked.ID,
+				MediaType: locked.MediaType, DedupeFingerprint: locked.DedupeFingerprint,
+				ContentRevision: locked.ContentRevision, CapturedAt: locked.CapturedAt,
+				ManifestDigest: locked.ManifestDigest, EncryptedManifest: locked.EncryptedManifest,
+			})
+		}
 		created := err == nil
 		if errors.Is(err, pgx.ErrNoRows) {
 			media, err = q.FindCompletedMediaByFingerprint(ctx, dbgen.FindCompletedMediaByFingerprintParams{
@@ -502,10 +555,12 @@ func (s *Service) Complete(ctx context.Context, actor Actor, uploadID string, in
 			if err := q.LinkMediaToAlbum(ctx, dbgen.LinkMediaToAlbumParams{MediaID: media.ID, AlbumID: album.ID}); err != nil {
 				return err
 			}
-			if err := q.CreateOwnerMediaKeyEnvelope(ctx, dbgen.CreateOwnerMediaKeyEnvelopeParams{
-				MediaID: media.ID, OwnerID: actor.RawUserID, EncryptedMediaKey: locked.EncryptedMediaKey,
-			}); err != nil {
-				return err
+			if locked.Purpose == "MEDIA_CIPHERTEXT" {
+				if err := q.CreateOwnerMediaKeyEnvelope(ctx, dbgen.CreateOwnerMediaKeyEnvelopeParams{
+					MediaID: media.ID, OwnerID: actor.RawUserID, EncryptedMediaKey: locked.EncryptedMediaKey,
+				}); err != nil {
+					return err
+				}
 			}
 		} else {
 			if err := q.MarkUploadResourcesInvalid(ctx, locked.ID); err != nil {
@@ -522,7 +577,8 @@ func (s *Service) Complete(ctx context.Context, actor Actor, uploadID string, in
 		if err := q.RecordAuditEvent(ctx, dbgen.RecordAuditEventParams{
 			ActorType: "USER", ActorID: actor.RawUserID, Action: "MEDIA_UPLOAD_COMPLETE",
 			TargetType: "MEDIA", TargetID: media.ID, Result: map[bool]string{true: "SUCCESS", false: "REPLAY"}[created], RequestID: input.RequestID,
-			Metadata: []byte(fmt.Sprintf(`{"ciphertext_only":true,"outcome":%q}`, result.Outcome)),
+			Metadata: []byte(fmt.Sprintf(`{"purpose":%q,"client_encryption":%t,"outcome":%q}`,
+				locked.Purpose, locked.Purpose == "MEDIA_CIPHERTEXT", result.Outcome)),
 		}); err != nil {
 			return err
 		}
@@ -579,9 +635,15 @@ func (s *Service) verification(ctx context.Context, sessionID pgtype.UUID) ([]ob
 	}
 	result := make([]objectstore.MediaResourceVerification, 0, len(resources))
 	for _, resource := range resources {
+		purpose := "MEDIA_CIPHERTEXT"
+		digest := resource.CiphertextSha256
+		if resource.ContentSize.Valid {
+			purpose = "MEDIA_ORIGINAL"
+			digest = resource.ContentSha256
+		}
 		result = append(result, objectstore.MediaResourceVerification{
 			ResourceID: uuidString(resource.ID), ObjectKey: resource.ObjectKey,
-			UploadID: resource.MultipartUploadID, SHA256: resource.CiphertextSha256,
+			UploadID: resource.MultipartUploadID, Purpose: purpose, SHA256: digest,
 			Parts: byResource[uuidString(resource.ID)],
 		})
 	}
@@ -618,7 +680,14 @@ func (s *Service) sessionResult(ctx context.Context, row dbgen.MinegUploadSessio
 	plans := make([]objectstore.MediaResourcePlan, 0, len(resources))
 	existing := make([]objectstore.MediaResourceGrant, 0, len(resources))
 	for _, resource := range resources {
-		status := ResourceStatus{ID: uuidString(resource.ID), Type: resource.ResourceType, ObjectKey: resource.ObjectKey, CiphertextSize: resource.CiphertextSize, SHA256: resource.CiphertextSha256, PartCount: resource.PartCount, UploadID: resource.MultipartUploadID}
+		status := ResourceStatus{ID: uuidString(resource.ID), Type: resource.ResourceType, ObjectKey: resource.ObjectKey, PartCount: resource.PartCount, UploadID: resource.MultipartUploadID}
+		if row.Purpose == "MEDIA_ORIGINAL" {
+			status.ContentSize = resource.ContentSize.Int64
+			status.SHA256 = resource.ContentSha256
+		} else {
+			status.CiphertextSize = resource.CiphertextSize.Int64
+			status.SHA256 = resource.CiphertextSha256
+		}
 		for _, part := range parts {
 			if part.ResourceID == resource.ID {
 				status.PartPlans = append(status.PartPlans, objectstore.MediaPartPlan{Number: part.PartNumber, Size: part.ExpectedSize, SHA256: part.ExpectedSha256})
@@ -628,7 +697,11 @@ func (s *Service) sessionResult(ctx context.Context, row dbgen.MinegUploadSessio
 			}
 		}
 		statuses = append(statuses, status)
-		plans = append(plans, objectstore.MediaResourcePlan{ID: status.ID, ObjectKey: status.ObjectKey, CiphertextSize: status.CiphertextSize, SHA256: status.SHA256, Parts: status.PartPlans})
+		contentSize := status.ContentSize
+		if contentSize == 0 {
+			contentSize = status.CiphertextSize
+		}
+		plans = append(plans, objectstore.MediaResourcePlan{ID: status.ID, ObjectKey: status.ObjectKey, Purpose: row.Purpose, ContentSize: contentSize, SHA256: status.SHA256, Parts: status.PartPlans})
 		existing = append(existing, objectstore.MediaResourceGrant{ResourceID: status.ID, ObjectKey: status.ObjectKey, UploadID: status.UploadID})
 	}
 	result := SessionResult{ID: uuidString(row.ID), ClientMediaID: uuidString(row.ClientMediaID), State: row.State, Purpose: row.Purpose, Deduplicated: row.State == "COMPLETED" && len(resources) == 0, ExpiresAt: row.ExpiresAt.Time, Resources: statuses}
@@ -728,9 +801,15 @@ func (s *Service) recoverCreateRace(ctx context.Context, actor Actor, key string
 }
 
 func validateCreate(input CreateInput, ownerID string) ([]objectstore.MediaResourcePlan, CreateInput, error) {
+	original := input.ProtocolVersion == "stage03-v2"
+	validPayload := original && len(input.ContentSHA256) == 32 && bytes.Equal(input.Dedupe, input.ContentSHA256) && input.MimeType != "" && len(input.MimeType) <= 127 &&
+		len(input.ManifestDigest) == 0 && len(input.EncryptedManifest) == 0 && len(input.EncryptedMediaKey) == 0
+	if !original {
+		validPayload = input.ProtocolVersion == "" && len(input.ManifestDigest) == 32 && len(input.EncryptedManifest) >= 48 && len(input.EncryptedManifest) <= 1024*1024 &&
+			len(input.EncryptedMediaKey) >= 64 && len(input.EncryptedMediaKey) <= 1024
+	}
 	if !idempotencyPattern.MatchString(input.IdempotencyKey) || uuid.Validate(input.ClientMediaID) != nil || len(input.Dedupe) != 32 || input.ContentRevision <= 0 ||
-		!validMediaType(input.MediaType) || input.CapturedAt.IsZero() || len(input.ManifestDigest) != 32 || len(input.EncryptedManifest) < 48 || len(input.EncryptedManifest) > 1024*1024 ||
-		len(input.EncryptedMediaKey) < 64 || len(input.EncryptedMediaKey) > 1024 || len(input.Resources) < 1 || len(input.Resources) > 8 {
+		!validMediaType(input.MediaType) || input.CapturedAt.IsZero() || !validPayload || len(input.Resources) < 1 || len(input.Resources) > 8 {
 		return nil, CreateInput{}, validation("UPLOAD_INVALID", "Invalid media upload", "The upload session metadata is invalid.")
 	}
 	normalized := input
@@ -741,32 +820,84 @@ func validateCreate(input CreateInput, ownerID string) ([]objectstore.MediaResou
 	resourceTypes := make(map[string]struct{}, len(normalized.Resources))
 	for index := range normalized.Resources {
 		resource := &normalized.Resources[index]
-		if uuid.Validate(resource.ID) != nil || !validResourceType(resource.Type) || len(resource.SHA256) != 32 || resource.CiphertextSize < 1 || len(resource.Parts) < 1 || len(resource.Parts) > 10000 {
+		resourceSize := resource.CiphertextSize
+		if original {
+			resourceSize = resource.ContentSize
+		}
+		if uuid.Validate(resource.ID) != nil || !validResourceType(resource.Type) || len(resource.SHA256) != 32 || resourceSize < 1 || len(resource.Parts) < 1 || len(resource.Parts) > 10000 ||
+			(original && (resource.Type != "ORIGINAL" || resource.CiphertextSize != 0)) || (!original && resource.ContentSize != 0) {
 			return nil, CreateInput{}, validation("UPLOAD_RESOURCE_INVALID", "Invalid media resource", "A resource plan is invalid.")
 		}
 		if _, exists := resourceTypes[resource.Type]; exists {
 			return nil, CreateInput{}, validation("UPLOAD_RESOURCE_DUPLICATE", "Duplicate media resource", "Resource types must be unique within one media.")
 		}
 		resourceTypes[resource.Type] = struct{}{}
+		if original && !bytes.Equal(resource.SHA256, input.ContentSHA256) {
+			return nil, CreateInput{}, validation("UPLOAD_RESOURCE_INVALID", "Invalid media resource", "The original resource digest must match the media content digest.")
+		}
 		sort.Slice(resource.Parts, func(i, j int) bool { return resource.Parts[i].Number < resource.Parts[j].Number })
 		var total int64
 		partPlans := make([]objectstore.MediaPartPlan, 0, len(resource.Parts))
+		partMaximum := int64(objectstore.MediaPartMaximum)
+		if original {
+			partMaximum = objectstore.OriginalMediaPartMaximum
+		}
 		for partIndex, part := range resource.Parts {
-			if part.Number != int32(partIndex+1) || part.Size < 1 || part.Size > objectstore.MediaPartMaximum || len(part.SHA256) != 32 || (partIndex < len(resource.Parts)-1 && part.Size != objectstore.MediaPartMaximum) {
-				return nil, CreateInput{}, validation("UPLOAD_PART_INVALID", "Invalid upload part", "Encrypted blocks must map one-to-one to ordered multipart parts.")
+			if part.Number != int32(partIndex+1) || part.Size < 1 || part.Size > partMaximum || len(part.SHA256) != 32 || (partIndex < len(resource.Parts)-1 && part.Size != partMaximum) {
+				return nil, CreateInput{}, validation("UPLOAD_PART_INVALID", "Invalid upload part", "Logical blocks must map one-to-one to ordered multipart parts.")
 			}
 			total += part.Size
 			partPlans = append(partPlans, objectstore.MediaPartPlan{Number: part.Number, Size: part.Size, SHA256: part.SHA256})
 		}
-		if total != resource.CiphertextSize {
+		if total != resourceSize {
 			return nil, CreateInput{}, validation("UPLOAD_RESOURCE_SIZE_MISMATCH", "Media resource size mismatch", "The resource size does not equal its parts.")
 		}
-		plans = append(plans, objectstore.MediaResourcePlan{ID: resource.ID, ObjectKey: fmt.Sprintf("media/%s/pending/%s.cipher", ownerID, resource.ID), CiphertextSize: resource.CiphertextSize, SHA256: resource.SHA256, Parts: partPlans})
+		purpose := "MEDIA_CIPHERTEXT"
+		extension := ".cipher"
+		if original {
+			purpose, extension = "MEDIA_ORIGINAL", ".original"
+		}
+		plans = append(plans, objectstore.MediaResourcePlan{ID: resource.ID, ObjectKey: fmt.Sprintf("media/%s/pending/%s%s", ownerID, resource.ID, extension), Purpose: purpose, ContentSize: resourceSize, SHA256: resource.SHA256, Parts: partPlans})
 	}
 	return plans, normalized, nil
 }
 
 func hashCreate(input CreateInput) [32]byte {
+	if input.ProtocolVersion == "" {
+		type legacyResourceInput struct {
+			ID             string
+			Type           string
+			CiphertextSize int64
+			SHA256         []byte
+			Parts          []PartInput
+		}
+		type legacyCreateInput struct {
+			IdempotencyKey    string
+			ClientMediaID     string
+			Dedupe            []byte
+			ContentRevision   int32
+			MediaType         string
+			CapturedAt        time.Time
+			ManifestDigest    []byte
+			EncryptedManifest []byte
+			EncryptedMediaKey []byte
+			Resources         []legacyResourceInput
+			RequestID         string
+		}
+		legacyResources := make([]legacyResourceInput, 0, len(input.Resources))
+		for _, resource := range input.Resources {
+			legacyResources = append(legacyResources, legacyResourceInput{ID: resource.ID, Type: resource.Type,
+				CiphertextSize: resource.CiphertextSize, SHA256: resource.SHA256, Parts: resource.Parts})
+		}
+		encoded, _ := json.Marshal(legacyCreateInput{
+			IdempotencyKey: input.IdempotencyKey, ClientMediaID: input.ClientMediaID,
+			Dedupe: input.Dedupe, ContentRevision: input.ContentRevision, MediaType: input.MediaType,
+			CapturedAt: input.CapturedAt, ManifestDigest: input.ManifestDigest,
+			EncryptedManifest: input.EncryptedManifest, EncryptedMediaKey: input.EncryptedMediaKey,
+			Resources: legacyResources, RequestID: input.RequestID,
+		})
+		return sha256.Sum256(encoded)
+	}
 	encoded, _ := json.Marshal(input)
 	return sha256.Sum256(encoded)
 }
@@ -830,12 +961,12 @@ func internal() *Error {
 }
 func objectError(err error) *Error {
 	if errors.Is(err, objectstore.ErrUnavailable) {
-		return &Error{Code: "OBJECT_STORAGE_UNAVAILABLE", Status: 503, Title: "Object storage unavailable", Detail: "Ciphertext upload authorization is unavailable.", Retryable: true}
+		return &Error{Code: "OBJECT_STORAGE_UNAVAILABLE", Status: 503, Title: "Object storage unavailable", Detail: "Media upload authorization is unavailable.", Retryable: true}
 	}
-	return &Error{Code: "OBJECT_STORAGE_ERROR", Status: 503, Title: "Object storage error", Detail: "Ciphertext storage could not prepare the upload.", Retryable: true}
+	return &Error{Code: "OBJECT_STORAGE_ERROR", Status: 503, Title: "Object storage error", Detail: "Media storage could not prepare the upload.", Retryable: true}
 }
 func objectNotReady(error) *Error {
-	return &Error{Code: "UPLOAD_OBJECT_NOT_READY", Status: 409, Title: "Upload object not ready", Detail: "OSS parts do not match the reported ciphertext plan.", Retryable: true}
+	return &Error{Code: "UPLOAD_OBJECT_NOT_READY", Status: 409, Title: "Upload object not ready", Detail: "OSS parts do not match the reported media plan.", Retryable: true}
 }
 func normalize(err error) error {
 	var uploadErr *Error

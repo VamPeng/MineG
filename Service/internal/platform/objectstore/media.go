@@ -15,6 +15,7 @@ import (
 )
 
 const MediaPartMaximum = 4*1024*1024 + 16
+const OriginalMediaPartMaximum = 4 * 1024 * 1024
 
 type MediaPartPlan struct {
 	Number int32
@@ -23,11 +24,12 @@ type MediaPartPlan struct {
 }
 
 type MediaResourcePlan struct {
-	ID             string
-	ObjectKey      string
-	CiphertextSize int64
-	SHA256         []byte
-	Parts          []MediaPartPlan
+	ID          string
+	ObjectKey   string
+	Purpose     string
+	ContentSize int64
+	SHA256      []byte
+	Parts       []MediaPartPlan
 }
 
 type MediaPartGrant struct {
@@ -60,6 +62,7 @@ type MediaResourceVerification struct {
 	ResourceID string
 	ObjectKey  string
 	UploadID   string
+	Purpose    string
 	SHA256     []byte
 	Parts      []ReportedMediaPart
 }
@@ -118,7 +121,7 @@ func (s *MemoryMediaObjects) BeginMediaUpload(_ context.Context, prefix string, 
 		return MediaUploadGrant{}, err
 	}
 	expiresAt := s.now().UTC().Add(lifetime)
-	grant := MediaUploadGrant{Purpose: "MEDIA_CIPHERTEXT", ScopePrefix: prefix, ExpiresAt: expiresAt, Resources: make([]MediaResourceGrant, 0, len(resources))}
+	grant := MediaUploadGrant{Purpose: resources[0].Purpose, ScopePrefix: prefix, ExpiresAt: expiresAt, Resources: make([]MediaResourceGrant, 0, len(resources))}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, resource := range resources {
@@ -145,7 +148,7 @@ func (s *MemoryMediaObjects) ResumeMediaUpload(_ context.Context, prefix string,
 		return MediaUploadGrant{}, errors.New("invalid media upload resume")
 	}
 	expiresAt := s.now().UTC().Add(lifetime)
-	grant := MediaUploadGrant{Purpose: "MEDIA_CIPHERTEXT", ScopePrefix: prefix, ExpiresAt: expiresAt, Resources: make([]MediaResourceGrant, 0, len(resources))}
+	grant := MediaUploadGrant{Purpose: resources[0].Purpose, ScopePrefix: prefix, ExpiresAt: expiresAt, Resources: make([]MediaResourceGrant, 0, len(resources))}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for index, resource := range resources {
@@ -168,18 +171,18 @@ func (s *MemoryMediaObjects) ResumeMediaUpload(_ context.Context, prefix string,
 }
 
 // PutPart is a test/local transport hook. Production clients upload directly
-// to a signed OSS URL and never proxy ciphertext through the API process.
-func (s *MemoryMediaObjects) PutPart(uploadID string, number int32, ciphertext []byte) (string, error) {
+// to a signed OSS URL and never proxy media bytes through the API process.
+func (s *MemoryMediaObjects) PutPart(uploadID string, number int32, content []byte) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	upload, ok := s.uploads[uploadID]
-	if !ok || upload.complete || !s.now().Before(upload.expiresAt) || number < 1 || len(ciphertext) == 0 || len(ciphertext) > MediaPartMaximum {
+	if !ok || upload.complete || !s.now().Before(upload.expiresAt) || number < 1 || len(content) == 0 || len(content) > MediaPartMaximum {
 		return "", ErrObjectNotReady
 	}
-	digest := sha256.Sum256(ciphertext)
-	md5Digest := md5.Sum(ciphertext) // OSS multipart ETags are opaque; this only models the local adapter.
+	digest := sha256.Sum256(content)
+	md5Digest := md5.Sum(content) // OSS multipart ETags are opaque; this only models the local adapter.
 	etag := hex.EncodeToString(md5Digest[:])
-	upload.parts[number] = memoryPart{size: int64(len(ciphertext)), sha256: digest[:], etag: etag}
+	upload.parts[number] = memoryPart{size: int64(len(content)), sha256: digest[:], etag: etag}
 	return etag, nil
 }
 
@@ -219,8 +222,12 @@ func validateMediaUpload(prefix string, resources []MediaResourcePlan, lifetime 
 	}
 	resourceIDs := make(map[string]struct{}, len(resources))
 	objectKeys := make(map[string]struct{}, len(resources))
+	purpose := resources[0].Purpose
+	if purpose != "MEDIA_CIPHERTEXT" && purpose != "MEDIA_ORIGINAL" {
+		return errors.New("invalid media upload purpose")
+	}
 	for _, resource := range resources {
-		if resource.ID == "" || !strings.HasPrefix(resource.ObjectKey, prefix) || len(resource.SHA256) != sha256.Size || resource.CiphertextSize < 1 || len(resource.Parts) < 1 || len(resource.Parts) > 10000 {
+		if resource.ID == "" || resource.Purpose != purpose || !strings.HasPrefix(resource.ObjectKey, prefix) || len(resource.SHA256) != sha256.Size || resource.ContentSize < 1 || len(resource.Parts) < 1 || len(resource.Parts) > 10000 {
 			return errors.New("invalid media resource plan")
 		}
 		if _, exists := resourceIDs[resource.ID]; exists {
@@ -232,16 +239,20 @@ func validateMediaUpload(prefix string, resources []MediaResourcePlan, lifetime 
 		resourceIDs[resource.ID] = struct{}{}
 		objectKeys[resource.ObjectKey] = struct{}{}
 		var total int64
+		partMaximum := int64(MediaPartMaximum)
+		if purpose == "MEDIA_ORIGINAL" {
+			partMaximum = OriginalMediaPartMaximum
+		}
 		for index, part := range resource.Parts {
-			if part.Number != int32(index+1) || part.Size < 1 || part.Size > MediaPartMaximum || len(part.SHA256) != sha256.Size {
+			if part.Number != int32(index+1) || part.Size < 1 || part.Size > partMaximum || len(part.SHA256) != sha256.Size {
 				return errors.New("invalid media part plan")
 			}
-			if index < len(resource.Parts)-1 && part.Size != MediaPartMaximum {
-				return errors.New("non-final media part is not one encrypted 4 MiB logical block")
+			if index < len(resource.Parts)-1 && part.Size != partMaximum {
+				return errors.New("non-final media part is not one full logical block")
 			}
 			total += part.Size
 		}
-		if total != resource.CiphertextSize {
+		if total != resource.ContentSize {
 			return errors.New("media resource size does not equal its parts")
 		}
 	}

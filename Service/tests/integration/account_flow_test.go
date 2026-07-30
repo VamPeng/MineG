@@ -5,7 +5,6 @@ package integration_test
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -48,15 +47,21 @@ func TestStage01AccountReviewSessionFlow(t *testing.T) {
 	})
 
 	signUp := account.SignUpInput{
-		Phone: "13800138000", Password: "family-photo-2026", PublicKey: make([]byte, 32),
-		EncryptedKeyBundle: make([]byte, 64), KDFParameters: json.RawMessage(`{"algorithm":"argon2id"}`),
-		BundleVersion: 1, DeviceInstallationID: "android-installation-0001",
-		Platform:       "ANDROID",
-		IdempotencyKey: "signup-request-0001", RequestID: "integration-signup-001",
+		Phone: "13800138000", Password: "family-photo-2026",
+		DeviceInstallationID: "android-installation-0001",
+		Platform:             "ANDROID",
+		IdempotencyKey:       "signup-request-0001", RequestID: "integration-signup-001",
 	}
 	created, err := service.SignUp(ctx, signUp)
 	if err != nil {
 		t.Fatal(err)
+	}
+	var legacyBundleCount int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM mineg.user_key_bundles WHERE user_id=$1", created.UserID).Scan(&legacyBundleCount); err != nil {
+		t.Fatal(err)
+	}
+	if legacyBundleCount != 0 {
+		t.Fatalf("new registration unexpectedly created %d legacy key bundles", legacyBundleCount)
 	}
 	repeated, err := service.SignUp(ctx, signUp)
 	if err != nil || repeated.UserID != created.UserID {
@@ -162,9 +167,20 @@ func TestStage01AccountReviewSessionFlow(t *testing.T) {
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("processed application remained in queue: %#v, %v", page, err)
 	}
+	userSession, err = service.AuthenticateUser(ctx, "Bearer "+pendingSession.AccessToken)
+	if err != nil {
+		t.Fatal(err)
+	}
 	status := service.GetApprovalStatus(ctx, userSession)
-	if status.Status != "PENDING" {
-		t.Fatalf("key-grant waiting leaked as approved: %#v", status)
+	if status.Status != "APPROVED" {
+		t.Fatalf("reviewed account did not become approved directly: %#v", status)
+	}
+	var keyGrantTaskCount int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM mineg.key_grant_tasks WHERE user_id=$1", created.UserID).Scan(&keyGrantTaskCount); err != nil {
+		t.Fatal(err)
+	}
+	if keyGrantTaskCount != 0 {
+		t.Fatalf("direct approval unexpectedly created %d key grant tasks", keyGrantTaskCount)
 	}
 
 	rotated, err := service.Refresh(ctx, pendingSession.RefreshToken, "integration-refresh")
@@ -191,42 +207,11 @@ func TestStage01AccountReviewSessionFlow(t *testing.T) {
 	if _, err := service.AuthenticateUser(ctx, "Bearer "+logoutSession.AccessToken); errorCode(err) != "SESSION_EXPIRED" {
 		t.Fatalf("revoked access remained valid: %v", err)
 	}
+	replayedAfterApproval, err := service.SignUp(ctx, signUp)
+	if err != nil || replayedAfterApproval.ApprovalStatus != "APPROVED" || replayedAfterApproval.NextStep != "APP_HOME" {
+		t.Fatalf("approved registration replay = %#v, %v", replayedAfterApproval, err)
+	}
 
-	grantLogin, err := service.SignIn(ctx, account.SignInInput{
-		Phone: signUp.Phone, Password: signUp.Password, DeviceInstallationID: signUp.DeviceInstallationID,
-		Platform: "ANDROID", AgreementAccepted: true, TermsVersion: "1.0", PrivacyVersion: "1.0",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	grantActor, err := service.AuthenticateUser(ctx, "Bearer "+grantLogin.AccessToken)
-	if err != nil {
-		t.Fatal(err)
-	}
-	grantPage, err := service.ListPendingKeyGrants(ctx, grantActor, 20)
-	if err != nil || len(grantPage.Items) != 1 || grantPage.Items[0].Kind != "FAMILY_BOOTSTRAP" {
-		t.Fatalf("bootstrap grants = %#v, %v", grantPage, err)
-	}
-	if _, err := service.CompleteKeyGrant(ctx, grantActor, grantPage.Items[0].ID, account.CompleteKeyGrantInput{
-		RecipientPublicKey: bytesOf(1, 32), EncryptedEnvelope: bytesOf(7, 80),
-		Algorithm: "X25519_SEALED_BOX", EnvelopeVersion: 1,
-	}); errorCode(err) != "KEY_GRANT_RECIPIENT_MISMATCH" {
-		t.Fatalf("recipient mismatch error = %v", err)
-	}
-	completed, err := service.CompleteKeyGrant(ctx, grantActor, grantPage.Items[0].ID, account.CompleteKeyGrantInput{
-		RecipientPublicKey: signUp.PublicKey, EncryptedEnvelope: bytesOf(7, 80),
-		Algorithm: "X25519_SEALED_BOX", EnvelopeVersion: 1, RequestID: "integration-bootstrap",
-	})
-	if err != nil || completed.Outcome != "COMPLETED" {
-		t.Fatalf("bootstrap completion = %#v, %v", completed, err)
-	}
-	replayedGrant, err := service.CompleteKeyGrant(ctx, grantActor, grantPage.Items[0].ID, account.CompleteKeyGrantInput{
-		RecipientPublicKey: signUp.PublicKey, EncryptedEnvelope: bytesOf(7, 80),
-		Algorithm: "X25519_SEALED_BOX", EnvelopeVersion: 1,
-	})
-	if err != nil || replayedGrant.Outcome != "ALREADY_COMPLETED" {
-		t.Fatalf("idempotent grant completion = %#v, %v", replayedGrant, err)
-	}
 	approvedSession, err := service.SignIn(ctx, account.SignInInput{
 		Phone: signUp.Phone, Password: signUp.Password, DeviceInstallationID: signUp.DeviceInstallationID,
 		Platform: "ANDROID", AgreementAccepted: true, TermsVersion: "1.0", PrivacyVersion: "1.0",
@@ -249,30 +234,6 @@ func TestStage01AccountReviewSessionFlow(t *testing.T) {
 	if _, err := service.UpdateProfile(ctx, approvedAuth, "invalid!", "integration-profile-invalid"); errorCode(err) != "NICKNAME_INVALID" {
 		t.Fatalf("invalid nickname error = %v", err)
 	}
-	keyMaterial, err := service.GetKeyMaterial(ctx, approvedAuth)
-	if err != nil || keyMaterial.FamilyEnvelope == "" || keyMaterial.FamilyEnvelopeAlgorithm != "X25519_SEALED_BOX" {
-		t.Fatalf("approved key material = %#v, %v", keyMaterial, err)
-	}
-	if _, err := service.UpdateKeyBundle(ctx, approvedAuth, account.UpdateKeyBundleInput{
-		PublicKey: signUp.PublicKey, EncryptedBundle: signUp.EncryptedKeyBundle,
-		KDFParameters: signUp.KDFParameters, BundleVersion: 1,
-	}); err != nil {
-		t.Fatalf("idempotent key bundle replay failed: %v", err)
-	}
-	if _, err := service.UpdateKeyBundle(ctx, approvedAuth, account.UpdateKeyBundleInput{
-		PublicKey: signUp.PublicKey, EncryptedBundle: bytesOf(3, 64),
-		KDFParameters: signUp.KDFParameters, BundleVersion: 1,
-	}); errorCode(err) != "KEY_BUNDLE_VERSION_STALE" {
-		t.Fatalf("same-version key bundle replacement error = %v", err)
-	}
-	keyMaterial, err = service.UpdateKeyBundle(ctx, approvedAuth, account.UpdateKeyBundleInput{
-		PublicKey: signUp.PublicKey, EncryptedBundle: bytesOf(3, 64),
-		KDFParameters: signUp.KDFParameters, BundleVersion: 2, RequestID: "integration-key-bundle-v2",
-	})
-	if err != nil || keyMaterial.BundleVersion != 2 {
-		t.Fatalf("versioned key bundle update = %#v, %v", keyMaterial, err)
-	}
-
 	digest := bytesOf(9, 32)
 	avatar, err := service.CreateAvatarUpload(ctx, approvedAuth, account.CreateAvatarUploadInput{
 		IdempotencyKey: "avatar-request-0001", ContentType: "image/webp", SourceSize: 512,
@@ -385,6 +346,60 @@ func TestStage01AccountReviewSessionFlow(t *testing.T) {
 	if err != nil || len(mediaPage.Items) != 1 || mediaPage.Items[0].ID != completedMedia.MediaID {
 		t.Fatalf("media list = %#v, %v", mediaPage, err)
 	}
+
+	original := []byte("original media bytes are uploaded without application encryption")
+	originalDigest := sha256.Sum256(original)
+	originalInput := upload.CreateInput{
+		ProtocolVersion: "stage03-v2", IdempotencyKey: "original-media-request-0001",
+		ClientMediaID: "10000000-0000-4000-8000-000000000013",
+		Dedupe:        originalDigest[:], ContentSHA256: originalDigest[:], ContentRevision: 1,
+		MediaType: "PHOTO", MimeType: "image/jpeg", CapturedAt: now,
+		Resources: []upload.ResourceInput{{
+			ID: "20000000-0000-4000-8000-000000000013", Type: "ORIGINAL",
+			ContentSize: int64(len(original)), SHA256: originalDigest[:],
+			Parts: []upload.PartInput{{Number: 1, Size: int64(len(original)), SHA256: originalDigest[:]}},
+		}},
+		RequestID: "integration-original-media-create",
+	}
+	originalUpload, err := uploads.Create(ctx, uploadActor, originalInput)
+	if err != nil || originalUpload.Purpose != "MEDIA_ORIGINAL" || originalUpload.Grant == nil ||
+		originalUpload.Grant.Purpose != "MEDIA_ORIGINAL" || originalUpload.Resources[0].ContentSize != int64(len(original)) ||
+		originalUpload.Resources[0].CiphertextSize != 0 || !strings.HasSuffix(originalUpload.Resources[0].ObjectKey, ".original") {
+		t.Fatalf("created original media upload = %#v, %v", originalUpload, err)
+	}
+	originalGrant := originalUpload.Grant.Resources[0]
+	originalETag, err := mediaObjects.PutPart(originalGrant.UploadID, 1, original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := uploads.ReportPart(ctx, uploadActor, originalUpload.ID, upload.PartReportInput{
+		IdempotencyKey: "original-media-part-0001", ResourceID: originalInput.Resources[0].ID,
+		Number: 1, Size: int64(len(original)), SHA256: originalDigest[:], ETag: originalETag,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	originalCompleted, err := uploads.Complete(ctx, uploadActor, originalUpload.ID, upload.CompleteInput{
+		IdempotencyKey: "original-media-complete-0001", RequestID: "integration-original-media-complete",
+	})
+	if err != nil || originalCompleted.Outcome != "COMPLETED" {
+		t.Fatalf("completed original media = %#v, %v", originalCompleted, err)
+	}
+	var envelopeCount int
+	var storedContentSize int64
+	var storedCiphertextSize *int64
+	if err := pool.QueryRow(ctx, `
+		SELECT count(envelope.media_id), resource.content_size, resource.ciphertext_size
+		FROM mineg.media resource_media
+		JOIN mineg.media_resources resource ON resource.media_id=resource_media.id
+		LEFT JOIN mineg.media_key_envelopes envelope ON envelope.media_id=resource_media.id
+		WHERE resource_media.id=$1
+		GROUP BY resource.content_size, resource.ciphertext_size`, originalCompleted.MediaID).
+		Scan(&envelopeCount, &storedContentSize, &storedCiphertextSize); err != nil {
+		t.Fatal(err)
+	}
+	if envelopeCount != 0 || storedContentSize != int64(len(original)) || storedCiphertextSize != nil {
+		t.Fatalf("original media persistence leaked encryption contract: envelopes=%d content=%d ciphertext=%v", envelopeCount, storedContentSize, storedCiphertextSize)
+	}
 	expiringInput := uploadInput
 	expiringInput.IdempotencyKey = "media-request-expiry-0003"
 	expiringInput.ClientMediaID = "10000000-0000-4000-8000-000000000005"
@@ -444,7 +459,6 @@ func TestStage01AccountReviewSessionFlow(t *testing.T) {
 
 	secondInput := signUp
 	secondInput.Phone = "13900139000"
-	secondInput.PublicKey = bytesOf(2, 32)
 	secondInput.DeviceInstallationID = "android-installation-0002"
 	secondInput.IdempotencyKey = "signup-request-member-0002"
 	secondInput.RequestID = "integration-signup-002"
@@ -454,48 +468,6 @@ func TestStage01AccountReviewSessionFlow(t *testing.T) {
 	}
 	if _, err := service.Approve(ctx, adminSession, second.UserID, "approve-request-member-0002", "integration-approve-002"); err != nil {
 		t.Fatal(err)
-	}
-	secondAuth, err := service.AuthenticateUser(ctx, "Bearer "+second.AccessToken)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if page, err := service.ListPendingKeyGrants(ctx, secondAuth, 20); err != nil || len(page.Items) != 0 {
-		t.Fatalf("new member could list its own non-bootstrap grant: %#v, %v", page, err)
-	}
-	memberGrants, err := service.ListPendingKeyGrants(ctx, approvedAuth, 20)
-	if err != nil || len(memberGrants.Items) != 1 || memberGrants.Items[0].Kind != "MEMBER_GRANT" {
-		t.Fatalf("member grants = %#v, %v", memberGrants, err)
-	}
-	memberInput := account.CompleteKeyGrantInput{
-		RecipientPublicKey: secondInput.PublicKey, EncryptedEnvelope: bytesOf(8, 80),
-		Algorithm: "X25519_SEALED_BOX", EnvelopeVersion: 1, RequestID: "integration-member-grant",
-	}
-	if _, err := service.CompleteKeyGrant(ctx, secondAuth, memberGrants.Items[0].ID, memberInput); errorCode(err) != "KEY_GRANT_FORBIDDEN" {
-		t.Fatalf("self member grant error = %v", err)
-	}
-	concurrentResults := make(chan account.CompleteKeyGrantResult, 2)
-	concurrentErrors := make(chan error, 2)
-	for range 2 {
-		go func() {
-			value, err := service.CompleteKeyGrant(ctx, approvedAuth, memberGrants.Items[0].ID, memberInput)
-			if err != nil {
-				concurrentErrors <- err
-				return
-			}
-			concurrentResults <- value
-		}()
-	}
-	grantOutcomes := map[string]int{}
-	for range 2 {
-		select {
-		case err := <-concurrentErrors:
-			t.Fatal(err)
-		case value := <-concurrentResults:
-			grantOutcomes[value.Outcome]++
-		}
-	}
-	if grantOutcomes["COMPLETED"] != 1 || grantOutcomes["ALREADY_COMPLETED"] != 1 {
-		t.Fatalf("concurrent grant outcomes = %#v", grantOutcomes)
 	}
 	secondApproved, err := service.SignIn(ctx, account.SignInInput{
 		Phone: secondInput.Phone, Password: secondInput.Password, DeviceInstallationID: secondInput.DeviceInstallationID,

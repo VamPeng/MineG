@@ -325,7 +325,50 @@ class MineGAppViewModel internal constructor(
 
   fun openPrivateMedia(mediaId: String) = navigate(AppRoute.PrivateMediaDetail(mediaId))
   fun openFamilyMedia(mediaId: String) = navigate(AppRoute.FamilyMediaDetail(mediaId))
-  fun openLocalAlbum(albumId: String) = navigate(AppRoute.LocalAlbum(albumId))
+  fun openLocalAlbum(albumId: String) {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    val owner = mutableState.value.profile ?: return
+    navigate(AppRoute.LocalAlbum(albumId))
+    mutableState.update { it.copy(backup = it.backup.copy(localMedia = emptyList())) }
+    viewModelScope.launch {
+      try {
+        val media = runtime.listLocalMedia(userId, albumId).map { item ->
+          val instant = runCatching { Instant.parse(item.capturedAt) }.getOrElse { Instant.EPOCH }
+          val dateTime = instant.atZone(ZoneId.systemDefault())
+          MediaItem(
+            id = item.platformAssetRef,
+            title = when (item.mediaType.name) {
+              "VIDEO" -> "视频"
+              "GIF" -> "GIF"
+              "LIVE_PHOTO", "DYNAMIC" -> "动态照片"
+              else -> "照片"
+            },
+            kind = when (item.mediaType.name) {
+              "VIDEO" -> MediaKind.VIDEO
+              "GIF" -> MediaKind.GIF
+              "LIVE_PHOTO", "DYNAMIC" -> MediaKind.LIVE_PHOTO
+              else -> MediaKind.PHOTO
+            },
+            capturedAt = DATE_TIME_FORMAT.format(dateTime),
+            dateGroup = DATE_GROUP_FORMAT.format(dateTime),
+            sizeLabel = "本地媒体",
+            owner = owner,
+            colorSeed = item.platformAssetRef.hashCode(),
+            imageUrl = item.thumbnailUri,
+          )
+        }
+        mutableState.update { state ->
+          if (state.profile?.id != userId || state.currentRoute != AppRoute.LocalAlbum(albumId)) state
+          else state.copy(backup = state.backup.copy(localMedia = media))
+        }
+      } catch (_: Throwable) {
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state
+          else state.copy(backup = state.backup.copy(localMedia = emptyList()))
+        }
+      }
+    }
+  }
 
   fun downloadSelectedMedia() {
     mutableState.update { it.copy(selectedMediaAction = MediaActionState.DOWNLOADING) }
@@ -412,16 +455,98 @@ class MineGAppViewModel internal constructor(
   }
 
   fun setAutoBackupEnabled(enabled: Boolean) {
-    mutableState.update {
-      it.copy(backup = it.backup.copy(autoBackupEnabled = enabled, status = if (enabled) BackupStatus.UPLOADING else BackupStatus.PAUSED))
-    }
+    persistBackupSettings { copy(autoBackupEnabled = enabled) }
   }
 
   fun setCellularBackupEnabled(enabled: Boolean) {
-    mutableState.update { it.copy(backup = it.backup.copy(allowCellularBackup = enabled)) }
+    persistBackupSettings { copy(allowCellularBackup = enabled) }
   }
 
   fun startBackup() = setAutoBackupEnabled(true)
+
+  fun backupSingleMedia(platformAssetRef: String) {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    val profile = mutableState.value.profile ?: return
+    val item = mutableState.value.backup.localMedia.firstOrNull { it.id == platformAssetRef } ?: return
+    if (mutableState.value.backup.status == BackupStatus.UPLOADING) return
+    viewModelScope.launch {
+      mutableState.update { state ->
+        state.copy(backup = state.backup.copy(
+          status = BackupStatus.UPLOADING,
+          progress = 0f,
+          currentMediaTitle = item.title,
+          uploadMessage = "正在上传原始媒体（不加密）…",
+        ))
+      }
+      try {
+        val result = runtime.backupSingleMedia(userId, platformAssetRef)
+        val media = runtime.listOwnerMedia().map { it.toMediaItem(profile) }
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else state.copy(
+            backup = state.backup.copy(
+              status = BackupStatus.COMPLETE,
+              progress = 1f,
+              uploadMessage = if (result.deduplicated) "媒体已存在，无需重复上传" else "上传完成",
+            ),
+            privateSpace = PrivateSpaceUiState(
+              loadState = if (media.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
+              items = media,
+            ),
+          )
+        }
+      } catch (problem: AccountProblem) {
+        mutableState.update { state ->
+          state.copy(backup = state.backup.copy(
+            status = if (problem.retryable) BackupStatus.SERVICE_UNAVAILABLE else BackupStatus.PAUSED,
+            uploadMessage = messageFor(problem),
+          ))
+        }
+      } catch (_: Throwable) {
+        mutableState.update { state ->
+          state.copy(backup = state.backup.copy(
+            status = BackupStatus.SERVICE_UNAVAILABLE,
+            uploadMessage = "媒体上传失败，请稍后重试。",
+          ))
+        }
+      }
+    }
+  }
+
+  fun refreshLocalLibrary() {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    if (mutableState.value.libraryAccess != LibraryAccess.FULL) return
+    viewModelScope.launch {
+      mutableState.update {
+        it.copy(backup = it.backup.copy(loadState = PageLoadState.LOADING, status = BackupStatus.SCANNING))
+      }
+      loadLocalLibrary(userId, forceRefresh = true)
+    }
+  }
+
+  private fun persistBackupSettings(update: com.mineg.mobile.contracts.BackupSettings.() -> com.mineg.mobile.contracts.BackupSettings) {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    viewModelScope.launch {
+      try {
+        val current = runtime.getBackupSettings(userId)
+        val confirmed = runtime.updateBackupSettings(userId, current.update())
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else state.copy(
+            backup = state.backup.copy(
+              autoBackupEnabled = confirmed.autoBackupEnabled,
+              allowCellularBackup = confirmed.allowCellularBackup,
+              status = if (state.backup.albums.isEmpty()) state.backup.status else BackupStatus.INDEXED,
+            ),
+          )
+        }
+      } catch (_: Throwable) {
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else state.copy(
+            backup = state.backup.copy(loadState = PageLoadState.ERROR),
+          )
+        }
+      }
+    }
+  }
 
   fun updateNickname(value: String) {
     if (value.length <= 20) mutableState.update {
@@ -628,8 +753,13 @@ class MineGAppViewModel internal constructor(
     }
 
     if (access != LibraryAccess.FULL || mutableState.value.profile?.id != userId) return
+    loadLocalLibrary(userId, forceRefresh = false)
+  }
+
+  private suspend fun loadLocalLibrary(userId: String, forceRefresh: Boolean) {
     try {
-      val local = runtime.refreshLocalLibrary(userId)
+      val settings = runtime.getBackupSettings(userId)
+      val local = runtime.loadLocalLibrary(userId, forceRefresh)
       val albums = local.albums.map { album ->
         LocalAlbum(
           id = album.platformAlbumRef,
@@ -645,8 +775,10 @@ class MineGAppViewModel internal constructor(
             loadState = if (albums.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
             status = BackupStatus.INDEXED,
             progress = 1f,
-            indexedCount = local.scan.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            totalCount = local.scan.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            indexedCount = local.summary.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            totalCount = local.summary.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            autoBackupEnabled = settings.autoBackupEnabled,
+            allowCellularBackup = settings.allowCellularBackup,
             albums = albums,
           ),
         )

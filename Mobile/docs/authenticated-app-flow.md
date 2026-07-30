@@ -37,7 +37,7 @@ Restoring
 | 数据 | 存储 | 退出时处理 |
 | --- | --- | --- |
 | Access/Refresh Token 与过期时间 | Android Keystore 包装后的安全存储 | 删除 |
-| 设备安装 ID、设备包装密钥、用户解锁材料 | Android Keystore 包装后的安全存储 | 安装 ID/设备包装密钥保留；当前用户解锁材料删除 |
+| 设备安装 ID | Android Keystore 包装后的安全存储 | 保留；旧设备包装密钥/用户解锁材料如存在则只做兼容清理 |
 | 用户 ID、脱敏手机号、审核状态 | 共享 C++ SQLite 账号状态 | 清除当前账号状态 |
 | 昵称、脱敏手机号和资料版本 | 共享 C++ SQLite 当前用户资料快照；仅会话已验证且 Core 判定允许时离线回退 | 清除或按账号隔离策略失效 |
 | 密码 | 不缓存，只在登录/注册调用期间使用 | 不适用 |
@@ -49,7 +49,7 @@ Restoring
 
 以下路径属于当前 REST Transport 的协议细节，由 C++ Core 生成并解析；Android `TransportPort` 只发送字节，ViewModel 和领域操作名称不依赖具体 HTTP 路径。
 
-- `POST /api/v1/auth/register`：注册并提交客户端加密 key bundle。
+- `POST /api/v1/auth/register`：注册账号；现行请求不创建或提交客户端 key bundle。
 - `POST /api/v1/auth/login`：登录并记录协议版本。
 - `POST /api/v1/auth/refresh`：启动恢复或授权请求时静默轮换 Token。
 - `POST /api/v1/auth/logout`：退出并撤销 Refresh Token。

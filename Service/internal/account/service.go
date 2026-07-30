@@ -106,11 +106,12 @@ func (s *Service) SignUp(ctx context.Context, input SignUpInput) (SignUpResult, 
 	if err := ValidatePassword(input.Password); err != nil {
 		return SignUpResult{}, validationError("PASSWORD_INVALID", "Invalid password", err.Error())
 	}
-	if len(input.PublicKey) != 32 || len(input.EncryptedKeyBundle) < 48 || len(input.EncryptedKeyBundle) > 1024*1024 {
-		return SignUpResult{}, validationError("KEY_BUNDLE_INVALID", "Invalid key bundle", "The public key or encrypted key bundle is invalid.")
-	}
-	if !validJSONObject(input.KDFParameters) || input.BundleVersion <= 0 {
-		return SignUpResult{}, validationError("KEY_BUNDLE_INVALID", "Invalid key bundle", "The KDF parameters or bundle version is invalid.")
+	legacyKeyBundle := len(input.PublicKey) > 0 || len(input.EncryptedKeyBundle) > 0 ||
+		len(input.KDFParameters) > 0 || input.BundleVersion > 0
+	if legacyKeyBundle && (len(input.PublicKey) != 32 || len(input.EncryptedKeyBundle) < 48 ||
+		len(input.EncryptedKeyBundle) > 1024*1024 || !validJSONObject(input.KDFParameters) ||
+		input.BundleVersion <= 0) {
+		return SignUpResult{}, validationError("KEY_BUNDLE_INVALID", "Invalid key bundle", "Legacy key bundle fields must be complete and valid when provided.")
 	}
 	if len(input.DeviceInstallationID) < 8 || len(input.DeviceInstallationID) > 128 {
 		return SignUpResult{}, validationError("DEVICE_INVALID", "Invalid device", "The device installation identifier is invalid.")
@@ -158,8 +159,12 @@ func (s *Service) SignUp(ctx context.Context, input SignUpInput) (SignUpResult, 
 			if err := queries.UpdateRegistrationFamily(ctx, dbgen.UpdateRegistrationFamilyParams{DeviceInstallationID: input.DeviceInstallationID, IdempotencyKey: input.IdempotencyKey, RotationFamilyID: familyID}); err != nil {
 				return err
 			}
-			tokens.ApprovalStatus = "PENDING"
-			tokens.NextStep = "REVIEW_PENDING"
+			user, err := queries.FindUserByID(ctx, existing.UserID)
+			if err != nil {
+				return err
+			}
+			tokens.ApprovalStatus = user.Status
+			tokens.NextStep = nextStep(user.Status)
 			tokens.UserID = uuidString(existing.UserID)
 			result = SignUpResult{UserID: uuidString(existing.UserID), TokenResult: tokens}
 			return nil
@@ -176,11 +181,13 @@ func (s *Service) SignUp(ctx context.Context, input SignUpInput) (SignUpResult, 
 		if createErr != nil {
 			return createErr
 		}
-		if err := queries.CreateUserKeyBundle(ctx, dbgen.CreateUserKeyBundleParams{
-			UserID: user.ID, PublicKey: input.PublicKey, EncryptedKeyBundle: input.EncryptedKeyBundle,
-			KdfParameters: input.KDFParameters, BundleVersion: input.BundleVersion,
-		}); err != nil {
-			return err
+		if legacyKeyBundle {
+			if err := queries.CreateUserKeyBundle(ctx, dbgen.CreateUserKeyBundleParams{
+				UserID: user.ID, PublicKey: input.PublicKey, EncryptedKeyBundle: input.EncryptedKeyBundle,
+				KdfParameters: input.KDFParameters, BundleVersion: input.BundleVersion,
+			}); err != nil {
+				return err
+			}
 		}
 		device, err := queries.UpsertDevice(ctx, dbgen.UpsertDeviceParams{UserID: user.ID, InstallationID: input.DeviceInstallationID, Platform: strings.ToUpper(input.Platform)})
 		if err != nil {
@@ -405,7 +412,7 @@ type Profile struct {
 
 func (s *Service) GetProfile(ctx context.Context, session UserSession) (Profile, error) {
 	if session.Status != "APPROVED" {
-		return Profile{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting approval and key access."}
+		return Profile{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting administrator approval."}
 	}
 	user, err := dbgen.New(s.pool).FindUserByID(ctx, session.RawUserID)
 	if err != nil {
@@ -671,15 +678,12 @@ func (s *Service) Approve(ctx context.Context, session AdminSession, userID, ide
 		if approval.ReviewedAt.Valid {
 			outcome = "ALREADY_PROCESSED"
 		} else {
-			updated, err := q.MarkUserReviewed(ctx, dbgen.MarkUserReviewedParams{ID: parsedUserID, UpdatedAt: pgTime(now), ReviewedBy: session.AdminID})
+			updated, err := q.ApproveUserAfterReview(ctx, dbgen.ApproveUserAfterReviewParams{ID: parsedUserID, UpdatedAt: pgTime(now), ReviewedBy: session.AdminID})
 			if err != nil {
 				return err
 			}
 			if updated == 0 {
 				outcome = "ALREADY_PROCESSED"
-			}
-			if _, err := q.CreateKeyGrantTask(ctx, parsedUserID); err != nil {
-				return err
 			}
 		}
 		result = ApproveResult{Approval: Approval{ID: uuidString(approval.ID), MaskedPhone: MaskPhone(approval.PhoneE164), Status: "PROCESSED", CreatedAt: approval.CreatedAt.Time}, Outcome: outcome}

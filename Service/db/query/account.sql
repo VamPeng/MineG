@@ -154,6 +154,14 @@ UPDATE mineg.users
 SET reviewed_at = COALESCE(reviewed_at, $2), reviewed_by = COALESCE(reviewed_by, $3), updated_at = $2
 WHERE id = $1 AND reviewed_at IS NULL;
 
+-- name: ApproveUserAfterReview :execrows
+UPDATE mineg.users
+SET reviewed_at = COALESCE(reviewed_at, $2),
+    reviewed_by = COALESCE(reviewed_by, $3),
+    status = 'APPROVED',
+    updated_at = $2
+WHERE id = $1 AND status = 'PENDING';
+
 -- name: CreateKeyGrantTask :one
 INSERT INTO mineg.key_grant_tasks (user_id)
 VALUES ($1)

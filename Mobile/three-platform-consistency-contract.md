@@ -1,5 +1,7 @@
 # MineG 三端一致性契约
 
+> 当前媒体基线（2026-07-30）：新上传与加载链路不执行客户端应用层媒体加密，统一使用 HTTPS/TLS、私有对象短期授权和长度/SHA-256 校验。Stage03 v1 加密接口保留为迁移兼容，不得扩展或接入新主链。
+
 ## 1. 契约信息
 
 - 契约版本：v1.1
@@ -108,7 +110,7 @@ Port 类型名三端必须一致：`MediaSourcePort`、`SecureStorePort`、`Tran
 | `TransportPort` | `sendApiRequest`、`uploadPart`、`downloadObject`、`cancelTransfer` |
 | `BackgroundSchedulerPort` | `scheduleBackup`、`cancelBackup`、`reportExecutionWindow` |
 | `ConnectivityPort` | `getConnectivitySnapshot`、`observeConnectivityChanges` |
-| `FilePort` | `createEncryptedTempFile`、`getAvailableSpace`、`deleteTempFile` |
+| `FilePort` | `createTaskTempFile`、`getAvailableSpace`、`deleteTempFile`；只管理受控临时文件，不执行媒体加密 |
 | `SystemAlbumWriterPort` | `savePrivateMedia` |
 
 平台实现类可使用平台后缀，如 `AndroidMediaSourcePort`、`IosMediaSourcePort`、`HarmonyMediaSourcePort`；传入核心的数据必须先转换为公共模型，禁止跨过 Port 传递平台对象。
@@ -229,9 +231,10 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 | 范围 | 当前状态 | 冻结条件 |
 | --- | --- | --- |
 | 分层、命名和 Bridge 基础接口 | `FROZEN` | Android M0 契约测试已通过；变更需按本契约版本规则执行 |
-| F-01～F-03 账号、审核、资料 | `FROZEN` | Android M1 契约、自动化测试与真实注册审核闭环已通过；变更需按本契约版本规则执行 |
+| F-01～F-03 账号、审核、资料 | `BASELINED`（`account-v3`） | 服务端专用库 migration 与 Android 真机直接准入闭环通过后转为 `FROZEN`；旧 `account-v1/v2` 只作兼容 |
 | F-04～F-06 权限、设置、本地相册 | `FROZEN` | Android M2 与隔离 OSS/权限矩阵验收已通过 |
-| F-07 与单媒体 F-08 加密备份 | `BASELINED` | Android M3 隔离 OSS 与代表性真实媒体验收通过 |
+| F-07 与单媒体 F-08 旧加密备份 | `DEPRECATED` | 仅用于旧任务/字段迁移，不接入新上传主链 |
+| F-07 与单媒体 F-08 安全传输备份 | `PLANNED` | Android 通过真实 ECS + 私有 OSS 的 HTTPS、短期授权和长度/SHA-256 验收 |
 | F-08 批量队列 | `PLANNED` | Android M4 通过 |
 | F-09～F-10 私人空间与保存 | `PLANNED` | Android M5 通过 |
 | F-11～F-14 家庭、回收站、帮助反馈 | `PLANNED` | Android M6 通过 |
@@ -253,28 +256,28 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 - 冻结范围：F-01～F-03 的账号/会话/资料模型，`signUp`、`signIn`、`signOut`、`restoreSession`、`refreshReviewStatus`、`getProfile` 方法，账号错误码、页面语义 ID、轮询和安全存储规则。
 - C ABI：版本升至 2，新增 `mineg_core_create_user_key_bundle`；使用 Argon2id 派生包装密钥，并用 XChaCha20-Poly1305 加密 X25519 私钥与用户主密钥，输出包不含明文私钥。
 - 本地状态：SQLite v2 只保存用户 ID、脱敏手机号、审核状态和更新时间；Access/Refresh Token 与设备安装标识由平台安全存储保护。
-- 审核语义：管理员通过只创建 `KEY_GRANT_PENDING` 协调任务；家庭 envelope 就绪前，移动端和 API 对外状态仍为 `PENDING`，不增加中间页面。
-- 验证：C++ 主机测试、Android JVM 契约/校验测试、lint、arm64-v8a/x86_64 构建以及 OnePlus 8T Android 14 真实后端注册—审核—待 key grant—退出—重新登录闭环均通过。
+- 审核语义修订：该冻结记录描述旧 `KEY_GRANT_PENDING` 流程；当前准入在管理员通过后直接成为 `APPROVED`，不得依赖家庭 envelope 或其他成员设备在线。旧字段仅用于迁移。
+- 历史验证：C++ 主机测试、Android JVM 契约/校验测试、lint、arm64-v8a/x86_64 构建以及 OnePlus 8T Android 14 旧注册—审核—待 key grant 闭环曾通过；现行 `account-v3` 以批次 E1 的直接准入矩阵重新验收。
 - 冻结日期：2026-07-26。
 
-## 13. M2 密钥、资料、权限与本地相册冻结记录
+## 13. M2 旧密钥、资料、权限与本地相册冻结记录
 
 - 冻结清单：[`contracts/stage02-v1.json`](./contracts/stage02-v1.json)
-- 冻结范围：家庭密钥 bootstrap/grant、资料更新、六态相册权限、设备级备份设置、MediaSourcePort 分页扫描以及本地相册三列网格。
+- 冻结范围：资料更新、六态相册权限、设备级备份设置、MediaSourcePort 分页扫描以及本地相册三列网格继续有效；家庭密钥 bootstrap/grant 仅保留迁移兼容。
 - C ABI：版本升至 3；用户密钥包解封和家庭 sealed-box 操作留在 C++，进程恢复只保存由设备随机包装密钥再次加密的 unlock blob。
 - 本地状态：SQLite v3 保存设备设置、扫描游标、媒体/相册索引与关系；不保存密码、私钥、User Master Key、Family Sharing Key 或媒体明文。
 - 权限门禁：仅 `FULL` 可创建扫描与调度；`NOT_DETERMINED`、`LIMITED`、`RESTRICTED`、`DENIED`、`SYSTEM_RESTRICTED` 均保持在统一说明页。
 - 当前状态：`FROZEN`；隔离 OSS 头像闭环和 Android 权限/真实相册矩阵已由项目执行方确认通过。
 - 冻结日期：2026-07-26。
 
-## 14. M3 单媒体加密备份基线
+## 14. M3 单媒体加密备份旧基线
 
 - 基线清单：[`contracts/stage03-v1.json`](./contracts/stage03-v1.json)
 - 基线范围：F-07 和单媒体 F-08 的 Media Key envelope、账号私有 HMAC 去重、资源 KDF、4 MiB XChaCha20-Poly1305 块、认证清单、multipart 上传与恢复状态机。
 - C ABI：版本升至 4；Media Key 明文只存在于 C++ 受控内存，平台桥接只接收加密 envelope、密文资源路径、摘要和认证清单。
 - 本地状态：SQLite v4 在网络副作用前保存任务、资源、分片、服务端上传 ID 和已确认 ETag；核心测试覆盖 multipart 中途进程重启、篡改、块重排、截断与清单错配失败关闭。
 - 平台适配：`MediaSourcePort` 流式打开原资源并尽力生成 `THUMBNAIL` 或 `VIDEO_COVER`；`TransportPort.uploadPart` 只消费服务签发的精确 PUT 授权。
-- 当前状态：`BASELINED`；隔离 OSS 上的真实照片、视频、GIF、Live/动态资源及过期授权/断网/完成响应丢失矩阵通过后转为 `FROZEN`。
+- 当前状态：`DEPRECATED`；只允许读取和迁移旧任务/字段，不得继续扩展。替代契约必须使用原资源或受控临时资源、HTTPS/TLS、短期对象授权以及长度/SHA-256 校验，不生成 Media Key 或密文副本。
 
 ## 15. 2026-07-30 数据主权修订记录
 
@@ -291,4 +294,12 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 - 本地状态：SQLite v7 按账号保存私人媒体快照与刷新时间；退出或账号切换后查询失败关闭，不向新账号暴露旧快照。
 - 平台适配：头像的选择、居中裁剪和缩放属于 Android 图片输入适配；摘要、API 请求、对象授权解释、完成确认和 Profile Snapshot 合并由 Core 决定，对象字节只通过 `TransportEffect.uploadObject` 传输。
 - 兼容性：C ABI 保持 5；`stage02-v1` 继续保留历史行为基线，旧账号 UI 中的过渡实现按 AND-DATA-012 单独退役。
-- 当前状态：生产主链实现及主机/Android 单元契约验证完成；真实后端头像、Key Grant、离线主页和进程恢复矩阵通过后转为 `FROZEN`。
+- 当前状态：头像、私人媒体、离线主页和进程恢复仍按批次 C 验证；Key Grant 已退出生产准入门禁，仅保留兼容测试。
+
+## 17. 批次 E1 账号准入契约
+
+- 基线清单：[`contracts/account-v3.json`](./contracts/account-v3.json)。
+- 注册：只提交手机号、密码、设备安装 ID 与平台；Core 不创建用户 key bundle，Android 不解析或补充旧密钥字段。
+- 审核：管理员批准后服务端直接 `APPROVED`，不创建 key-grant 任务；客户端按 `APP_HOME` 拉取 Profile。
+- 兼容：`account-v2`、旧 key bundle/grant API 与密码学 C ABI 暂留兼容，生产账号入口不得调用；后续独立迁移确认无旧客户端依赖后再删除。
+- 当前状态：`BASELINED`；服务端专用 PostgreSQL migration 闭环、Android 真机注册—审核—登录验证完成后转为 `FROZEN`。

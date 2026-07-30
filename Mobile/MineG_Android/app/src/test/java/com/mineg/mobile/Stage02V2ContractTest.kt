@@ -19,7 +19,13 @@ class Stage02V2ContractTest {
       "ListPrivateMediaSnapshot",
       "uploadObject",
       "PrivateMediaSnapshotChanged",
+      "StartForegroundLocalScan",
+      "GetLocalLibrarySummary",
+      "UpdateBackupSettings",
+      "LocalLibraryIndexChanged",
+      "MediaSourceEffect",
     ).forEach { assertContains(manifest, "\"$it\"") }
+    assertContains(manifest, "\"contractVersion\": \"2.1.0\"")
     assertContains(manifest, "\"status\": \"BASELINED\"")
   }
 
@@ -31,7 +37,11 @@ class Stage02V2ContractTest {
       .toSet()
     assertTrue(
       methods.containsAll(
-        setOf("coordinateFamilyKeyGrants", "updateAvatar", "listPrivateMedia"),
+        setOf(
+          "coordinateFamilyKeyGrants", "updateAvatar", "listPrivateMedia",
+          "startForegroundLocalScan", "getLocalLibrarySummary", "getBackupSettings",
+          "updateBackupSettings", "listLocalAlbums", "listLocalMedia",
+        ),
       ),
     )
   }
@@ -45,6 +55,19 @@ class Stage02V2ContractTest {
       "PRIMARY KEY (user_id, media_id)",
       "PRAGMA user_version = 7",
     ).forEach { assertContains(migration, it) }
+  }
+
+  @Test
+  fun sqliteV8StoresOnlyCompletedGenerationsAndNoExecutionCursor() {
+    val migration = resource("008_batch_d_local_index.sql")
+    listOf(
+      "local_library_active",
+      "generation_id",
+      "PRIMARY KEY(user_id, generation_id, platform_asset_ref)",
+      "PRAGMA user_version=8",
+    ).forEach { assertContains(migration.replace(" ", ""), it.replace(" ", "")) }
+    listOf("cursor_modified_version", "cursor_asset_ref", "BLOCKED_PERMISSION")
+      .forEach { value -> kotlin.test.assertFalse(migration.contains(value)) }
   }
 
   private fun resource(name: String): String =

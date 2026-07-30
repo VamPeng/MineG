@@ -211,7 +211,7 @@ private class FakeMediaSourcePort : MediaSourcePort {
 }
 
 private class FakeFilePort : FilePort {
-  override fun createEncryptedTempFile(name: String) = "/fake/$name"
+  override fun createTaskTempFile(name: String) = "/fake/$name"
   override fun getAvailableSpace() = 4096L
   override fun deleteTempFile(path: String) = true
 }

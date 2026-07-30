@@ -8,6 +8,8 @@ import com.mineg.mobile.contracts.UploadPartResult
 import com.mineg.mobile.contracts.UploadObjectRequest
 import com.mineg.mobile.contracts.UploadObjectResult
 import java.io.RandomAccessFile
+import java.io.File
+import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
@@ -75,27 +77,47 @@ class AndroidTransportPort(
           connection.setRequestProperty(name, value)
         }
       }
-      RandomAccessFile(request.ciphertextPath, "r").use { input ->
-        input.seek(request.offset)
-        connection.outputStream.use { output ->
-          val buffer = ByteArray(64 * 1024)
-          var remaining = request.size
-          while (remaining > 0) {
-            val count = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
-            check(count > 0) { "ciphertext part is truncated" }
-            output.write(buffer, 0, count)
-            remaining -= count
+      request.sourceDescriptor?.let { descriptor ->
+        FileInputStream(File("/proc/self/fd/$descriptor")).use { input ->
+          input.channel.position(request.offset)
+          connection.outputStream.use { output ->
+            copyPart(input::read, output, request.size)
           }
-          buffer.fill(0)
+        }
+      } ?: run {
+        RandomAccessFile(requireNotNull(request.sourcePath) { "upload source is missing" }, "r").use { input ->
+          input.seek(request.offset)
+          connection.outputStream.use { output ->
+            copyPart(input::read, output, request.size)
+          }
         }
       }
       val status = connection.responseCode
-      if (status !in 200..299) throw java.io.IOException("ciphertext part upload failed with status $status")
+      if (status !in 200..299) throw java.io.IOException("media part upload failed with status $status")
       val etag = connection.getHeaderField("ETag")?.trim()?.trim('"').orEmpty()
-      check(etag.isNotBlank()) { "ciphertext part response omitted ETag" }
+      check(etag.isNotBlank()) { "media part response omitted ETag" }
       UploadPartResult(etag)
     } finally {
       connection.disconnect()
+    }
+  }
+
+  private fun copyPart(
+    read: (ByteArray, Int, Int) -> Int,
+    output: java.io.OutputStream,
+    size: Long,
+  ) {
+    val buffer = ByteArray(64 * 1024)
+    try {
+      var remaining = size
+      while (remaining > 0) {
+        val count = read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+        check(count > 0) { "media part is truncated" }
+        output.write(buffer, 0, count)
+        remaining -= count
+      }
+    } finally {
+      buffer.fill(0)
     }
   }
 

@@ -20,7 +20,6 @@ import com.mineg.mobile.contracts.LocalMediaCursor
 import com.mineg.mobile.contracts.LocalMediaPage
 import com.mineg.mobile.contracts.LocalScanState
 import com.mineg.mobile.contracts.LocalScanStatus
-import com.mineg.mobile.contracts.MediaScanCursor
 import com.mineg.mobile.contracts.MediaSourcePort
 import com.mineg.mobile.contracts.PendingKeyGrant
 import com.mineg.mobile.contracts.Profile
@@ -38,6 +37,8 @@ import com.mineg.mobile.contracts.OwnerMediaClient
 import com.mineg.mobile.contracts.SingleMediaBackup
 import com.mineg.mobile.contracts.Stage03Client
 import com.mineg.mobile.core.CoreClient
+import com.mineg.mobile.core.CoreOperationRunner
+import com.mineg.mobile.core.PlatformEffectDispatcher
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -47,6 +48,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import org.json.JSONObject
 import org.json.JSONArray
+import kotlinx.coroutines.runBlocking
 
 class AndroidAccountClient(
   private val core: CoreClient,
@@ -69,33 +71,22 @@ class AndroidAccountClient(
   override suspend fun signUp(phone: String, password: ByteArray, idempotencyKey: String): AccountSession {
     val normalized = AccountValidation.normalizePhone(phone)
       ?: throw localProblem("PHONE_INVALID", "account.phone.invalid")
-    val material = core.createUserKeyBundle(password)
-    try {
-      val body = JSONObject()
-        .put("phone", normalized)
-        .put("password", password.toString(Charsets.UTF_8))
-        .put("public_key", encodeBase64(material.publicKey))
-        .put("encrypted_key_bundle", encodeBase64(material.encryptedKeyBundle))
-        .put("kdf_parameters", JSONObject(material.kdfParametersJson))
-        .put("bundle_version", 1)
-        .put("device_installation_id", installationID())
-        .put("platform", "ANDROID")
-        .toString()
-      val created = sendSessionRequest(
-        ApiRequest(
-          method = "POST",
-          path = "/api/v1/auth/register",
-          body = body.toByteArray(),
-          headers = mapOf("Idempotency-Key" to idempotencyKey),
-        ),
-      )
-      saveSession(created, AccountValidation.maskedPhone(normalized))
-      runCatching { completeFamilyKeyGrant(password) }
-      return created
-    } finally {
-      material.publicKey.fill(0)
-      material.encryptedKeyBundle.fill(0)
-    }
+    val body = JSONObject()
+      .put("phone", normalized)
+      .put("password", password.toString(Charsets.UTF_8))
+      .put("device_installation_id", installationID())
+      .put("platform", "ANDROID")
+      .toString()
+    val created = sendSessionRequest(
+      ApiRequest(
+        method = "POST",
+        path = "/api/v1/auth/register",
+        body = body.toByteArray(),
+        headers = mapOf("Idempotency-Key" to idempotencyKey),
+      ),
+    )
+    saveSession(created, AccountValidation.maskedPhone(normalized))
+    return created
   }
 
   override suspend fun signIn(phone: String, password: String, agreementAccepted: Boolean): AccountSession {
@@ -113,12 +104,6 @@ class AndroidAccountClient(
       .toString()
     val signedIn = sendSessionRequest(ApiRequest("POST", "/api/v1/auth/login", body.toByteArray()))
     saveSession(signedIn, AccountValidation.maskedPhone(normalized))
-    val passwordBytes = password.toByteArray()
-    try {
-      runCatching { completeFamilyKeyGrant(passwordBytes) }
-    } finally {
-      passwordBytes.fill(0)
-    }
     return signedIn
   }
 
@@ -167,11 +152,10 @@ class AndroidAccountClient(
         },
       ).also {
         session = it
-        restoreKeyAccess(it.approvalStatus == ApprovalStatus.APPROVED)
       }
     }
     return try {
-      refresh(refreshToken).also { restoreKeyAccess(it.approvalStatus == ApprovalStatus.APPROVED) }
+      refresh(refreshToken)
     } catch (problem: AccountProblem) {
       if (problem.code in SESSION_FAILURES) {
         clearLocalSession()
@@ -183,7 +167,6 @@ class AndroidAccountClient(
   }
 
   override suspend fun refreshReviewStatus(): ApprovalStatus {
-    runCatching { completeFamilyKeyGrant(null) }
     val active = requireSession()
     val response = sendAuthorized(ApiRequest("GET", "/api/v1/auth/approval-status"), active)
     val payload = JSONObject(response.body.toString(Charsets.UTF_8))
@@ -194,7 +177,6 @@ class AndroidAccountClient(
     )
     session = updated
     persistAccountState(updated.userId, accountState?.maskedPhone ?: "***********", status)
-    if (status == ApprovalStatus.APPROVED) completeFamilyKeyGrant(null)
     return status
   }
 
@@ -380,73 +362,23 @@ class AndroidAccountClient(
   }
 
   override fun scanLocalMedia(userId: String): LocalScanState {
-    if (mediaSource.getPermissionSnapshot().library != LibraryPermissionState.FULL) {
-      core.execute(
-        operationIds.getAndIncrement(),
-        JSONObject()
-          .put("version", 1)
-          .put("type", "MarkLocalScanBlocked")
-          .put("userId", userId)
-          .put("updatedAt", Instant.now().toString())
-          .toString(),
-      )
-      return readScanState(userId)
-    }
-    val previousScan = readScanState(userId)
-    val resume = previousScan.status == LocalScanStatus.SCANNING && previousScan.scanGeneration.isNotBlank()
-    val scanGeneration = if (resume) previousScan.scanGeneration else UUID.randomUUID().toString()
-    val albums = mediaSource.listAlbums()
-    var cursor: MediaScanCursor? = if (resume && previousScan.cursorAssetRef.isNotBlank()) {
-      MediaScanCursor(previousScan.cursorModifiedVersion, previousScan.cursorAssetRef)
-    } else {
-      null
-    }
-    do {
-      val page = mediaSource.listMedia(cursor, 500)
-      val media = JSONArray()
-      val relations = JSONArray()
-      page.items.forEach { item ->
-        media.put(
-          JSONObject()
-            .put("platformAssetRef", item.platformAssetRef)
-            .put("mediaType", item.mediaType.name)
-            .put("mimeType", item.mimeType)
-            .put("width", item.width)
-            .put("height", item.height)
-            .put("durationMs", item.durationMs ?: JSONObject.NULL)
-            .put("capturedAt", item.capturedAt)
-            .put("modifiedAt", item.modifiedAt)
-            .put("modifiedVersion", item.modifiedVersion)
-            .put("contentVersion", item.contentVersion)
-            .put("availability", item.availability.name)
-            .put("thumbnailUri", item.thumbnailUri ?: JSONObject.NULL),
-        )
-        relations.put(
-          JSONObject()
-            .put("platformAssetRef", item.platformAssetRef)
-            .put("platformAlbumRef", item.platformAlbumRef),
-        )
+    val dispatcher = PlatformEffectDispatcher(transport, secureStore, mediaSource, files)
+    val summary = try {
+      runBlocking {
+        CoreStage02Client(core, CoreOperationRunner(core, dispatcher))
+          .startForegroundLocalScan(userId)
       }
-      val next = page.nextCursor
-      core.execute(
-        operationIds.getAndIncrement(),
-        JSONObject()
-          .put("version", 1)
-          .put("type", "ApplyLocalMediaBatch")
-          .put("userId", userId)
-          .put("scanGeneration", scanGeneration)
-          .put("albums", JSONArray().also { values -> albums.forEach { values.put(JSONObject().put("platformAlbumRef", it.platformAlbumRef).put("name", it.name)) } })
-          .put("media", media)
-          .put("relations", relations)
-          .put("cursorModifiedVersion", next?.modifiedVersion ?: page.items.lastOrNull()?.modifiedVersion ?: cursor?.modifiedVersion ?: 0)
-          .put("cursorAssetRef", next?.platformAssetRef ?: page.items.lastOrNull()?.platformAssetRef ?: cursor?.platformAssetRef.orEmpty())
-          .put("complete", next == null)
-          .put("updatedAt", Instant.now().toString())
-          .toString(),
-      )
-      cursor = next
-    } while (cursor != null)
-    return readScanState(userId)
+    } finally {
+      dispatcher.close()
+    }
+    return LocalScanState(
+      cursorModifiedVersion = 0,
+      cursorAssetRef = "",
+      status = LocalScanStatus.COMPLETE,
+      indexedCount = summary.indexedCount,
+      scanGeneration = summary.generationId,
+      updatedAt = summary.completedAt,
+    )
   }
 
   override fun listLocalAlbums(userId: String, cursor: AlbumCursor?, limit: Int): LocalAlbumPage {
@@ -711,7 +643,7 @@ class AndroidAccountClient(
       val resources = mutableListOf<BackupResource>()
       val originalType = MediaResourceType.ORIGINAL
       val originalResourceId = UUID.nameUUIDFromBytes("$taskId|${originalType.name}".toByteArray()).toString()
-      val originalPath = files.createEncryptedTempFile("backup-$taskId-original")
+      val originalPath = files.createTaskTempFile("backup-$taskId-original")
       paths += originalPath
       val opened = mediaSource.openMediaResource(media.platformAssetRef)
         ?: throw localProblem("MEDIA_RESOURCE_UNAVAILABLE", "backup.media.resource.unavailable", retryable = true)
@@ -727,7 +659,7 @@ class AndroidAccountClient(
       mediaSource.createDerivedMediaResources(media.platformAssetRef, media.mediaType).forEach { derived ->
         derived.use {
           val resourceId = UUID.nameUUIDFromBytes("$taskId|${it.resourceType.name}".toByteArray()).toString()
-          val path = files.createEncryptedTempFile("backup-$taskId-${it.resourceType.name.lowercase()}")
+          val path = files.createTaskTempFile("backup-$taskId-${it.resourceType.name.lowercase()}")
           paths += path
           resources += parseBackupResource(
             resourceId, it.resourceType, path,
@@ -1031,20 +963,6 @@ class AndroidAccountClient(
     bundleVersion = payload.getInt("bundle_version"),
     createdAt = payload.getString("created_at"),
   )
-
-  private fun readScanState(userId: String): LocalScanState {
-    val payload = JSONObject(
-      core.query(JSONObject().put("version", 1).put("type", "GetLocalScanState").put("userId", userId).toString()),
-    ).getJSONObject("state")
-    return LocalScanState(
-      cursorModifiedVersion = payload.getLong("cursorModifiedVersion"),
-      cursorAssetRef = payload.getString("cursorAssetRef"),
-      status = LocalScanStatus.valueOf(payload.getString("status")),
-      indexedCount = payload.getLong("indexedCount"),
-      scanGeneration = payload.getString("scanGeneration"),
-      updatedAt = payload.optString("updatedAt").ifBlank { null },
-    )
-  }
 
   private fun readSecret(name: String): String? {
     val bytes = secureStore.readSecret(name) ?: return null

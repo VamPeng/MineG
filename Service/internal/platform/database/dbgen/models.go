@@ -132,11 +132,13 @@ type MinegMediaResource struct {
 	ResourceType      string             `json:"resource_type"`
 	ObjectKey         string             `json:"object_key"`
 	MultipartUploadID string             `json:"multipart_upload_id"`
-	CiphertextSize    int64              `json:"ciphertext_size"`
+	CiphertextSize    pgtype.Int8        `json:"ciphertext_size"`
 	CiphertextSha256  []byte             `json:"ciphertext_sha256"`
 	PartCount         int32              `json:"part_count"`
 	State             string             `json:"state"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	ContentSize       pgtype.Int8        `json:"content_size"`
+	ContentSha256     []byte             `json:"content_sha256"`
 }
 
 type MinegMedium struct {
@@ -151,6 +153,8 @@ type MinegMedium struct {
 	EncryptedManifest []byte             `json:"encrypted_manifest"`
 	UploadStatus      string             `json:"upload_status"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	ContentSha256     []byte             `json:"content_sha256"`
+	MimeType          pgtype.Text        `json:"mime_type"`
 }
 
 type MinegRegistrationRequest struct {
@@ -190,12 +194,14 @@ type MinegUploadSession struct {
 	ManifestDigest    []byte             `json:"manifest_digest"`
 	EncryptedManifest []byte             `json:"encrypted_manifest"`
 	EncryptedMediaKey []byte             `json:"encrypted_media_key"`
-	EnvelopeAlgorithm string             `json:"envelope_algorithm"`
+	EnvelopeAlgorithm pgtype.Text        `json:"envelope_algorithm"`
 	MediaID           pgtype.UUID        `json:"media_id"`
 	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
 	CompletedAt       pgtype.Timestamptz `json:"completed_at"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	ContentSha256     []byte             `json:"content_sha256"`
+	MimeType          pgtype.Text        `json:"mime_type"`
 }
 
 type MinegUser struct {

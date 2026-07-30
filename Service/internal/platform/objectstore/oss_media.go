@@ -16,12 +16,16 @@ func (s *OSSProfileObjects) BeginMediaUpload(ctx context.Context, prefix string,
 	if err := validateMediaUpload(prefix, resources, lifetime); err != nil {
 		return MediaUploadGrant{}, err
 	}
-	grant := MediaUploadGrant{Purpose: "MEDIA_CIPHERTEXT", ScopePrefix: prefix, ExpiresAt: time.Now().UTC().Add(lifetime), Resources: make([]MediaResourceGrant, 0, len(resources))}
+	grant := MediaUploadGrant{Purpose: resources[0].Purpose, ScopePrefix: prefix, ExpiresAt: time.Now().UTC().Add(lifetime), Resources: make([]MediaResourceGrant, 0, len(resources))}
 	for _, resource := range resources {
+		metadataName := "mineg-content-sha256"
+		if resource.Purpose == "MEDIA_CIPHERTEXT" {
+			metadataName = "mineg-ciphertext-sha256"
+		}
 		initiated, err := s.headClient.InitiateMultipartUpload(ctx, &oss.InitiateMultipartUploadRequest{
 			Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(resource.ObjectKey), ContentType: oss.Ptr("application/octet-stream"),
 			CacheControl: oss.Ptr("private, no-store"), ForbidOverwrite: oss.Ptr("true"),
-			Metadata: map[string]string{"mineg-ciphertext-sha256": base64.RawStdEncoding.EncodeToString(resource.SHA256)},
+			Metadata: map[string]string{metadataName: base64.RawStdEncoding.EncodeToString(resource.SHA256)},
 		})
 		if err != nil || initiated.UploadId == nil {
 			_ = s.AbortMediaUpload(ctx, grant.Resources)
@@ -57,7 +61,7 @@ func (s *OSSProfileObjects) ResumeMediaUpload(ctx context.Context, prefix string
 	if err := validateMediaUpload(prefix, resources, lifetime); err != nil || len(existing) != len(resources) {
 		return MediaUploadGrant{}, errors.New("invalid media upload resume")
 	}
-	grant := MediaUploadGrant{Purpose: "MEDIA_CIPHERTEXT", ScopePrefix: prefix, ExpiresAt: time.Now().UTC().Add(lifetime), Resources: make([]MediaResourceGrant, 0, len(resources))}
+	grant := MediaUploadGrant{Purpose: resources[0].Purpose, ScopePrefix: prefix, ExpiresAt: time.Now().UTC().Add(lifetime), Resources: make([]MediaResourceGrant, 0, len(resources))}
 	for index, resource := range resources {
 		prior := existing[index]
 		if prior.ResourceID != resource.ID || prior.ObjectKey != resource.ObjectKey || prior.UploadID == "" {
@@ -169,14 +173,18 @@ func (s *OSSProfileObjects) completedMediaObjectMatches(ctx context.Context, res
 	for _, part := range resource.Parts {
 		expectedSize += part.Size
 	}
+	metadataName := "mineg-content-sha256"
+	if resource.Purpose == "MEDIA_CIPHERTEXT" {
+		metadataName = "mineg-ciphertext-sha256"
+	}
 	metadataDigest := ""
 	for name, value := range head.Metadata {
-		if strings.EqualFold(name, "mineg-ciphertext-sha256") {
+		if strings.EqualFold(name, metadataName) {
 			metadataDigest = value
 		}
 	}
 	decoded, decodeErr := base64.RawStdEncoding.DecodeString(metadataDigest)
-	// The authenticated encrypted manifest is the source of the whole-object
+	// The server-authenticated upload plan is the source of the whole-object
 	// digest; OSS independently proves part order, ETag, and total length.
 	return head.ContentLength == expectedSize && decodeErr == nil && len(resource.SHA256) == 32 && bytes.Equal(decoded, resource.SHA256), nil
 }

@@ -125,6 +125,32 @@ std::string encode_base64(const std::string &value) {
   return result;
 }
 
+std::string decode_base64(const std::string &value) {
+  const auto decode = [](char character) -> int {
+    if (character >= 'A' && character <= 'Z') return character - 'A';
+    if (character >= 'a' && character <= 'z') return character - 'a' + 26;
+    if (character >= '0' && character <= '9') return character - '0' + 52;
+    if (character == '+') return 62;
+    if (character == '/') return 63;
+    return -1;
+  };
+  std::string result;
+  uint32_t accumulator = 0;
+  int bits = 0;
+  for (const char character : value) {
+    if (character == '=') break;
+    const int digit = decode(character);
+    assert(digit >= 0);
+    accumulator = (accumulator << 6U) | static_cast<uint32_t>(digit);
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      result.push_back(static_cast<char>((accumulator >> bits) & 0xffU));
+    }
+  }
+  return result;
+}
+
 std::string effect_result(uint64_t operation_id, uint64_t sequence,
                           const std::string &effect_type, const std::string &payload) {
   return "{\"contractVersion\":\"foundation-v2\",\"operationId\":" +
@@ -302,12 +328,119 @@ int main() {
   }
 
   {
+    const auto scan_database = root / "batch-d.db";
+    mineg_core_t *scan_core = nullptr;
+    mineg_buffer_t step{};
+    mineg_buffer_t query_result{};
+    expect(mineg_core_create(scan_database.c_str(), &scan_core), MINEG_OK,
+           "create batch d core");
+    const std::string scan_command =
+        R"({"contractVersion":"stage02-v2","type":"StartForegroundLocalScan","userId":"scan-user"})";
+    expect(mineg_core_start_operation(
+               scan_core, 9200, reinterpret_cast<const uint8_t *>(scan_command.data()),
+               scan_command.size(), &step),
+           MINEG_OK, "start foreground local scan");
+    assert(as_string(step).find("getPermissionSnapshot") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string permission = effect_result(
+        9200, 1, "MediaSourceEffect", R"({"library":"FULL"})");
+    expect(mineg_core_resume_operation(
+               scan_core, 9200, reinterpret_cast<const uint8_t *>(permission.data()),
+               permission.size(), &step),
+           MINEG_OK, "pass local scan permission gate");
+    assert(as_string(step).find("listAlbums") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string albums = effect_result(
+        9200, 2, "MediaSourceEffect",
+        R"({"items":[{"platformAlbumRef":"album-camera","name":"Camera"}]})");
+    expect(mineg_core_resume_operation(
+               scan_core, 9200, reinterpret_cast<const uint8_t *>(albums.data()),
+               albums.size(), &step),
+           MINEG_OK, "write candidate albums");
+    assert(as_string(step).find("\"cursor\":null") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string partial_page = effect_result(
+        9200, 3, "MediaSourceEffect",
+        R"({"items":[{"platformAssetRef":"asset-partial","platformAlbumRef":"album-camera","mediaType":"PHOTO","mimeType":"image/jpeg","width":100,"height":100,"durationMs":null,"capturedAt":"2026-07-30T01:00:00Z","modifiedAt":"2026-07-30T01:00:00Z","modifiedVersion":1,"contentVersion":"1:100","availability":"AVAILABLE","thumbnailUri":"content://partial"}],"nextCursor":{"modifiedVersion":1,"platformAssetRef":"asset-partial"}})");
+    expect(mineg_core_resume_operation(
+               scan_core, 9200, reinterpret_cast<const uint8_t *>(partial_page.data()),
+               partial_page.size(), &step),
+           MINEG_OK, "write hidden candidate page");
+    mineg_buffer_free(&step);
+    const std::string summary_query =
+        R"({"contractVersion":"stage02-v2","type":"GetLocalLibrarySummary","userId":"scan-user"})";
+    expect(mineg_core_query(scan_core,
+                            reinterpret_cast<const uint8_t *>(summary_query.data()),
+                            summary_query.size(), &query_result),
+           MINEG_OK, "query local summary before candidate completion");
+    assert(as_string(query_result).find("\"snapshot\":null") != std::string::npos);
+    mineg_buffer_free(&query_result);
+    mineg_core_close(scan_core);
+
+    expect(mineg_core_create(scan_database.c_str(), &scan_core), MINEG_OK,
+           "reopen batch d core after interrupted scan");
+    mineg_buffer_t recovered{};
+    expect(mineg_core_recover_operations(scan_core, &recovered), MINEG_OK,
+           "batch d scan is not recoverable");
+    assert(as_string(recovered).find("9200") == std::string::npos);
+    mineg_buffer_free(&recovered);
+    expect(mineg_core_start_operation(
+               scan_core, 9201, reinterpret_cast<const uint8_t *>(scan_command.data()),
+               scan_command.size(), &step),
+           MINEG_OK, "restart interrupted scan from permission");
+    assert(as_string(step).find("getPermissionSnapshot") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string permission_again = effect_result(
+        9201, 1, "MediaSourceEffect", R"({"library":"FULL"})");
+    expect(mineg_core_resume_operation(
+               scan_core, 9201, reinterpret_cast<const uint8_t *>(permission_again.data()),
+               permission_again.size(), &step),
+           MINEG_OK, "restart permission gate");
+    mineg_buffer_free(&step);
+    const std::string albums_again = effect_result(
+        9201, 2, "MediaSourceEffect",
+        R"({"items":[{"platformAlbumRef":"album-camera","name":"Renamed Camera"}]})");
+    expect(mineg_core_resume_operation(
+               scan_core, 9201, reinterpret_cast<const uint8_t *>(albums_again.data()),
+               albums_again.size(), &step),
+           MINEG_OK, "restart albums from beginning");
+    assert(as_string(step).find("\"cursor\":null") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string complete_page = effect_result(
+        9201, 3, "MediaSourceEffect",
+        R"({"items":[{"platformAssetRef":"asset-complete","platformAlbumRefs":["album-camera"],"mediaType":"PHOTO","mimeType":"image/webp","width":200,"height":200,"durationMs":null,"capturedAt":"2026-07-30T02:00:00Z","modifiedAt":"2026-07-30T02:00:00Z","modifiedVersion":2,"contentVersion":"2:200","availability":"AVAILABLE","thumbnailUri":"content://complete"}],"nextCursor":null})");
+    expect(mineg_core_resume_operation(
+               scan_core, 9201, reinterpret_cast<const uint8_t *>(complete_page.data()),
+               complete_page.size(), &step),
+           MINEG_OK, "atomically publish complete local index");
+    assert(as_string(step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    assert(as_string(step).find("\"indexedCount\":1") != std::string::npos);
+    mineg_buffer_free(&step);
+    expect(mineg_core_query(scan_core,
+                            reinterpret_cast<const uint8_t *>(summary_query.data()),
+                            summary_query.size(), &query_result),
+           MINEG_OK, "query completed local summary");
+    assert(as_string(query_result).find("\"indexedCount\":1") != std::string::npos);
+    mineg_buffer_free(&query_result);
+    const std::string scan_media_query =
+        R"({"contractVersion":"stage02-v2","type":"ListLocalMedia","userId":"scan-user","limit":10})";
+    expect(mineg_core_query(scan_core,
+                            reinterpret_cast<const uint8_t *>(scan_media_query.data()),
+                            scan_media_query.size(), &query_result),
+           MINEG_OK, "query only active generation");
+    assert(as_string(query_result).find("asset-complete") != std::string::npos);
+    assert(as_string(query_result).find("asset-partial") == std::string::npos);
+    mineg_buffer_free(&query_result);
+    mineg_core_close(scan_core);
+  }
+
+  {
     const auto account_database = root / "account-v2.db";
     mineg_core_t *account_core = nullptr;
     expect(mineg_core_create(account_database.c_str(), &account_core), MINEG_OK,
            "create account v2 core");
     const std::string sign_up =
-        R"({"contractVersion":"account-v2","type":"AccountSignUp","phone":"13800138000","password":"Password1","idempotencyKey":"registration-001"})";
+        R"({"contractVersion":"account-v3","type":"AccountSignUp","phone":"13800138000","password":"Password1","idempotencyKey":"registration-001"})";
     mineg_buffer_t step{};
     expect(mineg_core_start_operation(account_core, 9099,
                                       reinterpret_cast<const uint8_t *>(sign_up.data()),
@@ -326,12 +459,15 @@ int main() {
     assert(as_string(step).find("/api/v1/auth/register") != std::string::npos);
     assert(as_string(step).find("Password1") == std::string::npos);
     assert(as_string(step).find("public_key") == std::string::npos);
+    const std::string sign_up_body =
+        R"({"phone":"+8613800138000","password":"Password1","device_installation_id":"device-001","platform":"ANDROID"})";
+    assert(json_string(as_string(step), "bodyBase64") == encode_base64(sign_up_body));
     mineg_buffer_free(&step);
     expect(mineg_core_cancel(account_core, 9099), MINEG_OK,
            "cancel transient registration operation");
 
     const std::string sign_in =
-        R"({"contractVersion":"account-v2","type":"AccountSignIn","phone":"13800138000","password":"Password1","agreementAccepted":true})";
+        R"({"contractVersion":"account-v3","type":"AccountSignIn","phone":"13800138000","password":"Password1","agreementAccepted":true})";
     expect(mineg_core_start_operation(account_core, 9100,
                                       reinterpret_cast<const uint8_t *>(sign_in.data()),
                                       sign_in.size(), &step),
@@ -374,7 +510,7 @@ int main() {
     mineg_buffer_free(&step);
 
     const std::string profile_get =
-        R"({"contractVersion":"account-v2","type":"ProfileGetCurrent","allowCached":true})";
+        R"({"contractVersion":"account-v3","type":"ProfileGetCurrent","allowCached":true})";
     expect(mineg_core_start_operation(account_core, 9101,
                                       reinterpret_cast<const uint8_t *>(profile_get.data()),
                                       profile_get.size(), &step),
@@ -393,13 +529,14 @@ int main() {
     mineg_buffer_free(&step);
 
     const std::string profile_query =
-        R"({"version":2,"type":"GetCurrentProfileSnapshot"})";
+        R"({"contractVersion":"account-v3","type":"GetCurrentProfileSnapshot"})";
     expect(mineg_core_query(account_core,
                             reinterpret_cast<const uint8_t *>(profile_query.data()),
                             profile_query.size(), &step),
            MINEG_OK, "query current profile snapshot");
     assert(as_string(step).find("\"userId\":\"user-v2\"") == std::string::npos);
     assert(as_string(step).find("\"id\":\"user-v2\"") != std::string::npos);
+    assert(as_string(step).find("\"contractVersion\":\"account-v3\"") != std::string::npos);
     mineg_buffer_free(&step);
     mineg_core_close(account_core);
     account_core = nullptr;
@@ -407,7 +544,7 @@ int main() {
     expect(mineg_core_create(account_database.c_str(), &account_core), MINEG_OK,
            "reopen account v2 core");
     const std::string restore =
-        R"({"contractVersion":"account-v2","type":"AccountRestoreSession"})";
+        R"({"contractVersion":"account-v3","type":"AccountRestoreSession"})";
     expect(mineg_core_start_operation(account_core, 9102,
                                       reinterpret_cast<const uint8_t *>(restore.data()),
                                       restore.size(), &step),
@@ -558,6 +695,132 @@ int main() {
     mineg_buffer_free(&stage02_bundle);
     mineg_buffer_free(&stage02_kdf);
 
+    const std::string upload_scan =
+        R"({"contractVersion":"stage02-v2","type":"StartForegroundLocalScan","userId":"user-v2"})";
+    expect(mineg_core_start_operation(account_core, 9300,
+                                      reinterpret_cast<const uint8_t *>(upload_scan.data()),
+                                      upload_scan.size(), &step),
+           MINEG_OK, "start upload fixture scan");
+    mineg_buffer_free(&step);
+    const std::string upload_permission = effect_result(
+        9300, 1, "MediaSourceEffect", R"({"library":"FULL"})");
+    expect(mineg_core_resume_operation(account_core, 9300,
+                                      reinterpret_cast<const uint8_t *>(upload_permission.data()),
+                                      upload_permission.size(), &step),
+           MINEG_OK, "allow upload fixture scan");
+    mineg_buffer_free(&step);
+    const std::string upload_albums = effect_result(
+        9300, 2, "MediaSourceEffect",
+        R"({"items":[{"platformAlbumRef":"album-upload","name":"Upload"}]})");
+    expect(mineg_core_resume_operation(account_core, 9300,
+                                      reinterpret_cast<const uint8_t *>(upload_albums.data()),
+                                      upload_albums.size(), &step),
+           MINEG_OK, "write upload fixture album");
+    mineg_buffer_free(&step);
+    const std::string upload_page = effect_result(
+        9300, 3, "MediaSourceEffect",
+        R"({"items":[{"platformAssetRef":"asset-upload","platformAlbumRef":"album-upload","mediaType":"PHOTO","mimeType":"image/jpeg","width":10,"height":10,"durationMs":null,"capturedAt":"2026-07-30T01:00:00Z","modifiedAt":"2026-07-30T01:00:00Z","modifiedVersion":1,"contentVersion":"fixture-v1","availability":"AVAILABLE","thumbnailUri":"content://upload"}],"nextCursor":null})");
+    expect(mineg_core_resume_operation(account_core, 9300,
+                                      reinterpret_cast<const uint8_t *>(upload_page.data()),
+                                      upload_page.size(), &step),
+           MINEG_OK, "complete upload fixture scan");
+    assert(as_string(step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    mineg_buffer_free(&step);
+
+    const auto original_path = root / "stage03-v2-original.jpg";
+    {
+      std::ofstream original_output(original_path, std::ios::binary);
+      original_output << "stage03-v2 original bytes without client encryption";
+    }
+    const int original_fd = ::open(original_path.c_str(), O_RDONLY);
+    assert(original_fd >= 0);
+    const auto original_size = static_cast<long long>(std::filesystem::file_size(original_path));
+    const std::string backup_command =
+        R"({"contractVersion":"stage03-v2","type":"BackupSingleMedia","userId":"user-v2","platformAssetRef":"asset-upload"})";
+    expect(mineg_core_start_operation(account_core, 9301,
+                                      reinterpret_cast<const uint8_t *>(backup_command.data()),
+                                      backup_command.size(), &step),
+           MINEG_OK, "start original media backup");
+    assert(as_string(step).find("openMediaResource") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string opened_original = effect_result(
+        9301, 1, "MediaSourceEffect",
+        "{\"resource\":{\"resourceHandle\":\"handle-9301\",\"platformAssetRef\":\"asset-upload\",\"descriptor\":" +
+            std::to_string(original_fd) + ",\"byteLength\":" + std::to_string(original_size) + "}}");
+    expect(mineg_core_resume_operation(account_core, 9301,
+                                      reinterpret_cast<const uint8_t *>(opened_original.data()),
+                                      opened_original.size(), &step),
+           MINEG_OK, "hash original media and create upload request");
+    const std::string create_step = as_string(step);
+    assert(create_step.find("/api/v1/uploads") != std::string::npos);
+    const std::string create_body = decode_base64(json_string(create_step, "bodyBase64"));
+    assert(create_body.find("\"protocol_version\":\"stage03-v2\"") != std::string::npos);
+    assert(create_body.find("\"content_size\":") != std::string::npos);
+    assert(create_body.find("encrypted_") == std::string::npos);
+    assert(create_body.find("ciphertext_") == std::string::npos);
+    const std::string client_media_id = json_string(create_body, "client_media_id");
+    const std::string resource_id = json_string(create_body, "resource_id");
+    mineg_buffer_free(&step);
+    const std::string created_original_body =
+        "{\"id\":\"30000000-0000-4000-8000-000000000001\",\"client_media_id\":\"" + client_media_id +
+        "\",\"state\":\"PENDING\",\"purpose\":\"MEDIA_ORIGINAL\",\"deduplicated\":false,"
+        "\"expires_at\":\"2026-07-31T01:00:00Z\",\"resources\":[{\"resource_id\":\"" + resource_id +
+        "\",\"resource_type\":\"ORIGINAL\",\"content_size\":" + std::to_string(original_size) +
+        ",\"part_count\":1,\"uploaded_parts\":0}],\"grant\":{\"purpose\":\"MEDIA_ORIGINAL\","
+        "\"scope_prefix\":\"media/user-v2/session/\",\"expires_at\":\"2026-07-30T01:10:00Z\","
+        "\"resources\":[{\"resource_id\":\"" + resource_id +
+        "\",\"object_key\":\"media/user-v2/session/original.original\",\"upload_id\":\"oss-upload-1\","
+        "\"parts\":[{\"part_number\":1,\"grant\":{\"url\":\"https://objects.invalid/part-1\","
+        "\"method\":\"PUT\",\"expires_at\":\"2026-07-30T01:10:00Z\",\"headers\":{}}}]}]}}";
+    const std::string created_original = transport_result(9301, 2, 201, created_original_body);
+    expect(mineg_core_resume_operation(account_core, 9301,
+                                      reinterpret_cast<const uint8_t *>(created_original.data()),
+                                      created_original.size(), &step),
+           MINEG_OK, "consume original media upload grant");
+    assert(as_string(step).find("\"action\":\"uploadPart\"") != std::string::npos);
+    assert(as_string(step).find("sourceDescriptor") != std::string::npos);
+    assert(as_string(step).find("ciphertextPath") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string object_uploaded = effect_result(
+        9301, 3, "TransportEffect", R"({"etag":"etag-original-1"})");
+    expect(mineg_core_resume_operation(account_core, 9301,
+                                      reinterpret_cast<const uint8_t *>(object_uploaded.data()),
+                                      object_uploaded.size(), &step),
+           MINEG_OK, "report original media part");
+    const std::string report_body = decode_base64(json_string(as_string(step), "bodyBase64"));
+    assert(report_body.find("content_sha256") != std::string::npos);
+    assert(report_body.find("ciphertext_") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string part_reported = transport_result(
+        9301, 4, 200,
+        "{\"upload_id\":\"30000000-0000-4000-8000-000000000001\",\"resource_id\":\"" +
+            resource_id + "\",\"part_number\":1,\"state\":\"UPLOADED\"}");
+    expect(mineg_core_resume_operation(account_core, 9301,
+                                      reinterpret_cast<const uint8_t *>(part_reported.data()),
+                                      part_reported.size(), &step),
+           MINEG_OK, "request original media completion");
+    assert(as_string(step).find("/complete") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string original_completed = transport_result(
+        9301, 5, 200,
+        R"({"upload_id":"30000000-0000-4000-8000-000000000001","media_id":"40000000-0000-4000-8000-000000000001","state":"COMPLETED","outcome":"COMPLETED","deduplicated":false})");
+    expect(mineg_core_resume_operation(account_core, 9301,
+                                      reinterpret_cast<const uint8_t *>(original_completed.data()),
+                                      original_completed.size(), &step),
+           MINEG_OK, "release original media after completion");
+    assert(as_string(step).find("releaseMediaResource") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string original_released = effect_result(
+        9301, 6, "MediaSourceEffect", R"({"released":true})");
+    expect(mineg_core_resume_operation(account_core, 9301,
+                                      reinterpret_cast<const uint8_t *>(original_released.data()),
+                                      original_released.size(), &step),
+           MINEG_OK, "complete original media backup");
+    assert(as_string(step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    assert(as_string(step).find("40000000-0000-4000-8000-000000000001") != std::string::npos);
+    mineg_buffer_free(&step);
+    ::close(original_fd);
+
     const std::string media_list =
         R"({"contractVersion":"stage02-v2","type":"PrivateMediaList","limit":100,"allowCached":true})";
     expect(mineg_core_start_operation(account_core, 9201,
@@ -647,7 +910,7 @@ int main() {
     mineg_buffer_free(&step);
 
     const std::string sign_out =
-        R"({"contractVersion":"account-v2","type":"AccountSignOut"})";
+        R"({"contractVersion":"account-v3","type":"AccountSignOut"})";
     expect(mineg_core_start_operation(account_core, 9104,
                                       reinterpret_cast<const uint8_t *>(sign_out.data()),
                                       sign_out.size(), &step),

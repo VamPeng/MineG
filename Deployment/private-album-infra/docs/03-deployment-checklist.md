@@ -1,6 +1,6 @@
 # 应用部署清单
 
-> 历史方案：本文面向旧 ECS + 阿里云 OSS 部署。家庭 Linux 节点当前使用[家庭节点 V0 最小验证部署手册](./04-home-node-minimum-validation.md)；WebRTC 与本地对象存储实现完成后再编制正式生产清单。
+> 当前方案：本文面向公网 ECS + 私有阿里云 OSS 部署。业务服务和 PostgreSQL 位于 ECS，客户端通过 HTTPS 访问，不存在个人电脑或家庭设备部署前提。
 
 ## 1. 输入信息
 

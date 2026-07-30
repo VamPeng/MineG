@@ -1,5 +1,7 @@
 # 阶段 01 移动端执行计划：Android 账号准入
 
+> 历史计划说明：本文的注册 key bundle 与等待 key grant 描述已由 `account-v3`/批次 E1 替代。当前注册不生成媒体相关密钥，管理员审核后直接准入。
+
 > 2026-07-30 数据主权修订：本阶段已验证的产品行为和安全结论保留；账号 API/RPC、Session/Token 生命周期、审核状态、资料解析与业务缓存必须迁入 C++ Core。当前 Android 实现属于过渡实现，迁移范围见 [`Mobile/docs/android-data-layer-migration.md`](../../../Mobile/docs/android-data-layer-migration.md)。
 
 ## 目标与范围

@@ -82,7 +82,7 @@ class FoundationViewModel(application: Application) : AndroidViewModel(applicati
           ?: error("相册中没有可用于探针的照片或视频")
         resource.use {
           val key = core.randomKey()
-          val outputPath = files.createEncryptedTempFile("foundation-probe")
+          val outputPath = files.createTaskTempFile("foundation-probe")
           try {
             secureStore.writeSecret("foundationProbeKey", key)
             val storedKey = secureStore.readSecret("foundationProbeKey")

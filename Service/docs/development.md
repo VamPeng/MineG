@@ -53,7 +53,7 @@ make generate
 git diff --exit-code
 ```
 
-集成测试仅允许连接专用测试库；它覆盖 migration、注册幂等、错误凭据、Token 轮换/重放、退出撤销、管理员会话、并发审核、首成员/后续成员/离线等待/错误公钥/重复与并发 key grant、资料、头像元数据、单媒体会话/分片/完成/同账号去重，以及管理端/移动端权限隔离：
+集成测试仅允许连接专用测试库；它覆盖 migration、无 key bundle 注册、注册幂等、错误凭据、Token 轮换/重放、退出撤销、管理员会话、并发审核直接 `APPROVED`、不创建 key-grant 任务、资料、头像元数据、旧单媒体会话/分片/完成/同账号去重，以及管理端/移动端权限隔离：
 
 ```bash
 MINEG_TEST_DATABASE_URL='postgres://mineg:...@127.0.0.1:5432/mineg_test?sslmode=disable' make test-integration

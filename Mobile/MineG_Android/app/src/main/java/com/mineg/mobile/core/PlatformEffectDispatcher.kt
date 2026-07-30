@@ -92,9 +92,11 @@ class PlatformEffectDispatcher(
           url = payload.getString("url"),
           method = payload.getString("method"),
           headers = payload.stringMap("headers"),
-          ciphertextPath = payload.getString("ciphertextPath"),
+          sourcePath = payload.optString("sourcePath").takeIf { payload.has("sourcePath") }
+            ?: payload.optString("ciphertextPath").takeIf { payload.has("ciphertextPath") },
           offset = payload.getLong("offset"),
           size = payload.getLong("size"),
+          sourceDescriptor = payload.optInt("sourceDescriptor").takeIf { payload.has("sourceDescriptor") },
         ),
       )
       JSONObject().put("etag", response.etag)
@@ -250,8 +252,8 @@ class PlatformEffectDispatcher(
     }
 
   private fun dispatchFile(payload: JSONObject): JSONObject = when (payload.requireAction()) {
-    "createEncryptedTempFile" -> JSONObject()
-      .put("path", files.createEncryptedTempFile(payload.getString("name")))
+    "createTaskTempFile" -> JSONObject()
+      .put("path", files.createTaskTempFile(payload.getString("name")))
     "getAvailableSpace" -> JSONObject().put("availableBytes", files.getAvailableSpace())
     "deleteTempFile" -> JSONObject().put("deleted", files.deleteTempFile(payload.getString("path")))
     else -> unsupportedAction(payload)

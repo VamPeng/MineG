@@ -172,7 +172,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @deprecated */
         get: operations["getKeyBundle"];
+        /** @deprecated */
         put: operations["updateKeyBundle"];
         post?: never;
         delete?: never;
@@ -188,6 +190,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @deprecated */
         get: operations["listPendingKeyGrants"];
         put?: never;
         post?: never;
@@ -206,6 +209,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @deprecated */
         post: operations["completeKeyGrant"];
         delete?: never;
         options?: never;
@@ -455,14 +459,22 @@ export interface components {
         SignUpRequest: {
             phone: string;
             password: string;
-            /** @description Unpadded standard base64 32-byte X25519 public key. */
-            public_key: string;
-            /** @description Unpadded standard base64 encrypted client key bundle. */
-            encrypted_key_bundle: string;
-            kdf_parameters: {
+            /**
+             * @deprecated
+             * @description Optional legacy unpadded base64 32-byte X25519 public key; retained only for old-client compatibility and not required by admission.
+             */
+            public_key?: string;
+            /**
+             * @deprecated
+             * @description Optional legacy encrypted client key bundle; retained only for old-client compatibility and not required by admission.
+             */
+            encrypted_key_bundle?: string;
+            /** @deprecated */
+            kdf_parameters?: {
                 [key: string]: unknown;
             };
-            bundle_version: number;
+            /** @deprecated */
+            bundle_version?: number;
             device_installation_id: string;
             /** @enum {string} */
             platform: "ANDROID" | "IOS" | "HARMONYOS";
@@ -617,37 +629,34 @@ export interface components {
         MediaResourceType: "ORIGINAL" | "THUMBNAIL" | "VIDEO_COVER" | "PREVIEW" | "LIVE_PHOTO_VIDEO" | "DYNAMIC_PREVIEW";
         MediaPartPlan: {
             part_number: number;
-            ciphertext_size: number;
-            /** @description Unpadded standard base64 SHA-256 of this independently authenticated ciphertext block. */
-            ciphertext_sha256: string;
+            content_size: number;
+            /** @description Unpadded standard base64 SHA-256 of this original-media block. */
+            content_sha256: string;
         };
         MediaResourcePlan: {
             /** Format: uuid */
             resource_id: string;
             resource_type: components["schemas"]["MediaResourceType"];
-            ciphertext_size: number;
-            /** @description Unpadded standard base64 whole ciphertext resource digest. */
-            ciphertext_sha256: string;
+            content_size: number;
+            /** @description Unpadded standard base64 whole original-media digest. */
+            content_sha256: string;
             parts: components["schemas"]["MediaPartPlan"][];
         };
         CreateMediaUploadRequest: {
+            /** @enum {string} */
+            protocol_version: "stage03-v2";
             /**
              * Format: uuid
-             * @description Client-generated media ID already bound into encryption AAD.
+             * @description Stable client-generated media ID.
              */
             client_media_id: string;
-            /** @description Unpadded standard base64 account-private keyed fingerprint. */
-            dedupe_fingerprint: string;
+            /** @description Unpadded standard base64 SHA-256 of the original media bytes. */
+            content_sha256: string;
             content_revision: number;
             media_type: components["schemas"]["MediaType"];
             /** Format: date-time */
             captured_at: string;
-            /** @description Unpadded standard base64 SHA-256 of the authenticated encrypted manifest. */
-            manifest_digest: string;
-            /** @description Unpadded standard base64 client-authenticated encrypted resource manifest. */
-            encrypted_manifest: string;
-            /** @description Unpadded standard base64 Media Key envelope for the owner. */
-            encrypted_media_key: string;
+            mime_type: string;
             resources: components["schemas"]["MediaResourcePlan"][];
         };
         MediaPartGrant: {
@@ -663,7 +672,7 @@ export interface components {
         };
         MediaUploadGrant: {
             /** @enum {string} */
-            purpose: "MEDIA_CIPHERTEXT";
+            purpose: "MEDIA_ORIGINAL" | "MEDIA_CIPHERTEXT";
             scope_prefix: string;
             /** Format: date-time */
             expires_at: string;
@@ -674,7 +683,9 @@ export interface components {
             resource_id: string;
             resource_type: components["schemas"]["MediaResourceType"];
             object_key?: string;
-            ciphertext_size: number;
+            content_size?: number;
+            /** @deprecated */
+            ciphertext_size?: number;
             part_count: number;
             uploaded_parts: number;
         };
@@ -686,7 +697,7 @@ export interface components {
             /** @enum {string} */
             state: "PENDING" | "VERIFYING" | "COMPLETED" | "EXPIRED" | "INVALID";
             /** @enum {string} */
-            purpose: "MEDIA_CIPHERTEXT";
+            purpose: "MEDIA_ORIGINAL" | "MEDIA_CIPHERTEXT";
             /** Format: uuid */
             media_id?: string;
             deduplicated: boolean;
@@ -699,8 +710,8 @@ export interface components {
             /** Format: uuid */
             resource_id: string;
             part_number: number;
-            ciphertext_size: number;
-            ciphertext_sha256: string;
+            content_size: number;
+            content_sha256: string;
             etag: string;
         };
         MediaPartResult: {
@@ -712,9 +723,7 @@ export interface components {
             /** @enum {string} */
             state: "UPLOADED";
         };
-        CompleteMediaUploadRequest: {
-            manifest_digest: string;
-        };
+        CompleteMediaUploadRequest: Record<string, never>;
         CompleteMediaUploadResult: {
             /** Format: uuid */
             upload_id: string;
@@ -889,7 +898,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description A pending account and encrypted key bundle were created, or the same idempotent result was recovered. */
+            /** @description A pending account was created, or the same idempotent result was recovered. Legacy key fields are optional compatibility input. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -986,7 +995,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Product-visible approval status. Key-grant waiting remains PENDING. */
+            /** @description Product-visible approval status. Administrator approval transitions directly to APPROVED. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1250,7 +1259,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description A resumable ciphertext multipart session was created, replayed, or converged to an existing same-account media. */
+            /** @description A resumable original-media multipart session was created, replayed, or converged to an existing same-account media. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1308,7 +1317,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The exact part ETag, ciphertext size, and digest were persisted; identical reports are idempotent. */
+            /** @description The exact part ETag, content size, and digest were persisted; identical reports are idempotent. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1521,7 +1530,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Review decision is committed and a key-grant task exists. Repeats return ALREADY_PROCESSED. */
+            /** @description Review decision is committed and the account becomes APPROVED. Repeats return ALREADY_PROCESSED. */
             200: {
                 headers: {
                     /** @description Rotated CSRF token for the next state-changing request. */

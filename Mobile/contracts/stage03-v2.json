@@ -1,0 +1,40 @@
+{
+  "contractVersion": "stage03-v2",
+  "version": "2.0.0",
+  "status": "IMPLEMENTED_PENDING_REAL_OSS",
+  "architecture": {
+    "service": "PUBLIC_ECS",
+    "objectStorage": "PRIVATE_ALIYUN_OSS",
+    "clientMediaEncryption": false,
+    "businessOrchestrator": "C++ Core",
+    "platformRole": "Execute PlatformEffect and return EffectResult"
+  },
+  "commands": {
+    "BackupSingleMedia": {
+      "required": ["userId", "platformAssetRef"],
+      "result": ["uploadId", "mediaId", "deduplicated"]
+    }
+  },
+  "effects": {
+    "MediaSourceEffect": ["openMediaResource", "releaseMediaResource"],
+    "TransportEffect": ["sendApiRequest", "uploadPart"]
+  },
+  "upload": {
+    "protocolVersion": "stage03-v2",
+    "purpose": "MEDIA_ORIGINAL",
+    "partSize": 4194304,
+    "integrity": "SHA-256",
+    "transport": "HTTPS/TLS",
+    "forbiddenRequestFields": [
+      "encrypted_manifest",
+      "encrypted_media_key",
+      "manifest_digest",
+      "ciphertext_size",
+      "ciphertext_sha256"
+    ]
+  },
+  "legacyCompatibility": {
+    "contract": "stage03-v1",
+    "productionEntry": false
+  }
+}

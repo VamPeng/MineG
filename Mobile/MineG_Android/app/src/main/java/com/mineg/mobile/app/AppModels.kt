@@ -139,7 +139,9 @@ data class BackupUiState(
   val autoBackupEnabled: Boolean = false,
   val allowCellularBackup: Boolean = false,
   val currentMediaTitle: String = "",
+  val uploadMessage: String? = null,
   val albums: List<LocalAlbum> = emptyList(),
+  val localMedia: List<MediaItem> = emptyList(),
 )
 
 data class RecycleBinUiState(

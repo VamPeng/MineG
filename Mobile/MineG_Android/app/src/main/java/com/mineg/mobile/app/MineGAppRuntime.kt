@@ -7,14 +7,17 @@ import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
 import com.mineg.mobile.BuildConfig
-import com.mineg.mobile.account.AndroidAccountClient
 import com.mineg.mobile.account.CoreAccountClient
 import com.mineg.mobile.account.CoreStage02Client
+import com.mineg.mobile.account.CoreStage03Client
+import com.mineg.mobile.account.OriginalMediaUploadResult
 import com.mineg.mobile.contracts.AccountRouteSnapshot
 import com.mineg.mobile.contracts.ApprovalStatus
 import com.mineg.mobile.contracts.LibraryPermissionState
 import com.mineg.mobile.contracts.LocalAlbum
-import com.mineg.mobile.contracts.LocalScanState
+import com.mineg.mobile.contracts.BackupSettings
+import com.mineg.mobile.contracts.LocalLibrarySummary
+import com.mineg.mobile.contracts.LocalMedia
 import com.mineg.mobile.contracts.OwnerMediaSummary
 import com.mineg.mobile.contracts.Profile
 import com.mineg.mobile.core.CoreClient
@@ -41,14 +44,18 @@ internal interface MineGAppRuntime : AutoCloseable {
   suspend fun updateProfile(nickname: String): Profile
   suspend fun updateAvatar(uri: Uri): Profile
   suspend fun listOwnerMedia(limit: Int = 100): List<OwnerMediaSummary>
-  suspend fun refreshLocalLibrary(userId: String): LocalLibrarySnapshot
+  suspend fun loadLocalLibrary(userId: String, forceRefresh: Boolean = false): LocalLibrarySnapshot
+  suspend fun getBackupSettings(userId: String): BackupSettings
+  suspend fun updateBackupSettings(userId: String, settings: BackupSettings): BackupSettings
+  suspend fun listLocalMedia(userId: String, albumRef: String, limit: Int = 120): List<LocalMedia>
+  suspend fun backupSingleMedia(userId: String, platformAssetRef: String): OriginalMediaUploadResult
   suspend fun signOut()
   fun libraryAccess(): LibraryAccess
   fun markLibraryPermissionRequested()
 }
 
 internal data class LocalLibrarySnapshot(
-  val scan: LocalScanState,
+  val summary: LocalLibrarySummary,
   val albums: List<LocalAlbum>,
 )
 
@@ -64,50 +71,24 @@ internal class AndroidMineGAppRuntime(context: Context) : MineGAppRuntime {
   private val dispatcher = PlatformEffectDispatcher(transport, secureStore, mediaSource, files)
   private val coreAccount = CoreAccountClient(core, CoreOperationRunner(core, dispatcher))
   private val coreStage02 = CoreStage02Client(core, CoreOperationRunner(core, dispatcher))
-  private val account = AndroidAccountClient(
-    core = core,
-    secureStore = secureStore,
-    transport = transport,
-    mediaSource = mediaSource,
-    files = files,
-  )
+  private val coreStage03 = CoreStage03Client(core, CoreOperationRunner(core, dispatcher))
 
-  override suspend fun restoreSession(): AccountRouteSnapshot? = coreAccount.restoreSession()?.also {
-    runCatching { coreStage02.coordinateFamilyKeyGrants(null) }
-  }
+  override suspend fun restoreSession(): AccountRouteSnapshot? = coreAccount.restoreSession()
 
   override suspend fun signIn(phone: String, password: String, agreementAccepted: Boolean): AccountRouteSnapshot {
-    val route = coreAccount.signIn(phone, password, agreementAccepted)
-    val passwordBytes = password.toByteArray()
-    try {
-      runCatching {
-        coreStage02.coordinateFamilyKeyGrants(passwordBytes)
-      }
-    } finally {
-      passwordBytes.fill(0)
-    }
-    return route
+    return coreAccount.signIn(phone, password, agreementAccepted)
   }
 
   override suspend fun signUp(phone: String, password: String): AccountRouteSnapshot {
     val passwordBytes = password.toByteArray()
     return try {
-      coreAccount.signUp(phone, passwordBytes, UUID.randomUUID().toString()).also {
-        runCatching {
-          coreStage02.coordinateFamilyKeyGrants(passwordBytes)
-        }
-      }
+      coreAccount.signUp(phone, passwordBytes, UUID.randomUUID().toString())
     } finally {
       passwordBytes.fill(0)
     }
   }
 
-  override suspend fun refreshReviewStatus(): ApprovalStatus {
-    runCatching {
-      coreStage02.coordinateFamilyKeyGrants(null)
-    }
-    return coreAccount.refreshReviewStatus()
-  }
+  override suspend fun refreshReviewStatus(): ApprovalStatus = coreAccount.refreshReviewStatus()
 
   override suspend fun loadProfile(userId: String, allowCached: Boolean): Profile =
     coreAccount.getProfile(allowCached).also { require(it.id == userId) }
@@ -148,20 +129,39 @@ internal class AndroidMineGAppRuntime(context: Context) : MineGAppRuntime {
   override suspend fun listOwnerMedia(limit: Int): List<OwnerMediaSummary> =
     coreStage02.listPrivateMedia(limit, allowCached = true)
 
-  override suspend fun refreshLocalLibrary(userId: String): LocalLibrarySnapshot = withContext(Dispatchers.IO) {
+  override suspend fun loadLocalLibrary(userId: String, forceRefresh: Boolean): LocalLibrarySnapshot = withContext(Dispatchers.IO) {
+    val current = coreStage02.getLocalLibrarySummary(userId)
+    val summary = if (forceRefresh || current == null) {
+      coreStage02.startForegroundLocalScan(userId)
+    } else {
+      current
+    }
     LocalLibrarySnapshot(
-      scan = account.scanLocalMedia(userId),
-      albums = account.listLocalAlbums(userId, limit = 100).items,
+      summary = summary,
+      albums = coreStage02.listLocalAlbums(userId, limit = 100).items,
     )
   }
 
-  override suspend fun signOut() {
-    try {
-      coreAccount.signOut()
-    } finally {
-      account.dropTransitionalSession()
-    }
+  override suspend fun getBackupSettings(userId: String): BackupSettings = withContext(Dispatchers.IO) {
+    coreStage02.getBackupSettings(userId, deviceInstallationId())
   }
+
+  override suspend fun updateBackupSettings(
+    userId: String,
+    settings: BackupSettings,
+  ): BackupSettings = withContext(Dispatchers.IO) {
+    coreStage02.updateBackupSettings(userId, deviceInstallationId(), settings)
+  }
+
+  override suspend fun listLocalMedia(userId: String, albumRef: String, limit: Int): List<LocalMedia> =
+    withContext(Dispatchers.IO) {
+      coreStage02.listLocalMedia(userId, albumRef, limit = limit).items
+    }
+
+  override suspend fun backupSingleMedia(userId: String, platformAssetRef: String): OriginalMediaUploadResult =
+    coreStage03.backupSingleMedia(userId, platformAssetRef)
+
+  override suspend fun signOut() = coreAccount.signOut()
 
   override fun libraryAccess(): LibraryAccess = when (mediaSource.getPermissionSnapshot().library) {
     LibraryPermissionState.NOT_DETERMINED -> LibraryAccess.NOT_DETERMINED
@@ -175,6 +175,11 @@ internal class AndroidMineGAppRuntime(context: Context) : MineGAppRuntime {
   override fun markLibraryPermissionRequested() {
     mediaSource.markPermissionRequested()
   }
+
+  private fun deviceInstallationId(): String =
+    checkNotNull(secureStore.readSecret("device.installationId"))
+      .toString(Charsets.UTF_8)
+      .also { require(it.isNotBlank()) }
 
   override fun close() {
     dispatcher.close()

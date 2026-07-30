@@ -28,10 +28,32 @@ INSERT INTO mineg.upload_sessions(
           'XCHACHA20_POLY1305', $13, $14, $15)
 RETURNING *;
 
+-- name: CreateOriginalUploadSession :one
+INSERT INTO mineg.upload_sessions(
+    id, owner_id, idempotency_key, request_hash, purpose, dedupe_fingerprint,
+    content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type, expires_at
+) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', $5, $6, $7, $8, $9, $5, $10, $11)
+RETURNING *;
+
+-- name: CreateDeduplicatedOriginalUploadSession :one
+INSERT INTO mineg.upload_sessions(
+    id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint,
+    content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type,
+    media_id, expires_at, completed_at
+) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', 'COMPLETED', $5, $6, $7, $8, $9, $5, $10,
+          $11, $12, $13)
+RETURNING *;
+
 -- name: CreateUploadResource :exec
 INSERT INTO mineg.media_resources(
     id, upload_session_id, resource_type, object_key, multipart_upload_id,
     ciphertext_size, ciphertext_sha256, part_count
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: CreateOriginalUploadResource :exec
+INSERT INTO mineg.media_resources(
+    id, upload_session_id, resource_type, object_key, multipart_upload_id,
+    content_size, content_sha256, part_count
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: CreateExpectedUploadPart :exec
@@ -95,6 +117,14 @@ INSERT INTO mineg.media(
     id, owner_id, source_upload_id, media_type, dedupe_fingerprint,
     content_revision, captured_at, manifest_digest, encrypted_manifest, upload_status
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'COMPLETED')
+ON CONFLICT (owner_id, dedupe_fingerprint, content_revision) DO NOTHING
+RETURNING *;
+
+-- name: CreateCompletedOriginalMedia :one
+INSERT INTO mineg.media(
+    id, owner_id, source_upload_id, media_type, dedupe_fingerprint,
+    content_revision, captured_at, content_sha256, mime_type, upload_status
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $5, $8, 'COMPLETED')
 ON CONFLICT (owner_id, dedupe_fingerprint, content_revision) DO NOTHING
 RETURNING *;
 

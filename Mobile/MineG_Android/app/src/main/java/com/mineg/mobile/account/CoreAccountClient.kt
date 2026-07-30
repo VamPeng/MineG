@@ -23,7 +23,7 @@ class CoreAccountClient(
     idempotencyKey: String,
   ): AccountRouteSnapshot = runRouteCommand(
     JSONObject()
-      .put("contractVersion", ACCOUNT_V2)
+      .put("contractVersion", ACCOUNT_V3)
       .put("type", "AccountSignUp")
       .put("phone", phone)
       .put("password", password.toString(Charsets.UTF_8))
@@ -36,7 +36,7 @@ class CoreAccountClient(
     agreementAccepted: Boolean,
   ): AccountRouteSnapshot = runRouteCommand(
     JSONObject()
-      .put("contractVersion", ACCOUNT_V2)
+      .put("contractVersion", ACCOUNT_V3)
       .put("type", "AccountSignIn")
       .put("phone", phone)
       .put("password", password)
@@ -44,16 +44,16 @@ class CoreAccountClient(
   ) ?: throw AccountProblem("SESSION_INVALID", "account.session.invalid", false, "")
 
   suspend fun signOut() {
-    runCommand(JSONObject().put("contractVersion", ACCOUNT_V2).put("type", "AccountSignOut"))
+    runCommand(JSONObject().put("contractVersion", ACCOUNT_V3).put("type", "AccountSignOut"))
   }
 
   suspend fun restoreSession(): AccountRouteSnapshot? = runRouteCommand(
-    JSONObject().put("contractVersion", ACCOUNT_V2).put("type", "AccountRestoreSession"),
+    JSONObject().put("contractVersion", ACCOUNT_V3).put("type", "AccountRestoreSession"),
   )
 
   suspend fun refreshReviewStatus(): ApprovalStatus {
     val payload = runCommand(
-      JSONObject().put("contractVersion", ACCOUNT_V2).put("type", "AccountRefreshReviewStatus"),
+      JSONObject().put("contractVersion", ACCOUNT_V3).put("type", "AccountRefreshReviewStatus"),
     ) ?: throw AccountProblem("RESPONSE_INVALID", "account.response.invalid", false, "")
     return ApprovalStatus.valueOf(payload.getString("approvalStatus"))
   }
@@ -61,7 +61,7 @@ class CoreAccountClient(
   suspend fun getProfile(allowCached: Boolean): Profile {
     val payload = runCommand(
       JSONObject()
-        .put("contractVersion", ACCOUNT_V2)
+        .put("contractVersion", ACCOUNT_V3)
         .put("type", "ProfileGetCurrent")
         .put("allowCached", allowCached),
     ) ?: throw AccountProblem("PROFILE_MISSING", "account.profile.missing", false, "")
@@ -71,7 +71,7 @@ class CoreAccountClient(
   suspend fun updateProfile(nickname: String): Profile {
     val payload = runCommand(
       JSONObject()
-        .put("contractVersion", ACCOUNT_V2)
+        .put("contractVersion", ACCOUNT_V3)
         .put("type", "ProfileUpdateCurrent")
         .put("nickname", nickname),
     ) ?: throw AccountProblem("PROFILE_MISSING", "account.profile.missing", false, "")
@@ -117,6 +117,6 @@ class CoreAccountClient(
   )
 
   private companion object {
-    const val ACCOUNT_V2 = "account-v2"
+    const val ACCOUNT_V3 = "account-v3"
   }
 }

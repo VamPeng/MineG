@@ -202,10 +202,7 @@ class AccountViewModel(application: Application) : AndroidViewModel(application)
       refreshReviewStatus(manual = false)
       return
     }
-    if (mutableState.value.screen == AccountScreen.PROFILE) {
-      viewModelScope.launch(Dispatchers.IO) { runCatching { account.completeFamilyKeyGrant(null) } }
-      return
-    }
+    if (mutableState.value.screen == AccountScreen.PROFILE) return
     if (mutableState.value.screen in setOf(AccountScreen.PERMISSION, AccountScreen.BACKUP_OVERVIEW, AccountScreen.LOCAL_ALBUM)) {
       val permission = mediaSource.getPermissionSnapshot().library
       if (permission == LibraryPermissionState.FULL && mutableState.value.screen == AccountScreen.PERMISSION) {

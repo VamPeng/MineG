@@ -1,26 +1,39 @@
 {
-  "contractVersion": "2.0.0",
+  "contractVersion": "2.1.0",
   "wireVersion": "stage02-v2",
   "status": "BASELINED",
-  "scope": "M3_D_PROFILE_AVATAR_KEY_GRANT_PRIVATE_MEDIA",
+  "scope": "M3_D_PROFILE_AVATAR_KEY_GRANT_PRIVATE_MEDIA_LOCAL_INDEX_SETTINGS",
   "compatibleWith": "stage02-v1@1.0.0",
   "commands": [
     "CoordinateFamilyKeyGrants",
     "ProfileUpdateAvatar",
-    "PrivateMediaList"
+    "PrivateMediaList",
+    "StartForegroundLocalScan",
+    "UpdateBackupSettings"
   ],
   "queries": [
-    "ListPrivateMediaSnapshot"
+    "ListPrivateMediaSnapshot",
+    "GetBackupSettings",
+    "GetLocalLibrarySummary",
+    "ListLocalAlbums",
+    "ListLocalMedia"
   ],
   "events": [
     "CurrentProfileChanged",
-    "PrivateMediaSnapshotChanged"
+    "PrivateMediaSnapshotChanged",
+    "BackupSettingsChanged",
+    "LocalLibraryIndexChanged",
+    "LocalScanProgressChanged"
   ],
   "bridgeSnapshots": {
     "KeyGrantCoordinationResult": ["completed", "completedCount", "keysAvailable"],
     "CurrentProfileSnapshot": ["id", "nickname", "maskedPhone", "avatarUrl", "version", "updatedAt"],
     "PrivateMediaSnapshot": ["items", "refreshedAt"],
-    "OwnerMediaSummary": ["id", "mediaType", "contentRevision", "capturedAt", "createdAt"]
+    "OwnerMediaSummary": ["id", "mediaType", "contentRevision", "capturedAt", "createdAt"],
+    "BackupSettingsSnapshot": ["autoBackupEnabled", "allowCellularBackup", "updatedAt"],
+    "LocalLibrarySummary": ["generationId", "indexedCount", "completedAt"],
+    "LocalAlbumPage": ["items", "nextCursor"],
+    "LocalMediaPage": ["items", "nextCursor"]
   },
   "secureStoreNames": [
     "keys.deviceWrapKey",
@@ -29,14 +42,18 @@
   ],
   "effectActions": {
     "TransportEffect": ["sendApiRequest", "uploadObject"],
-    "SecureStoreEffect": ["readSecrets", "writeSecrets"]
+    "SecureStoreEffect": ["readSecrets", "writeSecrets"],
+    "MediaSourceEffect": ["getPermissionSnapshot", "listAlbums", "listMedia"]
   },
   "rules": [
     "Key bundle and pending grant responses are parsed only by Core",
     "Decrypted user and family keys remain only in Core controlled memory",
     "Avatar object transfer is performed only by TransportEffect",
     "Private media snapshots are account isolated in Core SQLite",
-    "Android maps immutable snapshots to UI and never merges domain list state"
+    "Android maps immutable snapshots to UI and never merges domain list state",
+    "Foreground local scans always start with an empty cursor and are never recovered",
+    "Only a completed generation can replace the visible local-library index",
+    "Backup settings are preferences only and never schedule or upload work in Batch D"
   ],
   "jsonFieldStyle": "lowerCamelCase",
   "apiFieldStyle": "snake_case"

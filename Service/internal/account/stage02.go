@@ -254,12 +254,16 @@ func (s *Service) CompleteKeyGrant(ctx context.Context, session UserSession, gra
 			}
 			return conflictError("KEY_GRANT_STATE_INVALID", "Key grant state invalid", "The key grant changed concurrently.")
 		}
-		approved, err := q.ApproveEnvelopeReadyUser(ctx, dbgen.ApproveEnvelopeReadyUserParams{ID: grant.UserID, UpdatedAt: now})
-		if err != nil || approved != 1 {
-			if err != nil {
-				return err
+		if grant.Status == "PENDING" {
+			approved, err := q.ApproveEnvelopeReadyUser(ctx, dbgen.ApproveEnvelopeReadyUserParams{ID: grant.UserID, UpdatedAt: now})
+			if err != nil || approved != 1 {
+				if err != nil {
+					return err
+				}
+				return conflictError("KEY_GRANT_STATE_INVALID", "Key grant state invalid", "The target account could not be approved.")
 			}
-			return conflictError("KEY_GRANT_STATE_INVALID", "Key grant state invalid", "The target account could not be approved.")
+		} else if grant.Status != "APPROVED" {
+			return conflictError("KEY_GRANT_STATE_INVALID", "Key grant state invalid", "The target account is not eligible for legacy key grant completion.")
 		}
 		if err := recordAudit(ctx, q, "USER", session.RawUserID, "FAMILY_KEY_GRANT_COMPLETE", "USER", grant.UserID, "SUCCESS", input.RequestID); err != nil {
 			return err
@@ -277,7 +281,7 @@ func (s *Service) CompleteKeyGrant(ctx context.Context, session UserSession, gra
 
 func (s *Service) UpdateProfile(ctx context.Context, session UserSession, nickname, requestID string) (Profile, error) {
 	if session.Status != "APPROVED" {
-		return Profile{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting approval and key access."}
+		return Profile{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting administrator approval."}
 	}
 	nickname = strings.TrimSpace(nickname)
 	if count := utf8.RuneCountInString(nickname); count < 2 || count > 20 || !nicknamePattern.MatchString(nickname) {
@@ -307,7 +311,7 @@ type AvatarUploadResult struct {
 
 func (s *Service) CreateAvatarUpload(ctx context.Context, session UserSession, input CreateAvatarUploadInput) (AvatarUploadResult, error) {
 	if session.Status != "APPROVED" {
-		return AvatarUploadResult{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting approval and key access."}
+		return AvatarUploadResult{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting administrator approval."}
 	}
 	if !idempotencyPattern.MatchString(input.IdempotencyKey) || input.SourceSize < 1 || input.SourceSize > 10*1024*1024 ||
 		input.DisplaySize < 1 || input.DisplaySize > 10*1024*1024 || input.Width < 1 || input.Width > 1024 ||
@@ -353,7 +357,7 @@ func (s *Service) CreateAvatarUpload(ctx context.Context, session UserSession, i
 
 func (s *Service) CompleteAvatarUpload(ctx context.Context, session UserSession, uploadID, requestID string) (Profile, error) {
 	if session.Status != "APPROVED" {
-		return Profile{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting approval and key access."}
+		return Profile{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting administrator approval."}
 	}
 	parsedID, err := parsePGUUID(uploadID)
 	if err != nil {
@@ -400,7 +404,7 @@ func (s *Service) CompleteAvatarUpload(ctx context.Context, session UserSession,
 
 func (s *Service) GetAvatarGrant(ctx context.Context, session UserSession) (objectstore.ObjectGrant, error) {
 	if session.Status != "APPROVED" {
-		return objectstore.ObjectGrant{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting approval and key access."}
+		return objectstore.ObjectGrant{}, &Error{Code: "ACCOUNT_PENDING", Status: 403, Title: "Account pending", Detail: "The account is still awaiting administrator approval."}
 	}
 	avatar, err := dbgen.New(s.pool).GetReadyAvatar(ctx, session.RawUserID)
 	if errors.Is(err, pgx.ErrNoRows) {

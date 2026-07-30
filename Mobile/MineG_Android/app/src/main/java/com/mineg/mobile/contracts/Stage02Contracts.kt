@@ -38,6 +38,12 @@ data class LocalScanState(
   val updatedAt: String?,
 )
 
+data class LocalLibrarySummary(
+  val generationId: String,
+  val indexedCount: Long,
+  val completedAt: String,
+)
+
 data class LocalAlbum(
   val platformAlbumRef: String,
   val name: String,

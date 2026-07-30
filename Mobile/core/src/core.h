@@ -80,9 +80,20 @@ class Core final {
   std::string read_account_state_locked();
   std::string read_backup_settings_locked(const std::string &query);
   std::string read_scan_state_locked(const std::string &query);
+  std::string read_local_library_summary_locked(const std::string &query);
   std::string list_local_albums_locked(const std::string &query);
   std::string list_local_media_locked(const std::string &query);
   mineg_error_code_t apply_local_media_batch_locked(const std::string &command);
+  bool prepare_local_scan_locked(const std::string &user_id, const std::string &generation_id);
+  bool write_local_scan_albums_locked(const std::string &user_id,
+                                      const std::string &generation_id,
+                                      const std::string &effect_result);
+  bool write_local_scan_page_locked(const std::string &user_id,
+                                    const std::string &generation_id,
+                                    const std::string &effect_result, int64_t &item_count);
+  bool finalize_local_scan_locked(const std::string &user_id,
+                                  const std::string &generation_id,
+                                  int64_t indexed_count, const std::string &completed_at);
   mineg_error_code_t create_single_media_backup_locked(const std::string &command);
   mineg_error_code_t record_prepared_media_locked(const std::string &command);
   mineg_error_code_t update_single_media_backup_locked(const std::string &command,
@@ -113,7 +124,8 @@ class Core final {
                                     const std::string &completion);
   bool activate_account_session_locked(AccountOperation &operation);
   std::string read_current_profile_snapshot_locked();
-  bool persist_current_profile_locked(const std::string &profile_json);
+  bool persist_current_profile_locked(const std::string &profile_json,
+                                      const std::string &contract_version);
   std::string read_private_media_snapshot_locked(int limit);
   bool has_private_media_cache_locked();
   bool persist_private_media_locked(const std::string &page_json);

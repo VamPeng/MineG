@@ -46,6 +46,29 @@ func (q *Queries) ApproveEnvelopeReadyUser(ctx context.Context, arg ApproveEnvel
 	return result.RowsAffected(), nil
 }
 
+const approveUserAfterReview = `-- name: ApproveUserAfterReview :execrows
+UPDATE mineg.users
+SET reviewed_at = COALESCE(reviewed_at, $2),
+    reviewed_by = COALESCE(reviewed_by, $3),
+    status = 'APPROVED',
+    updated_at = $2
+WHERE id = $1 AND status = 'PENDING'
+`
+
+type ApproveUserAfterReviewParams struct {
+	ID         pgtype.UUID        `json:"id"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	ReviewedBy pgtype.UUID        `json:"reviewed_by"`
+}
+
+func (q *Queries) ApproveUserAfterReview(ctx context.Context, arg ApproveUserAfterReviewParams) (int64, error) {
+	result, err := q.db.Exec(ctx, approveUserAfterReview, arg.ID, arg.UpdatedAt, arg.ReviewedBy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const completeAvatarUpload = `-- name: CompleteAvatarUpload :execrows
 UPDATE mineg.avatar_uploads
 SET state = 'READY', completed_at = $3

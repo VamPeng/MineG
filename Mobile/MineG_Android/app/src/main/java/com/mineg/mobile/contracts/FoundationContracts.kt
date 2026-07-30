@@ -20,9 +20,10 @@ data class UploadPartRequest(
   val url: String,
   val method: String,
   val headers: Map<String, String>,
-  val ciphertextPath: String,
+  val sourcePath: String? = null,
   val offset: Long,
   val size: Long,
+  val sourceDescriptor: Int? = null,
 )
 
 data class UploadPartResult(val etag: String)
@@ -115,7 +116,7 @@ interface ConnectivityPort {
 }
 
 interface FilePort {
-  fun createEncryptedTempFile(name: String): String
+  fun createTaskTempFile(name: String): String
   fun getAvailableSpace(): Long
   fun deleteTempFile(path: String): Boolean
 }

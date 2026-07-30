@@ -297,7 +297,7 @@ private fun LoginScreen(state: AccountUiState, viewModel: AccountViewModel) {
 @Composable
 private fun SignUpScreen(state: AccountUiState, viewModel: AccountViewModel) {
   BackHandler { viewModel.openLogin() }
-  AuthFrame("创建账号", "注册申请需要管理员审核；通过后还需家庭成员设备完成安全密钥授权。", "auth.signup") {
+  AuthFrame("创建账号", "注册申请需要管理员审核；通过后即可进入私人空间。", "auth.signup") {
     AccountMessage(state)
     AccountTextField(state.phone, viewModel::updatePhone, "手机号", "auth.signup.phone", state.fieldErrors["phone"], KeyboardType.Phone, state.loading)
     AccountPasswordField(state.password, viewModel::updatePassword, "密码", "auth.signup.password", state.fieldErrors["password"], state.loading)
@@ -387,7 +387,7 @@ private fun ReviewPendingScreen(state: AccountUiState, viewModel: AccountViewMod
           contentAlignment = Alignment.Center,
         ) { Text("…", color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 32.sp, fontWeight = FontWeight.Bold) }
         Text("申请审核中", fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
-        Text("管理员通过后，家庭成员设备还会无感完成密钥授权。在此之前，你会继续停留在本页面。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 22.sp)
+        Text("管理员审核通过后，刷新状态即可进入私人空间。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 22.sp)
         AccountMessage(state)
         Button(
           onClick = { viewModel.refreshReviewStatus() },
@@ -452,8 +452,8 @@ private fun ProfileScreen(state: AccountUiState, viewModel: AccountViewModel) {
       }
       Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-          Text("端到端加密已启用", fontWeight = FontWeight.SemiBold, color = MaterialTheme.mineGColors.success)
-          Text("你的私钥不会离开设备。家庭密钥、资料与本地相册索引均已由当前设备安全处理。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 21.sp)
+          Text("私有存储与安全传输", fontWeight = FontWeight.SemiBold, color = MaterialTheme.mineGColors.success)
+          Text("媒体保存在私有云存储中，上传和加载使用 HTTPS/TLS，并由账号权限控制访问。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 21.sp)
         }
       }
       Button(onClick = viewModel::openBackup, modifier = Modifier.fillMaxWidth().height(52.dp).testTag("profile.home.openBackup")) {
@@ -831,9 +831,9 @@ private fun LegalScreen(document: String, onBack: () -> Unit) {
       Text(if (privacy) "MineG 隐私政策" else "MineG 服务协议", fontSize = 25.sp, fontWeight = FontWeight.Bold)
       Text(
         if (privacy) {
-          "MineG 仅处理账号准入、加密媒体元数据和实现服务所需的信息。媒体内容在设备端加密；服务端和审核管理员不能读取媒体明文或私钥。访问令牌保存在系统安全存储中，不写入普通数据库或日志。"
+          "MineG 处理账号准入、媒体元数据和实现服务所需的信息。媒体上传与加载不做客户端应用层加密，通过 HTTPS/TLS 传输并保存在私有云存储中；审核管理页面不提供媒体浏览能力，云资源高权限访问受审批和审计约束。访问令牌保存在系统安全存储中，不写入普通数据库或日志。"
         } else {
-          "使用 MineG 即表示你同意仅上传本人有权处理的媒体，并妥善保管登录密码。MVP 不提供密码找回或管理员绕过密钥恢复；遗失密码可能导致加密内容无法恢复。"
+          "使用 MineG 即表示你同意仅上传本人有权处理的媒体，并妥善保管登录密码。MVP 不提供密码找回；媒体通过公网 ECS 和私有云存储提供服务，请勿上传无权处理的内容。"
         },
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         lineHeight = 24.sp,

@@ -91,6 +91,7 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
       onSettings = { viewModel.navigate(AppRoute.BackupSettings) },
       onOpenAlbum = viewModel::openLocalAlbum,
       onStartBackup = viewModel::startBackup,
+      onRefresh = viewModel::refreshLocalLibrary,
     )
     AppRoute.Profile -> state.profile?.let { profile -> ProfilePage(
       profile,
@@ -116,7 +117,7 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
     AppRoute.SharedByMe -> SharedByMePage(state.familyAlbum, viewModel::back, viewModel::openFamilyMedia)
     is AppRoute.LocalAlbum -> {
       val album = state.backup.albums.firstOrNull { it.id == route.albumId }
-      LocalAlbumPage(album, state.privateSpace.items, viewModel::back)
+      LocalAlbumPage(album, state.backup, viewModel::backupSingleMedia, viewModel::back)
     }
     AppRoute.BackupSettings -> BackupSettingsPage(
       state.backup,

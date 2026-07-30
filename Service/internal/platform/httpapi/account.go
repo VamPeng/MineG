@@ -61,8 +61,14 @@ func handleSignUp(service *account.Service) http.HandlerFunc {
 		if !decodeJSON(w, r, &request) {
 			return
 		}
-		publicKey, publicErr := base64.RawStdEncoding.DecodeString(request.PublicKey)
-		bundle, bundleErr := base64.RawStdEncoding.DecodeString(request.EncryptedKeyBundle)
+		var publicKey, bundle []byte
+		var publicErr, bundleErr error
+		if request.PublicKey != "" {
+			publicKey, publicErr = base64.RawStdEncoding.DecodeString(request.PublicKey)
+		}
+		if request.EncryptedKeyBundle != "" {
+			bundle, bundleErr = base64.RawStdEncoding.DecodeString(request.EncryptedKeyBundle)
+		}
 		if publicErr != nil || bundleErr != nil {
 			writeAccountError(w, r, &account.Error{Code: "KEY_BUNDLE_INVALID", Status: 422, Title: "Invalid key bundle", Detail: "Key data must use unpadded base64."})
 			return

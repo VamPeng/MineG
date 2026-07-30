@@ -2,11 +2,9 @@
 
 应用部署配置、环境说明和运维流程。
 
-新的目标架构正在重设计：完整业务服务、PostgreSQL 和照片对象存储迁到家庭 Linux 节点；ECS 只保留 WebRTC 协调与 STUN，不中继业务流量。方案与实施边界见[家庭节点私人云架构 vNext](../Requirement/private-cloud-architecture-vnext.md)。
+现行部署基线为公网 ECS：Go 业务服务和 PostgreSQL 部署在 ECS，移动端和管理端通过 HTTPS 访问；媒体对象保存在私有阿里云 OSS，由 ECS 完成授权和元数据校验。媒体上传与加载不做客户端应用层加密，传输安全依赖 HTTPS/TLS，Bucket 不公开。
 
-家庭笔记本开始获取项目和执行最小验证时，使用[家庭 Linux 节点 V0 最小验证部署手册](./private-album-infra/docs/04-home-node-minimum-validation.md)。该手册只验证当前 REST 服务和家庭局域网路径；WebRTC 与本地对象存储需要后续 V1 实现。
-
-以下现有 ECS + 阿里云 OSS 基础设施资料用于历史验证和迁移参考，在 vNext 草案冻结前不得继续视为最终部署目标：
+部署入口：
 
 - [private-album-infra](./private-album-infra/README.md)
 
