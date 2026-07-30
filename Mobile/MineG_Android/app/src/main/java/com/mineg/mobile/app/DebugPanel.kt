@@ -49,19 +49,19 @@ fun DebugStatePanel(
     ) {
       Text("页面验收调试", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
       Text(
-        "仅在 Debug 包显示。切换状态不会调用后端，也不会写入设备数据。",
+        "仅在 Debug 包显示。页面状态切换不会写入设备数据；重新校验登录状态会读取本地会话并按需访问后端。",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall,
       )
 
       DebugSection("主页面") {
-        DebugChip("私人空间") { onNavigate(AppRoute.PrivateSpace) }
-        DebugChip("家庭相册") { onNavigate(AppRoute.FamilyAlbum) }
+        DebugChip("私人/共享") { onNavigate(AppRoute.PrivateSpace) }
         DebugChip("备份") { onNavigate(AppRoute.Backup) }
         DebugChip("我的") { onNavigate(AppRoute.Profile) }
       }
 
       DebugSection("次级页面") {
+        DebugChip("我分享的") { onNavigate(AppRoute.SharedByMe) }
         DebugChip("回收站") { onNavigate(AppRoute.RecycleBin) }
         DebugChip("备份设置") { onNavigate(AppRoute.BackupSettings) }
         DebugChip("帮助反馈") { onNavigate(AppRoute.HelpFeedback) }
@@ -75,8 +75,12 @@ fun DebugStatePanel(
       }
 
       when (state.currentRoute) {
-        AppRoute.PrivateSpace -> LoadStateSection("私人空间状态", onPrivateState)
-        AppRoute.FamilyAlbum -> LoadStateSection("家庭相册状态", onFamilyState)
+        AppRoute.PrivateSpace -> if (state.selectedLibraryTab == LibraryTab.PRIVATE) {
+          LoadStateSection("私人内容状态", onPrivateState)
+        } else {
+          LoadStateSection("共享内容状态", onFamilyState)
+        }
+        AppRoute.SharedByMe -> LoadStateSection("我分享的状态", onFamilyState)
         AppRoute.RecycleBin -> LoadStateSection("回收站状态", onRecycleState)
         AppRoute.Backup -> DebugSection("备份状态") {
           BackupStatus.entries.forEach { status -> DebugChip(status.debugLabel()) { onBackupStatus(status) } }
@@ -90,7 +94,7 @@ fun DebugStatePanel(
       HorizontalDivider()
       Button(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
         Icon(Icons.Outlined.RestartAlt, contentDescription = null)
-        Text(" 恢复默认验收首页")
+        Text(" 重新校验登录状态")
       }
       Spacer(Modifier.height(12.dp))
     }
@@ -136,6 +140,7 @@ private fun BackupStatus.debugLabel(): String = when (this) {
   BackupStatus.DEVICE_STORAGE_FULL -> "设备空间不足"
   BackupStatus.CLOUD_STORAGE_FULL -> "服务空间不足"
   BackupStatus.SERVICE_UNAVAILABLE -> "服务不可用"
+  BackupStatus.INDEXED -> "索引完成"
   BackupStatus.COMPLETE -> "同步完成"
   BackupStatus.PAUSED -> "自动备份关闭"
 }

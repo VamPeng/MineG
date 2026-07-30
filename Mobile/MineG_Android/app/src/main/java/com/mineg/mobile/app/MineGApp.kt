@@ -1,29 +1,41 @@
 package com.mineg.mobile.app
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mineg.mobile.BuildConfig
 
 @Composable
-fun MineGApp(viewModel: MineGAppViewModel) {
+fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   val route = state.currentRoute
 
@@ -33,6 +45,7 @@ fun MineGApp(viewModel: MineGAppViewModel) {
 
   Box(Modifier.fillMaxSize()) {
     when (route) {
+    AppRoute.Restoring -> RestoringPage(state.auth.message)
     AppRoute.Login -> LoginPage(
       state = state.auth,
       onPhoneChange = viewModel::updatePhone,
@@ -56,19 +69,20 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       onBackToLogin = viewModel::returnToLogin,
     )
     is AppRoute.Legal -> LegalPage(route.document, viewModel::back)
-    AppRoute.Permission -> PermissionPage(viewModel::grantLibraryAccess, viewModel::deferLibraryAccess)
-    AppRoute.PrivateSpace -> PrivateSpacePage(
-      state.privateSpace,
-      state.selectedTab,
-      viewModel::selectTab,
-      viewModel::openPrivateMedia,
+    AppRoute.Permission -> PermissionPage(
+      message = state.auth.message,
+      onGrant = onRequestLibraryAccess,
+      onDefer = viewModel::deferLibraryAccess,
     )
-    AppRoute.FamilyAlbum -> FamilyAlbumPage(
-      state.familyAlbum,
-      state.selectedTab,
-      viewModel::selectTab,
-      viewModel::setFamilyFilter,
-      viewModel::openFamilyMedia,
+    AppRoute.PrivateSpace -> PrivateSpacePage(
+      privateState = state.privateSpace,
+      sharedState = state.familyAlbum,
+      selectedLibraryTab = state.selectedLibraryTab,
+      selectedTab = state.selectedTab,
+      onSelectLibraryTab = viewModel::selectLibraryTab,
+      onSelectTab = viewModel::selectTab,
+      onOpenPrivateMedia = viewModel::openPrivateMedia,
+      onOpenSharedMedia = viewModel::openFamilyMedia,
     )
     AppRoute.Backup -> BackupPage(
       state.backup,
@@ -78,17 +92,17 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       onOpenAlbum = viewModel::openLocalAlbum,
       onStartBackup = viewModel::startBackup,
     )
-    AppRoute.Profile -> ProfilePage(
-      state.profile,
+    AppRoute.Profile -> state.profile?.let { profile -> ProfilePage(
+      profile,
       state.selectedTab,
       viewModel::selectTab,
       onEdit = { viewModel.navigate(AppRoute.ProfileEdit) },
       onBackupSettings = { viewModel.navigate(AppRoute.BackupSettings) },
       onRecycleBin = { viewModel.navigate(AppRoute.RecycleBin) },
-      onFamilyAlbum = { viewModel.selectTab(MainTab.FAMILY_ALBUM) },
+      onSharedByMe = { viewModel.navigate(AppRoute.SharedByMe) },
       onHelp = { viewModel.navigate(AppRoute.HelpFeedback) },
       onLogout = viewModel::requestLogout,
-    )
+    ) } ?: RestoringPage("正在校验用户信息…")
     is AppRoute.PrivateMediaDetail -> PrivateMediaDetailPage(
       media = viewModel.mediaById(route.mediaId),
       actionState = state.selectedMediaAction,
@@ -99,6 +113,7 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       onDelete = { viewModel.requestDelete(route.mediaId) },
     )
     is AppRoute.FamilyMediaDetail -> FamilyMediaDetailPage(viewModel.mediaById(route.mediaId), viewModel::back)
+    AppRoute.SharedByMe -> SharedByMePage(state.familyAlbum, viewModel::back, viewModel::openFamilyMedia)
     is AppRoute.LocalAlbum -> {
       val album = state.backup.albums.firstOrNull { it.id == route.albumId }
       LocalAlbumPage(album, state.privateSpace.items, viewModel::back)
@@ -109,7 +124,18 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       viewModel::setAutoBackupEnabled,
       viewModel::setCellularBackupEnabled,
     )
-    AppRoute.ProfileEdit -> ProfileEditPage(state.profile, viewModel::updateNickname, viewModel::back)
+    AppRoute.ProfileEdit -> state.profile?.let { profile ->
+      ProfileEditPage(
+        profile = profile,
+        nickname = state.profileDraftNickname,
+        saving = state.auth.loading,
+        message = state.auth.message,
+        onNickname = viewModel::updateNickname,
+        onSave = viewModel::saveProfile,
+        onAvatar = viewModel::updateAvatar,
+        onBack = viewModel::back,
+      )
+    } ?: RestoringPage("正在校验用户信息…")
     AppRoute.RecycleBin -> RecycleBinPage(state.recycleBin, viewModel::back, viewModel::requestRestore)
     AppRoute.HelpFeedback -> HelpFeedbackPage(
       state.feedback,
@@ -121,19 +147,6 @@ fun MineGApp(viewModel: MineGAppViewModel) {
     )
     }
 
-    if (BuildConfig.DEBUG && !state.debugPanelVisible) {
-      FloatingActionButton(
-        onClick = viewModel::showDebugPanel,
-        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 10.dp),
-        containerColor = MaterialTheme.colorScheme.inverseSurface,
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-      ) {
-        Row(Modifier.padding(horizontal = 13.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-          Icon(Icons.Outlined.Build, contentDescription = null)
-          Text("调试")
-        }
-      }
-    }
   }
 
   if (BuildConfig.DEBUG && state.debugPanelVisible) {
@@ -175,16 +188,65 @@ fun MineGApp(viewModel: MineGAppViewModel) {
         destructive = true
       }
     }
-    AlertDialog(
-      onDismissRequest = viewModel::dismissDialog,
-      title = { Text(title) },
-      text = { Text(message) },
-      confirmButton = {
-        TextButton(onClick = viewModel::confirmDialog) {
+    MineGConfirmDialog(
+      title = title,
+      message = message,
+      confirmLabel = confirmLabel,
+      destructive = destructive,
+      icon = when (dialog) {
+        is AppDialog.DeleteMedia -> Icons.Outlined.DeleteOutline
+        is AppDialog.RestoreMedia -> Icons.Outlined.Restore
+        AppDialog.Logout -> Icons.AutoMirrored.Outlined.Logout
+      },
+      onConfirm = viewModel::confirmDialog,
+      onDismiss = viewModel::dismissDialog,
+    )
+  }
+}
+
+@Composable
+private fun MineGConfirmDialog(
+  title: String,
+  message: String,
+  confirmLabel: String,
+  destructive: Boolean,
+  icon: ImageVector,
+  onConfirm: () -> Unit,
+  onDismiss: () -> Unit,
+) {
+  Dialog(onDismissRequest = onDismiss) {
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 12.dp) {
+      Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+          Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          Box(
+            Modifier.size(56.dp).background(
+              if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+              CircleShape,
+            ),
+            contentAlignment = Alignment.Center,
+          ) {
+            Icon(
+              icon,
+              null,
+              tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+          }
+          Text(title, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+          Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        TextButton(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) {
           Text(confirmLabel, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
         }
-      },
-      dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text("取消") } },
-    )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+          Text("取消", color = MaterialTheme.colorScheme.onSurface)
+        }
+      }
+    }
   }
 }

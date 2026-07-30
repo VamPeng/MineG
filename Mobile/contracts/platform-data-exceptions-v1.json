@@ -1,0 +1,122 @@
+{
+  "contractVersion": "1.0.0",
+  "status": "BASELINED",
+  "defaultPolicy": "DENY",
+  "exceptions": [
+    {
+      "id": "EX-FND-001",
+      "trackingId": "M3-D-A",
+      "ruleId": "BUSINESS_API_PATH",
+      "path": "com/mineg/mobile/FoundationViewModel.kt",
+      "owner": "mobile-foundation",
+      "reason": "The frozen M0 diagnostic probe predates Foundation v2 and remains only as a compatibility check.",
+      "removalCondition": "Remove when the legacy FoundationViewModel probe is retired after the v2 dispatcher is wired to the production runtime.",
+      "allowedMatches": [
+        {"value": "\"/api/v1/platform/probe\"", "maxOccurrences": 1}
+      ]
+    },
+    {
+      "id": "EX-AND-001",
+      "trackingId": "AND-DATA-005,AND-DATA-012",
+      "ruleId": "BUSINESS_API_PATH",
+      "path": "com/mineg/mobile/account/AndroidAccountClient.kt",
+      "owner": "android-data-migration",
+      "reason": "Account, profile, key and private-media routes remain only for the compiled inactive legacy UI; upload routes remain the audited Stage03 migration source. None may grow.",
+      "removalCondition": "Delete legacy route allowances with AND-DATA-012 retirement and upload allowances when stage03-v2 takes ownership.",
+      "allowedMatches": [
+        {"value": "\"/api/v1/auth/approval-status\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/auth/login\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/auth/logout\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/auth/refresh\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/auth/register\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/key-grants/${grant.id}/complete\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/key-grants/pending?limit=20\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/me\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/me/avatar/uploads\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/me/avatar/uploads/$uploadId/complete\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/me/key-bundle\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/me/profile\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/media?limit=$pageSize\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/uploads\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/uploads/$uploadId/complete\"", "maxOccurrences": 1},
+        {"value": "\"/api/v1/uploads/$uploadId/parts\"", "maxOccurrences": 1}
+      ]
+    },
+    {
+      "id": "EX-AND-003",
+      "trackingId": "AND-DATA-012",
+      "ruleId": "DIRECT_HTTP_OUTSIDE_TRANSPORT",
+      "path": "com/mineg/mobile/account/AndroidAccountClient.kt",
+      "owner": "android-data-migration",
+      "reason": "The compiled inactive legacy avatar path still creates its own connection; the production Stage02 v2 path uses TransportEffect.uploadObject.",
+      "removalCondition": "Remove when the legacy account UI is retired under AND-DATA-012.",
+      "allowedMatches": [
+        {"value": "HttpURLConnection", "maxOccurrences": 2}
+      ]
+    },
+    {
+      "id": "EX-AND-012-HTTP",
+      "trackingId": "AND-DATA-012",
+      "ruleId": "DIRECT_HTTP_OUTSIDE_TRANSPORT",
+      "path": "com/mineg/mobile/MainActivity.kt",
+      "owner": "android-legacy-ui",
+      "reason": "The compiled but inactive legacy thumbnail path reads URLs directly.",
+      "removalCondition": "Remove after the migrated production main chain is stable and the legacy path retirement is separately approved.",
+      "allowedMatches": [
+        {"value": "HttpURLConnection", "maxOccurrences": 2}
+      ]
+    },
+    {
+      "id": "EX-AND-011",
+      "trackingId": "AND-DATA-005,AND-DATA-006,AND-DATA-007,AND-DATA-011,AND-DATA-012",
+      "ruleId": "PLATFORM_BUSINESS_DATA_OWNER",
+      "path": "com/mineg/mobile/account/AndroidAccountClient.kt",
+      "owner": "android-data-migration",
+      "reason": "The existing Kotlin client remains the audited scan, settings, upload and legacy UI migration source but cannot be extended.",
+      "removalCondition": "Remove after batches D/E switch production calls to Core and the legacy UI is separately retired.",
+      "allowedMatches": [
+        {"value": "class AndroidAccountClient", "maxOccurrences": 1}
+      ]
+    },
+    {
+      "id": "EX-AND-008-MOCK",
+      "trackingId": "AND-DATA-008",
+      "ruleId": "PLATFORM_BUSINESS_DATA_OWNER",
+      "path": "com/mineg/mobile/app/MockMineGRepository.kt",
+      "owner": "android-ui-migration",
+      "reason": "The production source set still contains the audited prototype repository.",
+      "removalCondition": "Move fixtures to Preview or test source sets when the corresponding M5/M6 Core queries are connected.",
+      "allowedMatches": [
+        {"value": "object MockMineGRepository", "maxOccurrences": 1}
+      ]
+    },
+    {
+      "id": "EX-AND-008-BINDINGS",
+      "trackingId": "AND-DATA-008",
+      "ruleId": "VIEWMODEL_DOMAIN_SIMULATION",
+      "path": "com/mineg/mobile/app/MineGApp.kt",
+      "owner": "android-ui-migration",
+      "reason": "Current production page callbacks are bound to audited simulated domain operations.",
+      "removalCondition": "Replace each callback with its M5/M6 Core command result before product completion.",
+      "allowedMatches": [
+        {"value": "finishMockDownload", "maxOccurrences": 1},
+        {"value": "submitFeedback", "maxOccurrences": 1},
+        {"value": "toggleShare", "maxOccurrences": 1}
+      ]
+    },
+    {
+      "id": "EX-AND-008-STATE",
+      "trackingId": "AND-DATA-008",
+      "ruleId": "VIEWMODEL_DOMAIN_SIMULATION",
+      "path": "com/mineg/mobile/app/MineGAppViewModel.kt",
+      "owner": "android-ui-migration",
+      "reason": "The audited ViewModel still mutates local domain lists for unfinished product operations.",
+      "removalCondition": "Delete these functions when M5/M6 commands and events drive the production UI.",
+      "allowedMatches": [
+        {"value": "finishMockDownload", "maxOccurrences": 1},
+        {"value": "submitFeedback", "maxOccurrences": 1},
+        {"value": "toggleShare", "maxOccurrences": 1}
+      ]
+    }
+  ]
+}

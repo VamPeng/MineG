@@ -98,8 +98,11 @@
 
 | 页面 | 用途 |
 |---|---|
-| `01-family-album-timeline` | 家庭相册时间线；支持“全部 / 我分享的”过滤 |
+| `01-family-album-timeline` | 首页“共享”Tab 的家庭相册时间线；不再显示内部过滤 Tab |
+| `01-family-album-timeline?view=mine` | 从个人中心进入的“我分享的”独立列表；参考图为 `my-shared-reference.png` |
 | `02-family-media-detail` | 家庭相册媒体详情 |
+
+首页底部仅保留私人、备份、我的三个 Icon；原家庭 Icon 移除。原家庭页顶部筛选改为首页“私人 / 共享”双 Tab，“我分享的”改由个人中心进入独立列表。
 
 ### 06 备份中心
 

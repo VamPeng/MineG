@@ -105,6 +105,43 @@ std::vector<uint8_t> decode_hex(const std::string &hex) {
   return result;
 }
 
+std::string encode_base64(const std::string &value) {
+  static constexpr char kAlphabet[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  std::string result;
+  for (size_t index = 0; index < value.size(); index += 3U) {
+    const uint32_t packet = static_cast<uint32_t>(static_cast<uint8_t>(value[index])) << 16U |
+        (index + 1U < value.size()
+             ? static_cast<uint32_t>(static_cast<uint8_t>(value[index + 1U])) << 8U
+             : 0U) |
+        (index + 2U < value.size()
+             ? static_cast<uint32_t>(static_cast<uint8_t>(value[index + 2U]))
+             : 0U);
+    result += kAlphabet[(packet >> 18U) & 0x3fU];
+    result += kAlphabet[(packet >> 12U) & 0x3fU];
+    result += index + 1U < value.size() ? kAlphabet[(packet >> 6U) & 0x3fU] : '=';
+    result += index + 2U < value.size() ? kAlphabet[packet & 0x3fU] : '=';
+  }
+  return result;
+}
+
+std::string effect_result(uint64_t operation_id, uint64_t sequence,
+                          const std::string &effect_type, const std::string &payload) {
+  return "{\"contractVersion\":\"foundation-v2\",\"operationId\":" +
+      std::to_string(operation_id) + ",\"sequence\":" + std::to_string(sequence) +
+      ",\"effectType\":\"" + effect_type +
+      "\",\"status\":\"SUCCEEDED\",\"payload\":" + payload + "}";
+}
+
+std::string transport_result(uint64_t operation_id, uint64_t sequence, int status,
+                             const std::string &body) {
+  return effect_result(
+      operation_id, sequence, "TransportEffect",
+      "{\"status\":" + std::to_string(status) +
+          ",\"contentType\":\"application/json\",\"requestId\":\"request-test\","
+          "\"bodyBase64\":\"" + encode_base64(body) + "\"}");
+}
+
 void verify_media_encryption_vector() {
   const auto vector_path =
       std::filesystem::path(MINEG_CORE_SOURCE_DIR) / "test-vectors/media-encryption-v1.json";
@@ -129,11 +166,544 @@ void verify_media_encryption_vector() {
 
 int main() {
   verify_media_encryption_vector();
-  assert(mineg_abi_version() == 4U);
+  assert(mineg_abi_version() == 5U);
   const auto root = std::filesystem::temp_directory_path() /
                     ("mineg-core-test-" + std::to_string(static_cast<long long>(::getpid())));
   std::filesystem::create_directories(root);
   const auto database = root / "core.db";
+
+  {
+    const auto operation_database = root / "operations.db";
+    mineg_core_t *operation_core = nullptr;
+    expect(mineg_core_create(operation_database.c_str(), &operation_core), MINEG_OK,
+           "create operation core");
+    const std::string start_command =
+        R"({"contractVersion":"foundation-v2","type":"FoundationEffectProbe","effectType":"TransportEffect","payload":{"action":"sendApiRequest","method":"GET","path":"/foundation/probe"}})";
+    mineg_buffer_t operation_step{};
+    expect(mineg_core_start_operation(
+               operation_core, 9001,
+               reinterpret_cast<const uint8_t *>(start_command.data()), start_command.size(),
+               &operation_step),
+           MINEG_OK, "start recoverable effect operation");
+    assert(as_string(operation_step).find("\"status\":\"WAITING_FOR_EFFECT\"") !=
+           std::string::npos);
+    assert(as_string(operation_step).find("\"sequence\":1") != std::string::npos);
+    mineg_buffer_free(&operation_step);
+
+    expect(mineg_core_start_operation(
+               operation_core, 9001,
+               reinterpret_cast<const uint8_t *>(start_command.data()), start_command.size(),
+               &operation_step),
+           MINEG_OK, "idempotent operation start");
+    mineg_buffer_free(&operation_step);
+    const std::string conflicting_command =
+        R"({"contractVersion":"foundation-v2","type":"FoundationEffectProbe","effectType":"FileEffect","payload":{"action":"getAvailableSpace"}})";
+    expect(mineg_core_start_operation(
+               operation_core, 9001,
+               reinterpret_cast<const uint8_t *>(conflicting_command.data()),
+               conflicting_command.size(), &operation_step),
+           MINEG_INVALID_ARGUMENT, "reject reused operation id with different command");
+
+    mineg_buffer_t recovered{};
+    expect(mineg_core_recover_operations(operation_core, &recovered), MINEG_OK,
+           "recover pending operation");
+    assert(as_string(recovered).find("\"operationId\":9001") != std::string::npos);
+    mineg_buffer_free(&recovered);
+    mineg_core_close(operation_core);
+    operation_core = nullptr;
+
+    expect(mineg_core_create(operation_database.c_str(), &operation_core), MINEG_OK,
+           "reopen operation core");
+    expect(mineg_core_recover_operations(operation_core, &recovered), MINEG_OK,
+           "recover operation after process restart");
+    assert(as_string(recovered).find("\"effectType\":\"TransportEffect\"") !=
+           std::string::npos);
+    mineg_buffer_free(&recovered);
+
+    const std::string wrong_sequence =
+        R"({"contractVersion":"foundation-v2","operationId":9001,"sequence":2,"effectType":"TransportEffect","status":"SUCCEEDED","payload":{}})";
+    expect(mineg_core_resume_operation(
+               operation_core, 9001,
+               reinterpret_cast<const uint8_t *>(wrong_sequence.data()), wrong_sequence.size(),
+               &operation_step),
+           MINEG_INVALID_ARGUMENT, "reject out of sequence effect result");
+    const std::string success_result =
+        R"({"contractVersion":"foundation-v2","operationId":9001,"sequence":1,"effectType":"TransportEffect","status":"SUCCEEDED","payload":{"status":204}})";
+    expect(mineg_core_resume_operation(
+               operation_core, 9001,
+               reinterpret_cast<const uint8_t *>(success_result.data()), success_result.size(),
+               &operation_step),
+           MINEG_OK, "resume effect operation");
+    assert(as_string(operation_step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    assert(as_string(operation_step).find("\"status\":204") != std::string::npos);
+    mineg_buffer_free(&operation_step);
+    expect(mineg_core_resume_operation(
+               operation_core, 9001,
+               reinterpret_cast<const uint8_t *>(success_result.data()), success_result.size(),
+               &operation_step),
+           MINEG_OK, "idempotent effect result");
+    mineg_buffer_free(&operation_step);
+
+    const std::string retry_command =
+        R"({"contractVersion":"foundation-v2","type":"FoundationEffectProbe","effectType":"SecureStoreEffect","maxRetries":1,"payload":{"action":"readSecret","name":"session"}})";
+    expect(mineg_core_start_operation(
+               operation_core, 9003,
+               reinterpret_cast<const uint8_t *>(retry_command.data()), retry_command.size(),
+               &operation_step),
+           MINEG_OK, "start retryable operation");
+    mineg_buffer_free(&operation_step);
+    const std::string retryable_failure =
+        R"({"contractVersion":"foundation-v2","operationId":9003,"sequence":1,"effectType":"SecureStoreEffect","status":"FAILED","error":{"code":"PLATFORM_IO_ERROR","retryable":true}})";
+    expect(mineg_core_resume_operation(
+               operation_core, 9003,
+               reinterpret_cast<const uint8_t *>(retryable_failure.data()),
+               retryable_failure.size(), &operation_step),
+           MINEG_OK, "retry a retryable effect failure");
+    assert(as_string(operation_step).find("\"status\":\"WAITING_FOR_EFFECT\"") !=
+           std::string::npos);
+    assert(as_string(operation_step).find("\"sequence\":2") != std::string::npos);
+    mineg_buffer_free(&operation_step);
+    expect(mineg_core_resume_operation(
+               operation_core, 9003,
+               reinterpret_cast<const uint8_t *>(retryable_failure.data()),
+               retryable_failure.size(), &operation_step),
+           MINEG_OK, "idempotent retryable effect result");
+    assert(as_string(operation_step).find("\"sequence\":2") != std::string::npos);
+    mineg_buffer_free(&operation_step);
+    const std::string retry_success =
+        R"({"contractVersion":"foundation-v2","operationId":9003,"sequence":2,"effectType":"SecureStoreEffect","status":"SUCCEEDED","payload":{"valueBase64":null}})";
+    expect(mineg_core_resume_operation(
+               operation_core, 9003,
+               reinterpret_cast<const uint8_t *>(retry_success.data()), retry_success.size(),
+               &operation_step),
+           MINEG_OK, "complete retried operation");
+    assert(as_string(operation_step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    mineg_buffer_free(&operation_step);
+
+    const std::string empty_result = "{}";
+    expect(mineg_core_resume_operation(
+               operation_core, 9003,
+               reinterpret_cast<const uint8_t *>(empty_result.data()), empty_result.size(),
+               &operation_step),
+           MINEG_INVALID_ARGUMENT, "reject empty effect result");
+
+    expect(mineg_core_start_operation(
+               operation_core, 9002,
+               reinterpret_cast<const uint8_t *>(conflicting_command.data()),
+               conflicting_command.size(), &operation_step),
+           MINEG_OK, "start cancellable operation");
+    mineg_buffer_free(&operation_step);
+    expect(mineg_core_cancel(operation_core, 9002), MINEG_OK, "persist operation cancellation");
+    expect(mineg_core_recover_operations(operation_core, &recovered), MINEG_OK,
+           "cancelled operation is not recovered");
+    assert(as_string(recovered).find("\"operationId\":9002") == std::string::npos);
+    mineg_buffer_free(&recovered);
+    mineg_core_close(operation_core);
+  }
+
+  {
+    const auto account_database = root / "account-v2.db";
+    mineg_core_t *account_core = nullptr;
+    expect(mineg_core_create(account_database.c_str(), &account_core), MINEG_OK,
+           "create account v2 core");
+    const std::string sign_up =
+        R"({"contractVersion":"account-v2","type":"AccountSignUp","phone":"13800138000","password":"Password1","idempotencyKey":"registration-001"})";
+    mineg_buffer_t step{};
+    expect(mineg_core_start_operation(account_core, 9099,
+                                      reinterpret_cast<const uint8_t *>(sign_up.data()),
+                                      sign_up.size(), &step),
+           MINEG_OK, "start account sign up in core");
+    mineg_buffer_free(&step);
+    const std::string sign_up_device = effect_result(
+        9099, 1, "SecureStoreEffect",
+        "{\"values\":[{\"name\":\"device.installationId\",\"valueBase64\":\"" +
+            encode_base64("device-001") + "\"}]}");
+    expect(mineg_core_resume_operation(
+               account_core, 9099,
+               reinterpret_cast<const uint8_t *>(sign_up_device.data()),
+               sign_up_device.size(), &step),
+           MINEG_OK, "build registration protocol in core");
+    assert(as_string(step).find("/api/v1/auth/register") != std::string::npos);
+    assert(as_string(step).find("Password1") == std::string::npos);
+    assert(as_string(step).find("public_key") == std::string::npos);
+    mineg_buffer_free(&step);
+    expect(mineg_core_cancel(account_core, 9099), MINEG_OK,
+           "cancel transient registration operation");
+
+    const std::string sign_in =
+        R"({"contractVersion":"account-v2","type":"AccountSignIn","phone":"13800138000","password":"Password1","agreementAccepted":true})";
+    expect(mineg_core_start_operation(account_core, 9100,
+                                      reinterpret_cast<const uint8_t *>(sign_in.data()),
+                                      sign_in.size(), &step),
+           MINEG_OK, "start account sign in");
+    assert(as_string(step).find("\"effectType\":\"SecureStoreEffect\"") != std::string::npos);
+    assert(as_string(step).find("Password1") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string device_result = effect_result(
+        9100, 1, "SecureStoreEffect",
+        "{\"values\":[{\"name\":\"device.installationId\",\"valueBase64\":\"" +
+            encode_base64("device-001") + "\"}]}");
+    expect(mineg_core_resume_operation(
+               account_core, 9100, reinterpret_cast<const uint8_t *>(device_result.data()),
+               device_result.size(), &step),
+           MINEG_OK, "supply installation id");
+    assert(as_string(step).find("/api/v1/auth/login") != std::string::npos);
+    assert(as_string(step).find("Password1") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string session_body =
+        R"({"user_id":"user-v2","access_token":"access-secret-v1","access_expires_at":"2000-07-30T12:15:00Z","refresh_token":"refresh-secret-v1","refresh_expires_at":"2026-08-30T12:00:00Z","approval_status":"APPROVED","next_step":"APP_HOME"})";
+    const std::string sign_in_transport = transport_result(9100, 2, 200, session_body);
+    expect(mineg_core_resume_operation(
+               account_core, 9100,
+               reinterpret_cast<const uint8_t *>(sign_in_transport.data()),
+               sign_in_transport.size(), &step),
+           MINEG_OK, "parse sign in response in core");
+    assert(as_string(step).find("\"action\":\"writeSecrets\"") != std::string::npos);
+    assert(as_string(step).find("access-secret-v1") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string secrets_written =
+        effect_result(9100, 3, "SecureStoreEffect", "{\"written\":true}");
+    expect(mineg_core_resume_operation(
+               account_core, 9100,
+               reinterpret_cast<const uint8_t *>(secrets_written.data()),
+               secrets_written.size(), &step),
+           MINEG_OK, "complete secure session write");
+    assert(as_string(step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    assert(as_string(step).find("\"userId\":\"user-v2\"") != std::string::npos);
+    assert(as_string(step).find("access-secret-v1") == std::string::npos);
+    mineg_buffer_free(&step);
+
+    const std::string profile_get =
+        R"({"contractVersion":"account-v2","type":"ProfileGetCurrent","allowCached":true})";
+    expect(mineg_core_start_operation(account_core, 9101,
+                                      reinterpret_cast<const uint8_t *>(profile_get.data()),
+                                      profile_get.size(), &step),
+           MINEG_OK, "start profile query");
+    assert(as_string(step).find("/api/v1/me") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string profile_body =
+        R"({"id":"user-v2","nickname":"Mine G","masked_phone":"138****8000","avatar_url":"https://objects.invalid/avatar","version":3})";
+    const std::string profile_response = transport_result(9101, 1, 200, profile_body);
+    expect(mineg_core_resume_operation(
+               account_core, 9101,
+               reinterpret_cast<const uint8_t *>(profile_response.data()),
+               profile_response.size(), &step),
+           MINEG_OK, "persist core profile snapshot");
+    assert(as_string(step).find("\"nickname\":\"Mine G\"") != std::string::npos);
+    mineg_buffer_free(&step);
+
+    const std::string profile_query =
+        R"({"version":2,"type":"GetCurrentProfileSnapshot"})";
+    expect(mineg_core_query(account_core,
+                            reinterpret_cast<const uint8_t *>(profile_query.data()),
+                            profile_query.size(), &step),
+           MINEG_OK, "query current profile snapshot");
+    assert(as_string(step).find("\"userId\":\"user-v2\"") == std::string::npos);
+    assert(as_string(step).find("\"id\":\"user-v2\"") != std::string::npos);
+    mineg_buffer_free(&step);
+    mineg_core_close(account_core);
+    account_core = nullptr;
+
+    expect(mineg_core_create(account_database.c_str(), &account_core), MINEG_OK,
+           "reopen account v2 core");
+    const std::string restore =
+        R"({"contractVersion":"account-v2","type":"AccountRestoreSession"})";
+    expect(mineg_core_start_operation(account_core, 9102,
+                                      reinterpret_cast<const uint8_t *>(restore.data()),
+                                      restore.size(), &step),
+           MINEG_OK, "start session restore");
+    mineg_buffer_free(&step);
+    const std::string restore_secrets = effect_result(
+        9102, 1, "SecureStoreEffect",
+        "{\"values\":["
+        "{\"name\":\"account.accessToken\",\"valueBase64\":\"" +
+            encode_base64("access-secret-v1") + "\"},"
+        "{\"name\":\"account.refreshToken\",\"valueBase64\":\"" +
+            encode_base64("refresh-secret-v1") + "\"},"
+        "{\"name\":\"account.accessExpiresAt\",\"valueBase64\":\"" +
+            encode_base64("2000-07-30T12:15:00Z") + "\"},"
+        "{\"name\":\"account.refreshExpiresAt\",\"valueBase64\":\"" +
+            encode_base64("2026-08-30T12:00:00Z") + "\"},"
+        "{\"name\":\"device.installationId\",\"valueBase64\":\"" +
+            encode_base64("device-001") + "\"}]}");
+    expect(mineg_core_resume_operation(
+               account_core, 9102,
+               reinterpret_cast<const uint8_t *>(restore_secrets.data()),
+               restore_secrets.size(), &step),
+           MINEG_OK, "restore secrets into controlled core memory");
+    assert(as_string(step).find("/api/v1/auth/refresh") != std::string::npos);
+    assert(as_string(step).find("refresh-secret-v1") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string rotated_body =
+        R"({"user_id":"user-v2","access_token":"access-secret-v2","access_expires_at":"2026-07-30T12:30:00Z","refresh_token":"refresh-secret-v2","refresh_expires_at":"2026-08-30T12:15:00Z","approval_status":"APPROVED","next_step":"APP_HOME"})";
+    const std::string refresh_response = transport_result(9102, 2, 200, rotated_body);
+    expect(mineg_core_resume_operation(
+               account_core, 9102,
+               reinterpret_cast<const uint8_t *>(refresh_response.data()),
+               refresh_response.size(), &step),
+           MINEG_OK, "rotate restored session");
+    mineg_buffer_free(&step);
+    const std::string rotated_written =
+        effect_result(9102, 3, "SecureStoreEffect", "{\"written\":true}");
+    expect(mineg_core_resume_operation(
+               account_core, 9102,
+               reinterpret_cast<const uint8_t *>(rotated_written.data()),
+               rotated_written.size(), &step),
+           MINEG_OK, "complete restored session");
+    assert(as_string(step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    mineg_buffer_free(&step);
+
+    expect(mineg_core_start_operation(account_core, 9103,
+                                      reinterpret_cast<const uint8_t *>(profile_get.data()),
+                                      profile_get.size(), &step),
+           MINEG_OK, "start cache fallback profile query");
+    mineg_buffer_free(&step);
+    const std::string network_failure =
+        R"({"contractVersion":"foundation-v2","operationId":9103,"sequence":1,"effectType":"TransportEffect","status":"FAILED","error":{"code":"PLATFORM_IO_ERROR","retryable":true}})";
+    expect(mineg_core_resume_operation(
+               account_core, 9103,
+               reinterpret_cast<const uint8_t *>(network_failure.data()),
+               network_failure.size(), &step),
+           MINEG_OK, "core retries a retryable profile transport failure");
+    assert(as_string(step).find("\"status\":\"WAITING_FOR_EFFECT\"") != std::string::npos);
+    assert(as_string(step).find("\"sequence\":2") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string second_network_failure =
+        R"({"contractVersion":"foundation-v2","operationId":9103,"sequence":2,"effectType":"TransportEffect","status":"FAILED","error":{"code":"PLATFORM_IO_ERROR","retryable":true}})";
+    expect(mineg_core_resume_operation(
+               account_core, 9103,
+               reinterpret_cast<const uint8_t *>(second_network_failure.data()),
+               second_network_failure.size(), &step),
+           MINEG_OK, "core chooses account-isolated profile fallback after retry");
+    assert(as_string(step).find("\"nickname\":\"Mine G\"") != std::string::npos);
+    assert(as_string(step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    mineg_buffer_free(&step);
+
+    const std::string stage02_password = "Password1";
+    mineg_buffer_t stage02_public{};
+    mineg_buffer_t stage02_bundle{};
+    mineg_buffer_t stage02_kdf{};
+    expect(mineg_core_create_user_key_bundle(
+               reinterpret_cast<const uint8_t *>(stage02_password.data()),
+               stage02_password.size(), &stage02_public, &stage02_bundle, &stage02_kdf),
+           MINEG_OK, "create stage02 key material");
+    const std::string stage02_public_bytes(
+        reinterpret_cast<const char *>(stage02_public.data), stage02_public.size);
+    const std::string stage02_bundle_bytes(
+        reinterpret_cast<const char *>(stage02_bundle.data), stage02_bundle.size);
+    const std::string coordinate =
+        R"({"contractVersion":"stage02-v2","type":"CoordinateFamilyKeyGrants","password":"Password1"})";
+    expect(mineg_core_start_operation(account_core, 9200,
+                                      reinterpret_cast<const uint8_t *>(coordinate.data()),
+                                      coordinate.size(), &step),
+           MINEG_OK, "start core key grant coordination");
+    assert(as_string(step).find("/api/v1/me/key-bundle") != std::string::npos);
+    assert(as_string(step).find("Password1") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string key_bundle_body =
+        "{\"public_key\":\"" + encode_base64(stage02_public_bytes) +
+        "\",\"encrypted_key_bundle\":\"" + encode_base64(stage02_bundle_bytes) +
+        "\",\"kdf_parameters\":{},\"bundle_version\":1,\"family_envelope\":null}";
+    const std::string key_bundle_result = transport_result(9200, 1, 200, key_bundle_body);
+    expect(mineg_core_resume_operation(
+               account_core, 9200,
+               reinterpret_cast<const uint8_t *>(key_bundle_result.data()),
+               key_bundle_result.size(), &step),
+           MINEG_OK, "parse key bundle in core");
+    assert(as_string(step).find("keys.deviceWrapKey") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string missing_key_secrets = effect_result(
+        9200, 2, "SecureStoreEffect",
+        R"({"values":[{"name":"keys.deviceWrapKey","valueBase64":null},{"name":"keys.userPublicKey","valueBase64":null},{"name":"keys.deviceUnlockBlob","valueBase64":null}]})");
+    expect(mineg_core_resume_operation(
+               account_core, 9200,
+               reinterpret_cast<const uint8_t *>(missing_key_secrets.data()),
+               missing_key_secrets.size(), &step),
+           MINEG_OK, "unlock key bundle and request atomic key storage");
+    assert(as_string(step).find("\"action\":\"writeSecrets\"") != std::string::npos);
+    assert(as_string(step).find("Password1") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string key_secrets_written =
+        effect_result(9200, 3, "SecureStoreEffect", R"({"written":true})");
+    expect(mineg_core_resume_operation(
+               account_core, 9200,
+               reinterpret_cast<const uint8_t *>(key_secrets_written.data()),
+               key_secrets_written.size(), &step),
+           MINEG_OK, "list pending grants after key unlock");
+    assert(as_string(step).find("/api/v1/key-grants/pending?limit=20") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string pending_grants =
+        "{\"items\":[{\"id\":\"grant-001\",\"user_id\":\"user-v2\","
+        "\"family_id\":\"family-001\",\"kind\":\"FAMILY_BOOTSTRAP\","
+        "\"recipient_public_key\":\"" + encode_base64(stage02_public_bytes) +
+        "\",\"bundle_version\":1,\"created_at\":\"2026-07-30T00:00:00Z\"}]}";
+    const std::string pending_result = transport_result(9200, 4, 200, pending_grants);
+    expect(mineg_core_resume_operation(
+               account_core, 9200, reinterpret_cast<const uint8_t *>(pending_result.data()),
+               pending_result.size(), &step),
+           MINEG_OK, "create family envelope and request grant completion");
+    assert(as_string(step).find("/api/v1/key-grants/grant-001/complete") != std::string::npos);
+    assert(as_string(step).find("encrypted_envelope") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string grant_completed = transport_result(
+        9200, 5, 200,
+        R"({"grant_id":"grant-001","user_id":"user-v2","outcome":"COMPLETED","status":"APPROVED"})");
+    expect(mineg_core_resume_operation(
+               account_core, 9200, reinterpret_cast<const uint8_t *>(grant_completed.data()),
+               grant_completed.size(), &step),
+           MINEG_OK, "complete key grant coordination");
+    assert(as_string(step).find("\"completedCount\":1") != std::string::npos);
+    mineg_buffer_free(&step);
+    mineg_buffer_free(&stage02_public);
+    mineg_buffer_free(&stage02_bundle);
+    mineg_buffer_free(&stage02_kdf);
+
+    const std::string media_list =
+        R"({"contractVersion":"stage02-v2","type":"PrivateMediaList","limit":100,"allowCached":true})";
+    expect(mineg_core_start_operation(account_core, 9201,
+                                      reinterpret_cast<const uint8_t *>(media_list.data()),
+                                      media_list.size(), &step),
+           MINEG_OK, "start private media list");
+    assert(as_string(step).find("/api/v1/media?limit=100") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string media_page =
+        R"({"items":[{"id":"media-001","media_type":"PHOTO","content_revision":2,"captured_at":"2026-07-29T12:00:00Z","created_at":"2026-07-30T00:00:00Z"}]})";
+    const std::string media_result = transport_result(9201, 1, 200, media_page);
+    expect(mineg_core_resume_operation(
+               account_core, 9201, reinterpret_cast<const uint8_t *>(media_result.data()),
+               media_result.size(), &step),
+           MINEG_OK, "persist private media snapshot");
+    assert(as_string(step).find("\"mediaType\":\"PHOTO\"") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string media_query =
+        R"({"contractVersion":"stage02-v2","type":"ListPrivateMediaSnapshot","limit":100})";
+    expect(mineg_core_query(account_core,
+                            reinterpret_cast<const uint8_t *>(media_query.data()),
+                            media_query.size(), &step),
+           MINEG_OK, "query private media snapshot");
+    assert(as_string(step).find("media-001") != std::string::npos);
+    mineg_buffer_free(&step);
+
+    expect(mineg_core_start_operation(account_core, 9203,
+                                      reinterpret_cast<const uint8_t *>(media_list.data()),
+                                      media_list.size(), &step),
+           MINEG_OK, "start private media cache fallback");
+    mineg_buffer_free(&step);
+    const std::string media_network_failure =
+        R"({"contractVersion":"foundation-v2","operationId":9203,"sequence":1,"effectType":"TransportEffect","status":"FAILED","error":{"code":"PLATFORM_IO_ERROR","retryable":true}})";
+    expect(mineg_core_resume_operation(
+               account_core, 9203,
+               reinterpret_cast<const uint8_t *>(media_network_failure.data()),
+               media_network_failure.size(), &step),
+           MINEG_OK, "retry private media transport");
+    mineg_buffer_free(&step);
+    const std::string media_second_failure =
+        R"({"contractVersion":"foundation-v2","operationId":9203,"sequence":2,"effectType":"TransportEffect","status":"FAILED","error":{"code":"PLATFORM_IO_ERROR","retryable":true}})";
+    expect(mineg_core_resume_operation(
+               account_core, 9203,
+               reinterpret_cast<const uint8_t *>(media_second_failure.data()),
+               media_second_failure.size(), &step),
+           MINEG_OK, "return account isolated private media cache");
+    assert(as_string(step).find("media-001") != std::string::npos);
+    assert(as_string(step).find("\"status\":\"COMPLETED\"") != std::string::npos);
+    mineg_buffer_free(&step);
+
+    const std::string avatar =
+        R"({"contractVersion":"stage02-v2","type":"ProfileUpdateAvatar","displayBase64":"YXZhdGFy","sourceSize":6,"width":1,"contentType":"image/webp","idempotencyKey":"avatar-001"})";
+    expect(mineg_core_start_operation(account_core, 9202,
+                                      reinterpret_cast<const uint8_t *>(avatar.data()),
+                                      avatar.size(), &step),
+           MINEG_OK, "start avatar update");
+    assert(as_string(step).find("/api/v1/me/avatar/uploads") != std::string::npos);
+    assert(as_string(step).find("YXZhdGFy") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string avatar_created = transport_result(
+        9202, 1, 201,
+        R"({"upload_id":"avatar-upload-001","grant":{"url":"https://objects.invalid/avatar-upload","method":"PUT","expires_at":"2026-07-30T00:10:00Z","headers":{"Content-Type":"image/webp"}}})");
+    expect(mineg_core_resume_operation(
+               account_core, 9202, reinterpret_cast<const uint8_t *>(avatar_created.data()),
+               avatar_created.size(), &step),
+           MINEG_OK, "emit avatar object transport effect");
+    assert(as_string(step).find("\"action\":\"uploadObject\"") != std::string::npos);
+    assert(as_string(step).find("HttpURLConnection") == std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string avatar_uploaded =
+        effect_result(9202, 2, "TransportEffect", R"({"status":200})");
+    expect(mineg_core_resume_operation(
+               account_core, 9202, reinterpret_cast<const uint8_t *>(avatar_uploaded.data()),
+               avatar_uploaded.size(), &step),
+           MINEG_OK, "confirm avatar object upload");
+    assert(as_string(step).find("/api/v1/me/avatar/uploads/avatar-upload-001/complete") !=
+           std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string avatar_profile =
+        R"({"id":"user-v2","nickname":"Mine G","masked_phone":"138****8000","avatar_url":"https://objects.invalid/avatar-v2","version":4})";
+    const std::string avatar_completed = transport_result(9202, 3, 200, avatar_profile);
+    expect(mineg_core_resume_operation(
+               account_core, 9202, reinterpret_cast<const uint8_t *>(avatar_completed.data()),
+               avatar_completed.size(), &step),
+           MINEG_OK, "persist avatar profile snapshot");
+    assert(as_string(step).find("avatar-v2") != std::string::npos);
+    mineg_buffer_free(&step);
+
+    const std::string sign_out =
+        R"({"contractVersion":"account-v2","type":"AccountSignOut"})";
+    expect(mineg_core_start_operation(account_core, 9104,
+                                      reinterpret_cast<const uint8_t *>(sign_out.data()),
+                                      sign_out.size(), &step),
+           MINEG_OK, "start account sign out");
+    mineg_buffer_free(&step);
+    const std::string sign_out_secrets = effect_result(
+        9104, 1, "SecureStoreEffect",
+        "{\"values\":[{\"name\":\"account.refreshToken\",\"valueBase64\":\"" +
+            encode_base64("refresh-secret-v2") + "\"}]}");
+    expect(mineg_core_resume_operation(
+               account_core, 9104,
+               reinterpret_cast<const uint8_t *>(sign_out_secrets.data()),
+               sign_out_secrets.size(), &step),
+           MINEG_OK, "read refresh token for sign out");
+    mineg_buffer_free(&step);
+    const std::string logout_response = transport_result(9104, 2, 200, R"({"status":"signed_out"})");
+    expect(mineg_core_resume_operation(
+               account_core, 9104,
+               reinterpret_cast<const uint8_t *>(logout_response.data()),
+               logout_response.size(), &step),
+           MINEG_OK, "confirm server sign out");
+    assert(as_string(step).find("BackgroundSchedulerEffect") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string scheduler_cancelled =
+        effect_result(9104, 3, "BackgroundSchedulerEffect", "{\"cancelled\":true}");
+    expect(mineg_core_resume_operation(
+               account_core, 9104,
+               reinterpret_cast<const uint8_t *>(scheduler_cancelled.data()),
+               scheduler_cancelled.size(), &step),
+           MINEG_OK, "cancel scheduler before deleting session");
+    assert(as_string(step).find("deleteSecrets") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string secrets_deleted =
+        effect_result(9104, 4, "SecureStoreEffect", "{\"deleted\":true}");
+    expect(mineg_core_resume_operation(
+               account_core, 9104,
+               reinterpret_cast<const uint8_t *>(secrets_deleted.data()),
+               secrets_deleted.size(), &step),
+           MINEG_OK, "complete account sign out");
+    assert(as_string(step).find("\"signedOut\":true") != std::string::npos);
+    mineg_buffer_free(&step);
+    expect(mineg_core_query(account_core,
+                            reinterpret_cast<const uint8_t *>(media_query.data()),
+                            media_query.size(), &step),
+           MINEG_OK, "private media query closes after sign out");
+    assert(as_string(step).find("\"snapshot\":null") != std::string::npos);
+    assert(as_string(step).find("media-001") == std::string::npos);
+    mineg_buffer_free(&step);
+    mineg_core_close(account_core);
+
+    const std::string database_bytes = read_all(account_database);
+    assert(database_bytes.find("access-secret-v1") == std::string::npos);
+    assert(database_bytes.find("refresh-secret-v1") == std::string::npos);
+    assert(database_bytes.find("access-secret-v2") == std::string::npos);
+    assert(database_bytes.find("refresh-secret-v2") == std::string::npos);
+  }
 
   for (int iteration = 0; iteration < 50; ++iteration) {
     mineg_core_t *lifecycle = nullptr;

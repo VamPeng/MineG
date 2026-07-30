@@ -1,5 +1,7 @@
 # OSS 与 ECS 实例 RAM 角色
 
+> 历史方案：本文只用于旧 ECS + 阿里云 OSS 验证与迁移追溯，不是家庭 Linux 节点 V0 的部署步骤。vNext V0 不配置任何 `MINEG_OSS_*` 参数。
+
 ## 设计
 
 应用运行在 ECS 内，通过实例元数据服务获取 RAM 角色的 STS 临时凭证。服务器和仓库中都不保存长期 AccessKey。

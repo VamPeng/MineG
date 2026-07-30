@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.Exec
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.net.URI
 
@@ -44,6 +45,49 @@ val extractLibsodium by tasks.registering(Sync::class) {
   into(sodiumOutput)
 }
 
+val mineGRepositoryRoot = rootProject.layout.projectDirectory.dir("../..")
+val mineGIconSource = mineGRepositoryRoot.dir("Requirement/Prototype/Stitch/assets/icons")
+val syncMineGBrandAssets by tasks.registering(Sync::class) {
+  from(mineGRepositoryRoot.file("mineg_logo.png"))
+  from(mineGIconSource) {
+    include(
+      "private.png",
+      "family.png",
+      "local-album.png",
+      "profile.png",
+    )
+    eachFile {
+      name = when (name) {
+        "private.png" -> "claude.png"
+        "family.png" -> "nav_family.png"
+        "local-album.png" -> "nav_backup.png"
+        "profile.png" -> "nav_profile.png"
+        else -> name
+      }
+    }
+  }
+  includeEmptyDirs = false
+  into(layout.buildDirectory.dir("generated/mineg-brand-assets"))
+}
+
+val syncMineGBrandResources by tasks.registering(Sync::class) {
+  from(mineGRepositoryRoot.file("mineg_logo.png"))
+  into(layout.buildDirectory.dir("generated/mineg-brand-res/drawable-nodpi"))
+}
+
+val checkAndroidDataSovereignty by tasks.registering(Exec::class) {
+  group = "verification"
+  description = "Rejects unregistered Android production domain-data ownership"
+  commandLine(
+    "python3",
+    rootProject.layout.projectDirectory.file("../scripts/check_android_data_sovereignty.py").asFile.absolutePath,
+    "--source",
+    layout.projectDirectory.dir("src/main/java").asFile.absolutePath,
+    "--exceptions",
+    rootProject.layout.projectDirectory.file("../contracts/platform-data-exceptions-v1.json").asFile.absolutePath,
+  )
+}
+
 android {
   namespace = "com.mineg.mobile"
   compileSdk = 36
@@ -72,7 +116,7 @@ android {
   buildTypes {
     debug {
       val debugApiBaseUrl = providers.gradleProperty("minegDebugApiBaseUrl")
-        .orElse("https://api.invalid")
+        .orElse("http://127.0.0.1:8080")
         .get()
       buildConfigField(
         "String",
@@ -110,6 +154,9 @@ android {
   }
   sourceSets {
     getByName("main").jniLibs.srcDir(sodiumOutput.map { it.dir("jni") })
+    getByName("main").assets.srcDir("../../../Requirement/Prototype/Stitch/pages")
+    getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/mineg-brand-assets"))
+    getByName("main").res.srcDir(layout.buildDirectory.dir("generated/mineg-brand-res"))
     getByName("test").resources.srcDir("../../contracts")
     getByName("test").resources.srcDir("../../core/migrations")
   }
@@ -128,11 +175,22 @@ kotlin {
 }
 
 tasks.configureEach {
+  if (name != syncMineGBrandAssets.name && name != syncMineGBrandResources.name) {
+    dependsOn(syncMineGBrandAssets, syncMineGBrandResources)
+  }
   if (name.contains("CMake") || name.contains("JniLibFolders") ||
     (name.startsWith("merge") && name.endsWith("NativeLibs"))
   ) {
     dependsOn(extractLibsodium)
   }
+}
+
+tasks.named("check") {
+  dependsOn(checkAndroidDataSovereignty)
+}
+
+tasks.named("preBuild") {
+  dependsOn(checkAndroidDataSovereignty)
 }
 
 dependencies {
@@ -152,11 +210,15 @@ dependencies {
   implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
   implementation("androidx.work:work-runtime-ktx:2.10.5")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+  implementation("io.coil-kt.coil3:coil-compose:3.5.0")
+  implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
 
   debugImplementation("androidx.compose.ui:ui-tooling")
   debugImplementation("androidx.compose.ui:ui-test-manifest")
   testImplementation(kotlin("test"))
   testImplementation("junit:junit:4.13.2")
+  testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+  testImplementation("org.json:json:20250517")
   androidTestImplementation("androidx.test.ext:junit:1.3.0")
   androidTestImplementation("androidx.test:core:1.7.0")
   androidTestImplementation("androidx.test:runner:1.7.0")

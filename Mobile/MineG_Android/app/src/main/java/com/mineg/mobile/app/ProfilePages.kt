@@ -2,6 +2,11 @@
 
 package com.mineg.mobile.app
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +23,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,9 +40,9 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.FamilyRestroom
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -46,11 +56,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mineg.mobile.ui.theme.mineGBrandGradient
 import com.mineg.mobile.ui.theme.mineGColors
+import coil3.compose.AsyncImage
 
 @Composable
 fun ProfilePage(
@@ -60,63 +74,80 @@ fun ProfilePage(
   onEdit: () -> Unit,
   onBackupSettings: () -> Unit,
   onRecycleBin: () -> Unit,
-  onFamilyAlbum: () -> Unit,
+  onSharedByMe: () -> Unit,
   onHelp: () -> Unit,
   onLogout: () -> Unit,
 ) {
   Scaffold(
+    modifier = Modifier.testTag("profile.home"),
     containerColor = MaterialTheme.colorScheme.background,
     bottomBar = { MineGBottomBar(selectedTab, onSelectTab) },
   ) { padding ->
     LazyColumn(
-      Modifier.padding(padding).fillMaxSize(),
+      Modifier.padding(padding).fillMaxSize().testTag("profile.home.list"),
       contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-      item { MineGPageTitle("MineG", "我的个人中心") }
+      item {
+        Row(
+          Modifier.fillMaxWidth().height(48.dp),
+          horizontalArrangement = Arrangement.Center,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          MineGAssetImage("mineg_logo.png", "MineG Logo", Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)))
+          Text("  MineG", color = MaterialTheme.mineGColors.success, fontWeight = FontWeight.Bold, fontSize = 25.sp)
+        }
+      }
       item {
         MineGCard(Modifier.fillMaxWidth()) {
-          Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+          Column(
+            Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+          ) {
             Box(
-              Modifier.size(92.dp).clip(CircleShape).background(mineGBrandGradient()),
+              Modifier.size(88.dp).clip(CircleShape).background(mineGBrandGradient()),
               contentAlignment = Alignment.Center,
             ) {
               Text(profile.avatarLabel, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 34.sp)
+              profile.avatarUrl?.let {
+                AsyncImage(it, profile.nickname, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+              }
               Box(
-                Modifier.align(Alignment.BottomEnd).size(30.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface),
+                Modifier.align(Alignment.BottomEnd).size(32.dp).clip(CircleShape).background(MaterialTheme.mineGColors.success),
                 contentAlignment = Alignment.Center,
-              ) { Icon(Icons.Outlined.CameraAlt, "修改头像", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary) }
+              ) { Icon(Icons.Outlined.CameraAlt, "修改头像", modifier = Modifier.size(18.dp), tint = Color.White) }
             }
-            Text(profile.nickname, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text(profile.nickname, fontWeight = FontWeight.Medium, fontSize = 19.sp)
             Text(profile.maskedPhone, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = onEdit) {
-              Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(17.dp))
-              Text(" 编辑资料")
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+              OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f), shape = RoundedCornerShape(9.dp)) {
+                Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(17.dp))
+                Text(" 编辑昵称", fontSize = 13.sp)
+              }
+              OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f), shape = RoundedCornerShape(9.dp)) {
+                Icon(Icons.Outlined.AccountCircle, null, modifier = Modifier.size(17.dp))
+                Text(" 修改头像", fontSize = 13.sp)
+              }
             }
           }
         }
       }
       item {
         MineGCard(Modifier.fillMaxWidth()) {
-          SettingRow(Icons.Outlined.CloudUpload, "备份设置", "管理自动备份与移动网络", onBackupSettings) { Icon(Icons.Outlined.ChevronRight, null) }
-          SettingRow(Icons.Outlined.DeleteOutline, "回收站", "查看并恢复已删除媒体", onRecycleBin) { Icon(Icons.Outlined.ChevronRight, null) }
-          SettingRow(Icons.Outlined.FamilyRestroom, "家庭共享空间", "浏览家庭成员主动共享的回忆", onFamilyAlbum) { Icon(Icons.Outlined.ChevronRight, null) }
-          SettingRow(Icons.AutoMirrored.Outlined.HelpOutline, "帮助与反馈", "常见问题与简短反馈表单", onHelp) { Icon(Icons.Outlined.ChevronRight, null) }
+          SettingRow(Icons.Outlined.CloudUpload, "备份设置", "管理照片自动上传与同步频率", onBackupSettings, MaterialTheme.mineGColors.successContainer, MaterialTheme.mineGColors.success) { Icon(Icons.Outlined.ChevronRight, null) }
+          SettingRow(Icons.Outlined.DeleteOutline, "回收站", "查看并恢复已删除的照片和视频", onRecycleBin, MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.mineGColors.success) { Icon(Icons.Outlined.ChevronRight, null) }
+          SettingRow(Icons.Outlined.Share, "我分享的", "查看我共享给家人的照片和视频", onSharedByMe, MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.mineGColors.warning) { Icon(Icons.Outlined.ChevronRight, null) }
         }
       }
       item {
         MineGCard(Modifier.fillMaxWidth()) {
-          Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(Icons.Outlined.Security, null, tint = MaterialTheme.mineGColors.success)
-            Column {
-              Text("端到端加密 · 守护家人回忆", fontWeight = FontWeight.SemiBold)
-              Text("媒体密钥不会提供给后台管理员", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-            }
-          }
+          SettingRow(Icons.AutoMirrored.Outlined.HelpOutline, "帮助与反馈", "常见问题与问题反馈", onHelp, MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.onSurfaceVariant) { Icon(Icons.Outlined.ChevronRight, null) }
         }
       }
       item {
-        TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth().testTag("profile.home.signOut")) {
           Icon(Icons.AutoMirrored.Outlined.Logout, null, tint = MaterialTheme.colorScheme.error)
           Text(" 退出登录", color = MaterialTheme.colorScheme.error)
         }
@@ -126,7 +157,19 @@ fun ProfilePage(
 }
 
 @Composable
-fun ProfileEditPage(profile: UserProfile, onNickname: (String) -> Unit, onBack: () -> Unit) {
+fun ProfileEditPage(
+  profile: UserProfile,
+  nickname: String,
+  saving: Boolean,
+  message: String?,
+  onNickname: (String) -> Unit,
+  onSave: () -> Unit,
+  onAvatar: (Uri) -> Unit,
+  onBack: () -> Unit,
+) {
+  val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    uri?.let(onAvatar)
+  }
   Scaffold(topBar = { DetailTopBar("编辑个人资料", onBack) }) { padding ->
     Column(
       Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp),
@@ -135,15 +178,20 @@ fun ProfileEditPage(profile: UserProfile, onNickname: (String) -> Unit, onBack: 
     ) {
       Box(Modifier.size(112.dp).clip(CircleShape).background(mineGBrandGradient()), contentAlignment = Alignment.Center) {
         Text(profile.avatarLabel, color = MaterialTheme.colorScheme.onPrimary, fontSize = 38.sp, fontWeight = FontWeight.Black)
+        profile.avatarUrl?.let { AsyncImage(it, profile.nickname, Modifier.matchParentSize(), contentScale = ContentScale.Crop) }
       }
-      OutlinedButton(onClick = {}) {
+      OutlinedButton(
+        onClick = { avatarPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        enabled = !saving,
+      ) {
         Icon(Icons.Outlined.CameraAlt, null)
         Text(" 选择并裁剪头像")
       }
       OutlinedTextField(
-        value = profile.nickname,
+        value = nickname,
         onValueChange = onNickname,
         modifier = Modifier.fillMaxWidth(),
+        enabled = !saving,
         label = { Text("昵称") },
         supportingText = { Text("2～20 个字符，支持中文、字母、数字、空格、- 和 _") },
       )
@@ -154,8 +202,12 @@ fun ProfileEditPage(profile: UserProfile, onNickname: (String) -> Unit, onBack: 
         enabled = false,
         label = { Text("手机号不可修改") },
       )
-      Button(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("保存") }
-      Text("Mock 阶段修改会保存在内存状态中，重启 App 后恢复默认数据。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+      message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+      Button(onClick = onSave, enabled = !saving, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+        if (saving) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+        else Text("保存")
+      }
+      Text("保存后将更新你的个人资料展示。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }
   }
 }
@@ -176,28 +228,49 @@ fun RecycleBinPage(state: RecycleBinUiState, onBack: () -> Unit, onRestore: (Str
         EmptyState("暂无删除内容", "移入回收站的私人媒体会一直保留，直到独立运维流程人工清理。")
       }
     } else {
-      LazyColumn(
-        Modifier.padding(padding).fillMaxSize(),
+      LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.padding(padding).fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
           MineGCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-              Icon(Icons.Outlined.Security, null, tint = MaterialTheme.mineGColors.success)
-              Text("恢复后媒体保持私有，不会自动恢复原家庭共享状态。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+              Icon(Icons.Outlined.Security, null, tint = MaterialTheme.mineGColors.warning)
+              Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("私密存储提示", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(
+                  "回收站内的照片和视频仅你个人可见，内容会一直保留，直到由运维人员人工永久清理。",
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  fontSize = 13.sp,
+                )
+              }
             }
           }
         }
-        items(state.items, key = { it.media.id }) { deleted ->
-          MineGCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-              MediaPlaceholder(deleted.media, Modifier.size(82.dp))
-              Column(Modifier.weight(1f)) {
-                Text(deleted.media.title, fontWeight = FontWeight.SemiBold)
-                Text("已删除 ${deleted.deletedAgo}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-              }
-              IconButtonLike(onClick = { onRestore(deleted.media.id) })
+        gridItems(state.items, key = { it.media.id }) { deleted ->
+          Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(14.dp))) {
+            MediaPlaceholder(deleted.media, Modifier.matchParentSize())
+            androidx.compose.material3.Surface(
+              modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+              color = Color.Black.copy(alpha = 0.56f),
+              shape = RoundedCornerShape(10.dp),
+            ) {
+              Text(
+                "已删除 ${deleted.deletedAgo}",
+                color = Color.White,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+              )
+            }
+            Box(
+              Modifier.align(Alignment.BottomEnd).padding(10.dp).size(44.dp).clip(CircleShape)
+                .background(MaterialTheme.mineGColors.success).clickable { onRestore(deleted.media.id) },
+              contentAlignment = Alignment.Center,
+            ) {
+              Icon(Icons.Outlined.Restore, "恢复", tint = Color.White)
             }
           }
         }
@@ -256,7 +329,7 @@ fun HelpFeedbackPage(
       OutlinedTextField(state.contact, onContact, Modifier.fillMaxWidth(), label = { Text("联系方式（可选）") })
       Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("提交反馈") }
       if (state.submitted) {
-        Text("反馈已保存在 Mock 状态中，正式接口接入后会在这里提交。", color = MaterialTheme.mineGColors.success)
+        Text("反馈已提交，感谢你的帮助。", color = MaterialTheme.mineGColors.success)
       }
       Text("不会自动附带媒体、访问令牌、密钥或完整手机号。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }

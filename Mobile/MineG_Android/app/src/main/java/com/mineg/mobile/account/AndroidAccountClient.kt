@@ -34,6 +34,8 @@ import com.mineg.mobile.contracts.BackupPart
 import com.mineg.mobile.contracts.BackupResource
 import com.mineg.mobile.contracts.BackupTaskState
 import com.mineg.mobile.contracts.MediaResourceType
+import com.mineg.mobile.contracts.OwnerMediaSummary
+import com.mineg.mobile.contracts.OwnerMediaClient
 import com.mineg.mobile.contracts.SingleMediaBackup
 import com.mineg.mobile.contracts.Stage03Client
 import com.mineg.mobile.core.CoreClient
@@ -54,10 +56,15 @@ class AndroidAccountClient(
   private val scheduler: BackgroundSchedulerPort,
   private val mediaSource: MediaSourcePort,
   private val files: FilePort,
-) : AccountClient, Stage02Client, Stage03Client {
+) : AccountClient, Stage02Client, Stage03Client, OwnerMediaClient {
   private val operationIds = AtomicLong(10_000)
   private var session: AccountSession? = null
   private var accountState: AccountStateSnapshot? = null
+
+  fun dropTransitionalSession() {
+    session = null
+    accountState = null
+  }
 
   fun deviceInstallationId(): String = installationID()
 
@@ -663,6 +670,29 @@ class AndroidAccountClient(
 
   override fun getSingleMediaBackup(taskId: String): SingleMediaBackup? {
     return readSingleMediaBackup(taskId)?.let(::backupSummary)
+  }
+
+  override suspend fun listOwnerMedia(limit: Int): List<OwnerMediaSummary> {
+    val pageSize = limit.coerceIn(1, 100)
+    val response = sendAuthorized(
+      ApiRequest("GET", "/api/v1/media?limit=$pageSize"),
+      requireSession(),
+    )
+    val items = JSONObject(response.body.toString(Charsets.UTF_8)).getJSONArray("items")
+    return buildList(items.length()) {
+      repeat(items.length()) { index ->
+        val item = items.getJSONObject(index)
+        add(
+          OwnerMediaSummary(
+            id = item.getString("id"),
+            mediaType = item.getString("media_type"),
+            contentRevision = item.getInt("content_revision"),
+            capturedAt = item.getString("captured_at"),
+            createdAt = item.getString("created_at"),
+          ),
+        )
+      }
+    }
   }
 
   private fun readSingleMediaBackup(taskId: String): JSONObject? {

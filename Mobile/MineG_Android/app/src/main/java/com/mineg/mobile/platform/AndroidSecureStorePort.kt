@@ -37,6 +37,23 @@ class AndroidSecureStorePort(context: Context) : SecureStorePort {
 
   override fun writeSecret(name: String, value: ByteArray) {
     require(name.isNotBlank() && value.isNotEmpty())
+    val encoded = encrypt(value)
+    preferences.edit().putString(name, encoded).apply()
+  }
+
+  override fun writeSecrets(values: Map<String, ByteArray>) {
+    require(values.isNotEmpty() && values.all { it.key.isNotBlank() && it.value.isNotEmpty() })
+    val encoded = values.mapValues { encrypt(it.value) }
+    preferences.edit().also { editor ->
+      encoded.forEach(editor::putString)
+    }.apply()
+  }
+
+  override fun deleteSecrets(names: List<String>) {
+    preferences.edit().also { editor -> names.forEach(editor::remove) }.apply()
+  }
+
+  private fun encrypt(value: ByteArray): String {
     val cipher = Cipher.getInstance("AES/GCM/NoPadding")
     cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
     val ciphertext = cipher.doFinal(value)
@@ -45,9 +62,10 @@ class AndroidSecureStorePort(context: Context) : SecureStorePort {
       .put(cipher.iv)
       .put(ciphertext)
       .array()
-    preferences.edit().putString(name, Base64.encodeToString(packet, Base64.NO_WRAP)).apply()
+    val encoded = Base64.encodeToString(packet, Base64.NO_WRAP)
     packet.fill(0)
     ciphertext.fill(0)
+    return encoded
   }
 
   override fun deleteSecret(name: String) {

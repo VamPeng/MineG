@@ -18,6 +18,8 @@ const char *sqlite3_errmsg(sqlite3 *);
 int sqlite3_prepare_v2(sqlite3 *, const char *, int, sqlite3_stmt **, const char **);
 int sqlite3_bind_text(sqlite3_stmt *, int, const char *, int, sqlite3_destructor_type);
 int sqlite3_bind_int(sqlite3_stmt *, int, int);
+int sqlite3_bind_int64(sqlite3_stmt *, int, long long);
+int sqlite3_bind_null(sqlite3_stmt *, int);
 int sqlite3_step(sqlite3_stmt *);
 const unsigned char *sqlite3_column_text(sqlite3_stmt *, int);
 int sqlite3_column_int(sqlite3_stmt *, int);

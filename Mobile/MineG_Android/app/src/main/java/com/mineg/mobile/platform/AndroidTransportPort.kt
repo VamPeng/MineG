@@ -5,6 +5,8 @@ import com.mineg.mobile.contracts.ApiResponse
 import com.mineg.mobile.contracts.TransportPort
 import com.mineg.mobile.contracts.UploadPartRequest
 import com.mineg.mobile.contracts.UploadPartResult
+import com.mineg.mobile.contracts.UploadObjectRequest
+import com.mineg.mobile.contracts.UploadObjectResult
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URI
@@ -92,6 +94,32 @@ class AndroidTransportPort(
       val etag = connection.getHeaderField("ETag")?.trim()?.trim('"').orEmpty()
       check(etag.isNotBlank()) { "ciphertext part response omitted ETag" }
       UploadPartResult(etag)
+    } finally {
+      connection.disconnect()
+    }
+  }
+
+  override suspend fun uploadObject(request: UploadObjectRequest): UploadObjectResult = withContext(Dispatchers.IO) {
+    require(request.method == "PUT" && request.body.size in 1..10 * 1024 * 1024)
+    val target = URI(request.url)
+    require(target.scheme == "https" && target.userInfo == null && target.host != null)
+    val connection = target.toURL().openConnection() as HttpURLConnection
+    try {
+      connection.requestMethod = request.method
+      connection.connectTimeout = 15_000
+      connection.readTimeout = 60_000
+      connection.instanceFollowRedirects = false
+      connection.doOutput = true
+      connection.setFixedLengthStreamingMode(request.body.size)
+      request.headers.forEach { (name, value) ->
+        if (!name.equals("Host", true) && !name.equals("Content-Length", true)) {
+          connection.setRequestProperty(name, value)
+        }
+      }
+      connection.outputStream.use { it.write(request.body) }
+      val status = connection.responseCode
+      if (status !in 200..299) throw java.io.IOException("object upload failed with status $status")
+      UploadObjectResult(status)
     } finally {
       connection.disconnect()
     }

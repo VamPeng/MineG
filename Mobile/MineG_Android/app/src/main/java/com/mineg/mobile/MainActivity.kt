@@ -89,6 +89,7 @@ import com.mineg.mobile.contracts.LocalAlbum
 import com.mineg.mobile.contracts.LocalMedia
 import com.mineg.mobile.app.MineGApp
 import com.mineg.mobile.app.MineGAppViewModel
+import com.mineg.mobile.app.LibraryAccess
 import com.mineg.mobile.ui.theme.MineGColorTokens
 import com.mineg.mobile.ui.theme.MineGTheme
 import com.mineg.mobile.ui.theme.mineGBrandGradient
@@ -99,14 +100,36 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class MainActivity : ComponentActivity() {
-  private val viewModel by viewModels<MineGAppViewModel>()
+  private val viewModel by viewModels<MineGAppViewModel> { MineGAppViewModel.factory(this) }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContent {
       MineGTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-          MineGApp(viewModel)
+          val state by viewModel.state.collectAsStateWithLifecycle()
+          val context = LocalContext.current
+          val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            viewModel.onLibraryPermissionResult()
+          }
+          val requestLibraryAccess = {
+            viewModel.markLibraryPermissionRequested()
+            if (state.libraryAccess in setOf(LibraryAccess.DENIED, LibraryAccess.LIMITED)) {
+              context.startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
+              )
+            } else {
+              permissionLauncher.launch(
+                if (Build.VERSION.SDK_INT >= 33) {
+                  arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+                } else {
+                  arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+                },
+              )
+            }
+          }
+          LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onForeground() }
+          MineGApp(viewModel, requestLibraryAccess)
         }
       }
     }
@@ -200,15 +223,11 @@ private fun AuthFrame(title: String, subtitle: String, semanticId: String, conte
 @Composable
 private fun BrandLockup() {
   Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-    Box(
-      Modifier
-        .size(38.dp)
-        .clip(RoundedCornerShape(11.dp))
-        .background(mineGBrandGradient()),
-      contentAlignment = Alignment.Center,
-    ) {
-      Text("M", color = MineGColorTokens.OnBrandPrimary, fontWeight = FontWeight.ExtraBold)
-    }
+    com.mineg.mobile.app.MineGAssetImage(
+      assetPath = "mineg_logo.png",
+      contentDescription = "MineG Logo",
+      modifier = Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)),
+    )
     Text("MineG", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
   }
 }

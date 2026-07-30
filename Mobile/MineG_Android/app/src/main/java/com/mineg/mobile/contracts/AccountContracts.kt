@@ -22,6 +22,12 @@ data class AccountSession(
   val nextStep: AccountNextStep,
 )
 
+data class AccountRouteSnapshot(
+  val userId: String,
+  val approvalStatus: ApprovalStatus,
+  val nextStep: AccountNextStep,
+)
+
 data class AccountStateSnapshot(
   val userId: String,
   val maskedPhone: String,

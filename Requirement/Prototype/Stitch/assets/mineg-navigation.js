@@ -5,7 +5,7 @@
 
   const active = requestedActive
     || (path.includes("/03-private-space/") ? "private"
-      : path.includes("/05-family-album/") ? "family"
+      : path.includes("/05-family-album/") ? "private"
         : path.includes("/06-backup/") || path.includes("/02-permissions-dep/") ? "backup"
           : path.includes("/08-profile/") || path.includes("/07-recycle-bin/") ? "profile"
             : "");
@@ -55,24 +55,20 @@
           ? backgroundPrimary
           : "#436444";
 
-  const projectRoot = new URL("../../../../", script.src);
   const iconUrls = {
-    private: new URL("ChatGPT Image 2026年7月26日 02_19_07 (1).png", projectRoot).href,
-    family: new URL("ChatGPT Image 2026年7月26日 02_19_08 (2).png", projectRoot).href,
-    backup: new URL("ChatGPT Image 2026年7月26日 02_19_08 (3).png", projectRoot).href,
-    profile: new URL("ChatGPT Image 2026年7月26日 02_19_08 (4).png", projectRoot).href,
+    private: new URL("icons/private.png", script.src).href,
+    backup: new URL("icons/local-album.png", script.src).href,
+    profile: new URL("icons/profile.png", script.src).href,
   };
 
   const destinations = {
     private: "../../03-private-space/01-private-space-overview/index.html",
-    family: "../../05-family-album/01-family-album-timeline/index.html",
     backup: "../../06-backup/03-backup-uploading/index.html",
     profile: "../../08-profile/01-profile-overview/index.html",
   };
 
   const items = [
     ["private", "私人空间"],
-    ["family", "家庭相册"],
     ["backup", "备份"],
     ["profile", "我的"],
   ];

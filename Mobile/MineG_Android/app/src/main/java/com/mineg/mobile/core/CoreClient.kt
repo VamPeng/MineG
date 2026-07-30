@@ -1,5 +1,7 @@
 package com.mineg.mobile.core
 
+import com.mineg.mobile.contracts.CoreOperationStep
+
 fun interface CoreEventListener {
   fun onEvent(eventJson: String)
 }
@@ -25,6 +27,26 @@ class CoreClient : AutoCloseable {
     require(operationId > 0)
     return NativeBridge.nativeExecute(requireHandle(), operationId, commandJson)
   }
+
+  @Synchronized
+  fun startOperation(operationId: Long, commandJson: String): CoreOperationStep {
+    require(operationId > 0 && commandJson.isNotBlank())
+    return CoreOperationStep.parse(
+      NativeBridge.nativeStartOperation(requireHandle(), operationId, commandJson),
+    )
+  }
+
+  @Synchronized
+  fun resumeOperation(operationId: Long, effectResultJson: String): CoreOperationStep {
+    require(operationId > 0 && effectResultJson.isNotBlank())
+    return CoreOperationStep.parse(
+      NativeBridge.nativeResumeOperation(requireHandle(), operationId, effectResultJson),
+    )
+  }
+
+  @Synchronized
+  fun recoverOperations(): List<CoreOperationStep> =
+    CoreOperationStep.parseRecovery(NativeBridge.nativeRecoverOperations(requireHandle()))
 
   @Synchronized
   fun query(queryJson: String): String = NativeBridge.nativeQuery(requireHandle(), queryJson)

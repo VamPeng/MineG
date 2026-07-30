@@ -38,6 +38,8 @@ Android 业务入口必须遵循[启动、登录、缓存与主页流程约束](
 
 阶段 01 已在 Android 完成登录、注册、协议确认、待审核轮询、会话恢复/轮换、退出清理和最小个人中心。注册时由 C++/libsodium 创建 X25519 密钥材料，Argon2id 派生包装密钥，XChaCha20-Poly1305 加密私钥与用户主密钥；服务端只接收公钥和密文 key bundle。
 
+2026-07-30 数据主权迁移已进入实施：Foundation v2 与 account-v2 已接通生产账号主链，Session 编排、审核、资料解析和账号隔离 Profile Snapshot 已迁入 C++ Core，Android 专属资料缓存已移除；KeyGrant、头像、私人媒体、扫描和上传仍按 [`docs/android-data-layer-migration.md`](./docs/android-data-layer-migration.md) 继续迁移，M3-D 尚未整体完成。
+
 冻结清单位于 [`contracts/foundation-v1.json`](./contracts/foundation-v1.json) 与 [`contracts/account-v1.json`](./contracts/account-v1.json)。SQLite v2 只存非敏感账号路由状态，Token 和设备安装标识由 Android Keystore 包装。构建与真实后端验证命令见 [`docs/development.md`](./docs/development.md)。本阶段仍不创建 iOS 或 HarmonyOS 空壳。
 
 ## 阶段 02 Android 密钥、资料与本地相册
