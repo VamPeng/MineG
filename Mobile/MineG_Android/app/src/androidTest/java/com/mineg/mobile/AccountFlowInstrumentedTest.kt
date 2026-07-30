@@ -6,7 +6,9 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -47,30 +49,32 @@ class AccountFlowInstrumentedTest {
       baseUrl = arguments.getString("minegTestApiBaseUrl") ?: "http://127.0.0.1:8080",
       username = checkNotNull(arguments.getString("minegAdminUsername")),
       password = checkNotNull(arguments.getString("minegAdminPassword")),
+      origin = arguments.getString("minegAdminOrigin") ?: "https://localhost:5173",
     )
     compose.onNodeWithTag("auth.reviewPending.refresh").performClick()
-    compose.waitUntilAtLeastOneExists(hasTestTag("profile.home"), 30_000)
-    compose.onNodeWithTag("profile.home").assertIsDisplayed()
+    compose.waitUntilAtLeastOneExists(hasTestTag("permission.library"), 30_000)
+    compose.onNodeWithText("暂不开启").performClick()
+    compose.waitUntilAtLeastOneExists(hasTestTag("home.private"), 20_000)
+    compose.onNodeWithContentDescription("我的").performClick()
+    compose.waitUntilAtLeastOneExists(hasTestTag("profile.home"), 10_000)
 
+    compose.onNodeWithTag("profile.home.list").performScrollToIndex(4)
     compose.onNodeWithTag("profile.home.signOut").performClick()
-    compose.onNodeWithText("确认退出").performClick()
+    compose.onNodeWithText("退出登录").performClick()
     compose.waitUntilAtLeastOneExists(hasTestTag("auth.login"), 20_000)
     compose.onNodeWithTag("auth.login.phone").performTextInput(phone)
     compose.onNodeWithTag("auth.login.password").performTextInput(password)
-    compose.onNodeWithTag("auth.login.agreement").performClick()
+    compose.onNodeWithTag("auth.login.agreement.checkbox").performClick()
     compose.onNodeWithTag("auth.login.submit").performClick()
-    compose.waitUntilAtLeastOneExists(hasTestTag("profile.home"), 30_000)
-    compose.onNodeWithTag("profile.home").assertIsDisplayed()
-    compose.onNodeWithTag("profile.home.openBackup").performClick()
     compose.waitUntilAtLeastOneExists(hasTestTag("permission.library"), 10_000)
     compose.onNodeWithTag("permission.library").assertIsDisplayed()
   }
 
-  private fun approveOnlyPendingApplication(baseUrl: String, username: String, password: String) {
+  private fun approveOnlyPendingApplication(baseUrl: String, username: String, password: String, origin: String) {
     val login = request(
       url = "$baseUrl/api/v1/admin/login",
       method = "POST",
-      origin = "http://localhost:5173",
+      origin = origin,
       body = JSONObject().put("username", username).put("password", password).toString(),
     )
     check(login.status == 200) { "admin login failed: ${login.status} ${login.body}" }
@@ -84,7 +88,7 @@ class AccountFlowInstrumentedTest {
     val approved = request(
       url = "$baseUrl/api/v1/admin/approvals/$approvalID/approve",
       method = "POST",
-      origin = "http://localhost:5173",
+      origin = origin,
       cookie = cookie,
       headers = mapOf("X-CSRF-Token" to csrf, "Idempotency-Key" to UUID.randomUUID().toString()),
     )

@@ -49,7 +49,7 @@ fun DebugStatePanel(
     ) {
       Text("页面验收调试", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
       Text(
-        "仅在 Debug 包显示。切换状态不会调用后端，也不会写入设备数据。",
+        "仅在 Debug 包显示。页面状态切换不会写入设备数据；重新校验登录状态会读取本地会话并按需访问后端。",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall,
       )
@@ -94,7 +94,7 @@ fun DebugStatePanel(
       HorizontalDivider()
       Button(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
         Icon(Icons.Outlined.RestartAlt, contentDescription = null)
-        Text(" 恢复默认验收首页")
+        Text(" 重新校验登录状态")
       }
       Spacer(Modifier.height(12.dp))
     }
@@ -140,6 +140,7 @@ private fun BackupStatus.debugLabel(): String = when (this) {
   BackupStatus.DEVICE_STORAGE_FULL -> "设备空间不足"
   BackupStatus.CLOUD_STORAGE_FULL -> "服务空间不足"
   BackupStatus.SERVICE_UNAVAILABLE -> "服务不可用"
+  BackupStatus.INDEXED -> "索引完成"
   BackupStatus.COMPLETE -> "同步完成"
   BackupStatus.PAUSED -> "自动备份关闭"
 }

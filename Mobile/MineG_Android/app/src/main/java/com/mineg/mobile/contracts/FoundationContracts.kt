@@ -27,6 +27,15 @@ data class UploadPartRequest(
 
 data class UploadPartResult(val etag: String)
 
+data class UploadObjectRequest(
+  val url: String,
+  val method: String,
+  val headers: Map<String, String>,
+  val body: ByteArray,
+)
+
+data class UploadObjectResult(val status: Int)
+
 enum class LibraryPermissionState { NOT_DETERMINED, FULL, LIMITED, RESTRICTED, DENIED, SYSTEM_RESTRICTED }
 
 data class PermissionSnapshot(val library: LibraryPermissionState)
@@ -73,11 +82,15 @@ interface SecureStorePort {
   fun readSecret(name: String): ByteArray?
   fun writeSecret(name: String, value: ByteArray)
   fun deleteSecret(name: String)
+  fun readSecrets(names: List<String>): Map<String, ByteArray?> = names.associateWith(::readSecret)
+  fun writeSecrets(values: Map<String, ByteArray>) = values.forEach(::writeSecret)
+  fun deleteSecrets(names: List<String>) = names.forEach(::deleteSecret)
 }
 
 interface TransportPort {
   suspend fun sendApiRequest(request: ApiRequest): ApiResponse
   suspend fun uploadPart(request: UploadPartRequest): UploadPartResult
+  suspend fun uploadObject(request: UploadObjectRequest): UploadObjectResult
 }
 
 interface MediaSourcePort {

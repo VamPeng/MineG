@@ -142,7 +142,7 @@ Core 命令需要外部副作用时返回版本化 `PlatformEffect`；平台执�
 
 | Effect | Core 决定 | Port 只负责 |
 | --- | --- | --- |
-| `TransportEffect` | API/RPC 操作、路径/方法、业务头和正文、幂等与后续状态 | 建连、TLS/DTLS、发送字节、接收状态/头/正文、取消 |
+| `TransportEffect` | API/RPC 操作、路径/方法、业务头和正文、幂等与后续状态 | 建连、TLS、发送字节、接收状态/头/正文、取消 |
 | `SecureStoreEffect` | 凭据逻辑名称、读取/替换/删除时机 | KeyStore/Keychain/HUKS 加解密和原子读写 |
 | `MediaSourceEffect` | 扫描批次、恢复游标、索引与任务迁移 | 权限原语、媒体分页和资源句柄 |
 | `BackgroundSchedulerEffect` | 是否需要任务、账号和业务约束 | 向系统申请/取消执行机会并报告执行窗口 |
@@ -283,3 +283,12 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 - 迁移要求：新增 Foundation/Account/Stage02/Stage03 的兼容契约版本，补齐 PlatformEffect、Core 业务命令、Core 查询/事件和平台数据例外清单；完成前 Android 相关实现标记为过渡实现。
 - 开发门禁：迁移完成前不得启动 iOS/HarmonyOS 业务数据层，也不得在 Android 新增业务 API DTO、领域 SharedPreferences 缓存或 ViewModel 领域状态机。
 - 迁移清单：以 [`docs/android-data-layer-migration.md`](./docs/android-data-layer-migration.md) 为当前实施输入。
+
+## 16. 数据主权迁移批次 C 基线
+
+- 基线清单：[`contracts/stage02-v2.json`](./contracts/stage02-v2.json)。
+- Core operation：家庭 Key Grant 协调、头像创建授权/对象上传/完成确认、私人媒体列表统一通过 `stage02-v2` 命令运行；平台不解析对应服务 DTO。
+- 本地状态：SQLite v7 按账号保存私人媒体快照与刷新时间；退出或账号切换后查询失败关闭，不向新账号暴露旧快照。
+- 平台适配：头像的选择、居中裁剪和缩放属于 Android 图片输入适配；摘要、API 请求、对象授权解释、完成确认和 Profile Snapshot 合并由 Core 决定，对象字节只通过 `TransportEffect.uploadObject` 传输。
+- 兼容性：C ABI 保持 5；`stage02-v1` 继续保留历史行为基线，旧账号 UI 中的过渡实现按 AND-DATA-012 单独退役。
+- 当前状态：生产主链实现及主机/Android 单元契约验证完成；真实后端头像、Key Grant、离线主页和进程恢复矩阵通过后转为 `FROZEN`。

@@ -1,0 +1,78 @@
+{
+  "contractVersion": "2.0.0",
+  "wireVersion": "foundation-v2",
+  "status": "BASELINED",
+  "scope": "M3_D_FOUNDATION_EFFECTS",
+  "compatibleWith": "foundation-v1@1.0.0",
+  "coreClient": [
+    "startOperation",
+    "resumeOperation",
+    "recoverOperations",
+    "cancel"
+  ],
+  "cAbiVersion": 5,
+  "cAbi": [
+    "mineg_core_start_operation",
+    "mineg_core_resume_operation",
+    "mineg_core_recover_operations",
+    "mineg_core_cancel"
+  ],
+  "operationStatus": [
+    "WAITING_FOR_EFFECT",
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "platformEffectResultStatus": [
+    "SUCCEEDED",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "envelopes": [
+    "PlatformEffect",
+    "PlatformEffectResult"
+  ],
+  "platformEffectTypes": [
+    "TransportEffect",
+    "SecureStoreEffect",
+    "MediaSourceEffect",
+    "BackgroundSchedulerEffect",
+    "FileEffect"
+  ],
+  "platformEffectEnvelope": {
+    "required": [
+      "contractVersion",
+      "operationId",
+      "sequence",
+      "effectType",
+      "payload"
+    ],
+    "operationId": "positiveInt64",
+    "sequence": "positiveInt64",
+    "payload": "jsonObject"
+  },
+  "platformEffectResultEnvelope": {
+    "required": [
+      "contractVersion",
+      "operationId",
+      "sequence",
+      "effectType",
+      "status"
+    ],
+    "successPayload": "jsonObjectOrNull",
+    "failureError": {
+      "required": ["code", "retryable"],
+      "message": "optionalNonAuthoritativeDiagnostic"
+    }
+  },
+  "operationRules": [
+    "Core persists WAITING_FOR_EFFECT before returning an effect",
+    "Core rejects a mismatched operationId sequence effectType or contractVersion",
+    "Repeating the same start command or effect result is idempotent",
+    "Only WAITING_FOR_EFFECT operations are returned by recoverOperations",
+    "Platform does not parse domain DTOs retry business requests or decide domain success"
+  ],
+  "foundationCommands": ["FoundationEffectProbe"],
+  "foundationEvents": ["CoreOperationChanged"],
+  "jsonFieldStyle": "lowerCamelCase"
+}

@@ -77,6 +77,55 @@ mineg_error_code_t mineg_core_execute(mineg_core_t *core, uint64_t operation_id,
   }
 }
 
+mineg_error_code_t mineg_core_start_operation(
+    mineg_core_t *core, uint64_t operation_id, const uint8_t *command_json, size_t command_size,
+    mineg_buffer_t *out_operation_step_json) {
+  if (core == nullptr || operation_id == 0 || command_json == nullptr || command_size == 0 ||
+      out_operation_step_json == nullptr) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  try {
+    std::string result;
+    const mineg_error_code_t code = core->implementation.start_operation(
+        operation_id, borrowed_string(command_json, command_size), result);
+    if (code != MINEG_OK) return code;
+    return copy_result(result, out_operation_step_json);
+  } catch (...) {
+    return MINEG_INTERNAL_ERROR;
+  }
+}
+
+mineg_error_code_t mineg_core_resume_operation(
+    mineg_core_t *core, uint64_t operation_id, const uint8_t *effect_result_json,
+    size_t effect_result_size, mineg_buffer_t *out_operation_step_json) {
+  if (core == nullptr || operation_id == 0 || effect_result_json == nullptr ||
+      effect_result_size == 0 || out_operation_step_json == nullptr) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  try {
+    std::string result;
+    const mineg_error_code_t code = core->implementation.resume_operation(
+        operation_id, borrowed_string(effect_result_json, effect_result_size), result);
+    if (code != MINEG_OK) return code;
+    return copy_result(result, out_operation_step_json);
+  } catch (...) {
+    return MINEG_INTERNAL_ERROR;
+  }
+}
+
+mineg_error_code_t mineg_core_recover_operations(mineg_core_t *core,
+                                                  mineg_buffer_t *out_operations_json) {
+  if (core == nullptr || out_operations_json == nullptr) return MINEG_INVALID_ARGUMENT;
+  try {
+    std::string result;
+    const mineg_error_code_t code = core->implementation.recover_operations(result);
+    if (code != MINEG_OK) return code;
+    return copy_result(result, out_operations_json);
+  } catch (...) {
+    return MINEG_INTERNAL_ERROR;
+  }
+}
+
 mineg_error_code_t mineg_core_query(mineg_core_t *core, const uint8_t *query_json,
                                     size_t query_size, mineg_buffer_t *out_result_json) {
   if (core == nullptr || query_json == nullptr || query_size == 0 || out_result_json == nullptr) {

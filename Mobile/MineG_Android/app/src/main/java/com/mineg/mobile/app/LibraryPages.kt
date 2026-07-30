@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mineg.mobile.ui.theme.mineGBrandGradient
@@ -86,6 +87,7 @@ fun PrivateSpacePage(
   onOpenSharedMedia: (String) -> Unit,
 ) {
   Scaffold(
+    modifier = Modifier.testTag("home.private"),
     containerColor = MaterialTheme.colorScheme.background,
     bottomBar = { MineGBottomBar(selectedTab, onSelectTab) },
   ) { padding ->
@@ -316,8 +318,10 @@ private fun BackupStatusCard(state: BackupUiState, heroUrl: String?, modifier: M
     Box(
       Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
-      PrototypeCroppedImage(MockVisualAssets.backupHero, Modifier.matchParentSize())
-      heroUrl?.let { AsyncImage(it, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop) }
+      heroUrl?.let {
+        PrototypeCroppedImage(MockVisualAssets.backupHero, Modifier.matchParentSize())
+        AsyncImage(it, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+      }
       Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.76f)))))
       Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
@@ -358,6 +362,7 @@ private fun backupPresentation(status: BackupStatus): BackupPresentation = when 
   BackupStatus.DEVICE_STORAGE_FULL -> BackupPresentation("设备空间不足", "释放设备空间后重试", Icons.Outlined.Storage, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.errorContainer)
   BackupStatus.CLOUD_STORAGE_FULL -> BackupPresentation("服务空间不足", "请稍后重试或联系管理员", Icons.Outlined.Storage, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.errorContainer)
   BackupStatus.SERVICE_UNAVAILABLE -> BackupPresentation("服务暂时不可用", "本地相册仍可浏览，稍后自动重试", Icons.Outlined.ErrorOutline, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.errorContainer)
+  BackupStatus.INDEXED -> BackupPresentation("本地索引已完成", "已读取真实本地相册；备份队列状态需由任务层提供", Icons.Outlined.Collections, MaterialTheme.mineGColors.success, MaterialTheme.mineGColors.successContainer)
   BackupStatus.COMPLETE -> BackupPresentation("同步完成", "符合条件的媒体均已安全备份", Icons.Outlined.CloudDone, MaterialTheme.mineGColors.success, MaterialTheme.mineGColors.successContainer)
   BackupStatus.PAUSED -> BackupPresentation("自动备份已关闭", "你仍可以浏览本地相册", Icons.Outlined.CloudOff, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceContainerHigh)
 }

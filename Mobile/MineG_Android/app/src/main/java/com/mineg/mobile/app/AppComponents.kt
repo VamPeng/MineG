@@ -182,11 +182,13 @@ fun MediaPlaceholder(
       fontSize = 28.sp,
       fontWeight = FontWeight.Bold,
     )
-    PrototypeCroppedImage(
-      crop = MockVisualAssets.mediaCrops[Math.floorMod(media.colorSeed, MockVisualAssets.mediaCrops.size)],
-      contentDescription = media.title,
-      modifier = Modifier.matchParentSize(),
-    )
+    if (media.imageUrl != null) {
+      PrototypeCroppedImage(
+        crop = MockVisualAssets.mediaCrops[Math.floorMod(media.colorSeed, MockVisualAssets.mediaCrops.size)],
+        contentDescription = media.title,
+        modifier = Modifier.matchParentSize(),
+      )
+    }
     media.imageUrl?.let {
       AsyncImage(
         model = it,

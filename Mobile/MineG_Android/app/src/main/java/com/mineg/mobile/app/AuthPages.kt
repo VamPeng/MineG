@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mineg.mobile.ui.theme.mineGBrandGradient
@@ -65,34 +66,42 @@ fun LoginPage(
   onSignUp: () -> Unit,
   onLegal: (LegalDocument) -> Unit,
 ) {
-  AuthPageFrame(title = "只属于家人的私人相册", subtitle = "照片先在设备端加密，再安全备份。") {
-    state.message?.let { InlineMessage(it, false) }
+  AuthPageFrame(title = "只属于家人的私人相册", subtitle = "照片先在设备端加密，再安全备份。", semanticId = "auth.login") {
+    state.message?.let { InlineMessage(it, state.messageIsError) }
     OutlinedTextField(
       value = state.phone,
       onValueChange = onPhoneChange,
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth().testTag("auth.login.phone"),
       label = { Text("手机号") },
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
       singleLine = true,
       isError = "phone" in state.fieldErrors,
       supportingText = { state.fieldErrors["phone"]?.let { Text(it) } },
+      enabled = !state.loading,
     )
     OutlinedTextField(
       value = state.password,
       onValueChange = onPasswordChange,
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth().testTag("auth.login.password"),
       label = { Text("密码") },
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
       visualTransformation = PasswordVisualTransformation(),
       singleLine = true,
       isError = "password" in state.fieldErrors,
       supportingText = { state.fieldErrors["password"]?.let { Text(it) } },
+      enabled = !state.loading,
     )
     Row(
-      Modifier.fillMaxWidth().clickable { onAgreementChange(!state.agreementAccepted) },
+      Modifier.fillMaxWidth().clickable(enabled = !state.loading) { onAgreementChange(!state.agreementAccepted) }
+        .testTag("auth.login.agreement"),
       verticalAlignment = Alignment.Top,
     ) {
-      Checkbox(state.agreementAccepted, onCheckedChange = onAgreementChange)
+      Checkbox(
+        state.agreementAccepted,
+        onCheckedChange = onAgreementChange,
+        modifier = Modifier.testTag("auth.login.agreement.checkbox"),
+        enabled = !state.loading,
+      )
       Column(Modifier.padding(top = 11.dp)) {
         Text("我已阅读并同意", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row {
@@ -103,8 +112,18 @@ fun LoginPage(
         state.fieldErrors["agreement"]?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
       }
     }
-    Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("登录") }
-    TextButton(onClick = onSignUp, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("没有账号？立即注册") }
+    Button(
+      onClick = onLogin,
+      enabled = !state.loading,
+      modifier = Modifier.fillMaxWidth().height(52.dp).testTag("auth.login.submit"),
+    ) {
+      if (state.loading) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Text("登录")
+    }
+    TextButton(
+      onClick = onSignUp,
+      enabled = !state.loading,
+      modifier = Modifier.align(Alignment.CenterHorizontally).testTag("auth.login.openSignup"),
+    ) { Text("没有账号？立即注册") }
     Row(
       Modifier.fillMaxWidth().padding(top = 4.dp),
       horizontalArrangement = Arrangement.Center,
@@ -125,41 +144,58 @@ fun SignUpPage(
   onPasswordConfirmationChange: (String) -> Unit,
   onSubmit: () -> Unit,
 ) {
-  AuthPageFrame(title = "创建家庭成员账号", subtitle = "提交后需要家庭管理员审核，审核通过前无法浏览媒体。", onBack = onBack) {
+  AuthPageFrame(
+    title = "创建家庭成员账号",
+    subtitle = "提交后需要家庭管理员审核，审核通过前无法浏览媒体。",
+    onBack = onBack,
+    semanticId = "auth.signup",
+  ) {
     OutlinedTextField(
       state.phone,
       onPhoneChange,
-      Modifier.fillMaxWidth(),
+      Modifier.fillMaxWidth().testTag("auth.signup.phone"),
       label = { Text("手机号") },
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
       isError = "phone" in state.fieldErrors,
       supportingText = { state.fieldErrors["phone"]?.let { Text(it) } },
+      enabled = !state.loading,
     )
     OutlinedTextField(
       state.password,
       onPasswordChange,
-      Modifier.fillMaxWidth(),
+      Modifier.fillMaxWidth().testTag("auth.signup.password"),
       label = { Text("密码") },
       visualTransformation = PasswordVisualTransformation(),
       isError = "password" in state.fieldErrors,
       supportingText = { state.fieldErrors["password"]?.let { Text(it) } },
+      enabled = !state.loading,
     )
     OutlinedTextField(
       state.passwordConfirmation,
       onPasswordConfirmationChange,
-      Modifier.fillMaxWidth(),
+      Modifier.fillMaxWidth().testTag("auth.signup.passwordConfirmation"),
       label = { Text("确认密码") },
       visualTransformation = PasswordVisualTransformation(),
       isError = "passwordConfirmation" in state.fieldErrors,
       supportingText = { state.fieldErrors["passwordConfirmation"]?.let { Text(it) } },
+      enabled = !state.loading,
     )
-    Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("提交注册申请") }
+    Button(
+      onClick = onSubmit,
+      enabled = !state.loading,
+      modifier = Modifier.fillMaxWidth().height(52.dp).testTag("auth.signup.submit"),
+    ) {
+      if (state.loading) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Text("提交注册申请")
+    }
   }
 }
 
 @Composable
 fun ReviewPendingPage(state: AuthUiState, onRefresh: () -> Unit, onBackToLogin: () -> Unit) {
-  Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp), contentAlignment = Alignment.Center) {
+  Box(
+    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp).testTag("auth.reviewPending"),
+    contentAlignment = Alignment.Center,
+  ) {
     MineGCard(Modifier.fillMaxWidth()) {
       Column(
         Modifier.padding(28.dp),
@@ -179,7 +215,12 @@ fun ReviewPendingPage(state: AuthUiState, onRefresh: () -> Unit, onBackToLogin: 
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           lineHeight = 22.sp,
         )
-        Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text("刷新状态") }
+        state.message?.let { InlineMessage(it, state.messageIsError) }
+        Button(
+          onClick = onRefresh,
+          enabled = !state.reviewSyncing,
+          modifier = Modifier.fillMaxWidth().testTag("auth.reviewPending.refresh"),
+        ) { Text("刷新状态") }
         OutlinedButton(onClick = onBackToLogin, modifier = Modifier.fillMaxWidth()) { Text("重新登录") }
       }
     }
@@ -187,8 +228,8 @@ fun ReviewPendingPage(state: AuthUiState, onRefresh: () -> Unit, onBackToLogin: 
 }
 
 @Composable
-fun PermissionPage(onGrant: () -> Unit, onDefer: () -> Unit) {
-  Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+fun PermissionPage(message: String?, onGrant: () -> Unit, onDefer: () -> Unit) {
+  Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).testTag("permission.library")) {
     Column(
       Modifier.fillMaxWidth().blur(18.dp).padding(14.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -226,6 +267,7 @@ fun PermissionPage(onGrant: () -> Unit, onDefer: () -> Unit) {
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           lineHeight = 22.sp,
         )
+        message?.let { InlineMessage(it, true) }
         Button(onClick = onGrant, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("继续授权") }
         TextButton(onClick = onDefer, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("暂不开启") }
       }
@@ -272,6 +314,7 @@ private fun AuthPageFrame(
   title: String,
   subtitle: String,
   onBack: (() -> Unit)? = null,
+  semanticId: String,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   Box(
@@ -283,7 +326,7 @@ private fun AuthPageFrame(
           MaterialTheme.colorScheme.surfaceContainerLow,
         ),
       ),
-    ).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 34.dp),
+    ).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 34.dp).testTag(semanticId),
   ) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically) {
@@ -306,6 +349,19 @@ private fun AuthPageFrame(
       ) {
         Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(15.dp), content = content)
       }
+    }
+  }
+}
+
+@Composable
+fun RestoringPage(message: String? = null) {
+  Box(
+    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).testTag("auth.restoring"),
+    contentAlignment = Alignment.Center,
+  ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+      CircularProgressIndicator()
+      Text(message ?: "正在恢复安全会话…", color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
   }
 }

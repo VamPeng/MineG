@@ -1,6 +1,7 @@
 package com.mineg.mobile.app
 
 sealed interface AppRoute {
+  data object Restoring : AppRoute
   data object Login : AppRoute
   data object SignUp : AppRoute
   data object ReviewPending : AppRoute
@@ -49,6 +50,7 @@ enum class BackupStatus {
   DEVICE_STORAGE_FULL,
   CLOUD_STORAGE_FULL,
   SERVICE_UNAVAILABLE,
+  INDEXED,
   COMPLETE,
   PAUSED,
 }
@@ -105,14 +107,15 @@ data class DeletedMedia(
 )
 
 data class AuthUiState(
-  val phone: String = "13800138000",
-  val password: String = "mineg2026",
-  val passwordConfirmation: String = "mineg2026",
-  val agreementAccepted: Boolean = true,
+  val phone: String = "",
+  val password: String = "",
+  val passwordConfirmation: String = "",
+  val agreementAccepted: Boolean = false,
   val loading: Boolean = false,
   val reviewSyncing: Boolean = false,
   val fieldErrors: Map<String, String> = emptyMap(),
   val message: String? = null,
+  val messageIsError: Boolean = false,
 )
 
 data class PrivateSpaceUiState(
@@ -128,14 +131,14 @@ data class FamilyAlbumUiState(
 )
 
 data class BackupUiState(
-  val loadState: PageLoadState = PageLoadState.CONTENT,
-  val status: BackupStatus = BackupStatus.UPLOADING,
-  val progress: Float = 0.68f,
-  val indexedCount: Int = 1_284,
-  val totalCount: Int = 1_536,
+  val loadState: PageLoadState = PageLoadState.EMPTY,
+  val status: BackupStatus = BackupStatus.PERMISSION_REQUIRED,
+  val progress: Float = 0f,
+  val indexedCount: Int = 0,
+  val totalCount: Int = 0,
   val autoBackupEnabled: Boolean = true,
   val allowCellularBackup: Boolean = false,
-  val currentMediaTitle: String = "周末野餐.mov",
+  val currentMediaTitle: String = "",
   val albums: List<LocalAlbum> = emptyList(),
 )
 
@@ -160,17 +163,18 @@ sealed interface AppDialog {
 }
 
 data class MineGAppState(
-  val currentRoute: AppRoute = AppRoute.PrivateSpace,
+  val currentRoute: AppRoute = AppRoute.Restoring,
   val backStack: List<AppRoute> = emptyList(),
   val selectedTab: MainTab = MainTab.PRIVATE_SPACE,
   val selectedLibraryTab: LibraryTab = LibraryTab.PRIVATE,
   val auth: AuthUiState = AuthUiState(),
-  val profile: UserProfile,
-  val libraryAccess: LibraryAccess = LibraryAccess.FULL,
-  val privateSpace: PrivateSpaceUiState,
-  val familyAlbum: FamilyAlbumUiState,
-  val backup: BackupUiState,
-  val recycleBin: RecycleBinUiState,
+  val profile: UserProfile? = null,
+  val profileDraftNickname: String = "",
+  val libraryAccess: LibraryAccess = LibraryAccess.NOT_DETERMINED,
+  val privateSpace: PrivateSpaceUiState = PrivateSpaceUiState(loadState = PageLoadState.EMPTY),
+  val familyAlbum: FamilyAlbumUiState = FamilyAlbumUiState(loadState = PageLoadState.EMPTY),
+  val backup: BackupUiState = BackupUiState(),
+  val recycleBin: RecycleBinUiState = RecycleBinUiState(loadState = PageLoadState.EMPTY),
   val feedback: FeedbackUiState = FeedbackUiState(),
   val selectedMediaAction: MediaActionState = MediaActionState.IDLE,
   val dialog: AppDialog? = null,

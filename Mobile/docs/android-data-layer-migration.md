@@ -13,8 +13,9 @@
 
 - 批次 A 已完成：新增 `foundation-v2`、ABI 5、SQLite v5 可恢复 operation、Android 通用 Effect Dispatcher、五类 Port 测试替身和默认拒绝的数据主权扫描门禁。
 - 批次 B 的生产账号主链已完成：新增 `account-v2` 与 SQLite v6，注册、登录、Session 恢复/轮换/退出、审核查询和 Profile 查询/更新由 Core operation 驱动；Token 仅通过批量 `SecureStoreEffect` 原子写入，Android 专属 `mineg_profile_cache` 已移除。
-- `AndroidAccountClient` 仍作为 KeyGrant、头像、私人媒体、扫描和上传后续批次的过渡依赖保留；其中尚未迁移的精确路径继续登记在 `platform-data-exceptions-v1`，不得据此将 M3-D 标记完成。
-- 当前迁移实现版本：C ABI 5、SQLite v6；既有 ABI 4/SQLite v4 行为继续兼容。
+- 批次 C 的生产主链已实现：新增 `stage02-v2` 与 SQLite v7，Key Grant 协调、头像创建授权/对象上传/完成确认、私人媒体列表与账号隔离缓存均由 Core operation 驱动；主页只消费 Core 返回的 Profile/PrivateMedia Snapshot。
+- `AndroidAccountClient` 仍作为扫描、备份设置、单媒体上传和未退役旧账号 UI 的过渡依赖保留；旧路径中的 KeyGrant、头像和私人媒体实现继续按 AND-DATA-012 登记，不再由当前 `MainActivity` 生产入口调用。不得据此将整体 M3-D 标记完成。
+- 当前迁移实现版本：C ABI 5、SQLite v7；既有 ABI 4/SQLite v4 行为继续兼容。
 
 本文件列出 Android 已实现但仍在 Kotlin/Compose 层拥有领域数据、接口编排、业务缓存或状态迁移的代码。迁移目标不是让 C++ 直接持有 Android 网络、权限或系统对象，而是让 C++ Core 成为业务请求、领域数据和状态机的唯一所有者，Android 只保留 UI、Bridge 与 PlatformPort。
 
@@ -26,7 +27,8 @@
 MainActivity
   → MineGAppViewModel
   → AndroidMineGAppRuntime
-  → AndroidAccountClient
+  → CoreAccountClient / CoreStage02Client
+  → AndroidAccountClient（仅扫描、设置、上传过渡路径）
   → AndroidTransportPort / AndroidSecureStorePort / AndroidMediaSourcePort
   → Service
 ```
@@ -39,10 +41,8 @@ MainActivity
 
 当前 Kotlin 仍负责：
 
-- 业务 API 路径、请求 JSON、响应 JSON、错误映射和 Token 刷新；
-- 用户资料 SharedPreferences 缓存和离线回退；
-- key grant、头像、私人媒体列表与单媒体上传的业务编排；
-- 扫描循环、部分备份门禁、审核轮询和页面准入判断；
+- 扫描循环、部分备份门禁和单媒体上传业务编排；
+- 审核轮询的执行时钟与页面 UiState 映射；
 - 分享、删除、恢复、下载、反馈和部分备份设置的页面内模拟状态。
 
 因此目前 C++ 更接近“加密与持久化组件”，尚未成为完整的跨端数据层。
@@ -119,8 +119,8 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 | --- | --- | --- | --- | --- | --- |
 | AND-DATA-001 | P0 | 账号与 Session | 当前生效 | API、DTO、Token 刷新、错误映射、会话内存 | Core 账号状态机 + Transport/SecureStore Effect |
 | AND-DATA-002 | P0 | 用户资料与缓存 | 当前生效 | `/me` 解析、资料更新、SharedPreferences 回退 | Core Profile Snapshot + SQLite 缓存 |
-| AND-DATA-003 | P0 | Key grant 与头像 | 部分生效 | 接口编排、grant 遍历、头像直传 | Core 编排；平台只执行加密、文件和传输 Effect |
-| AND-DATA-004 | P0 | 私人媒体主页列表 | 当前生效 | `/media` 解析、ViewModel 列表 | Core 分页查询与领域快照 |
+| AND-DATA-003 | P0 | Key grant 与头像 | 生产主链已迁移；旧路径例外保留 | 旧账号 UI 仍编译 | Core 编排；平台只执行图片预处理、SecureStore 与 Transport Effect |
+| AND-DATA-004 | P0 | 私人媒体主页列表 | 生产主链已迁移；旧路径例外保留 | 旧 Client 方法仍编译 | Core 查询、账号隔离 SQLite 快照与离线回退 |
 | AND-DATA-005 | P0 | 单媒体上传 | 已实现，当前新入口未直接调用 | 上传状态机和服务端 DTO | Core 完整状态机；TransportPort 只上传字节/分片 |
 | AND-DATA-006 | P1 | 本地扫描 | 当前生效 | 恢复判断、分页循环、generation、调度 | Core 扫描 operation；MediaSourcePort 返回批次 |
 | AND-DATA-007 | P1 | 备份设置与门禁 | UI 部分生效 | ViewModel 本地状态；旧 Client 含真实设置逻辑 | Core Settings/Task Snapshot + Scheduler Effect |

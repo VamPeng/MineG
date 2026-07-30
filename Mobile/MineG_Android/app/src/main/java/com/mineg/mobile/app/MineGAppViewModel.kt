@@ -1,21 +1,75 @@
 package com.mineg.mobile.app
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.mineg.mobile.account.AccountValidation
+import com.mineg.mobile.contracts.AccountNextStep
+import com.mineg.mobile.contracts.AccountProblem
+import com.mineg.mobile.contracts.AccountRouteSnapshot
+import com.mineg.mobile.contracts.ApprovalStatus
+import com.mineg.mobile.contracts.OwnerMediaSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-class MineGAppViewModel : ViewModel() {
-  private val mutableState = MutableStateFlow(MockMineGRepository.initialState())
+class MineGAppViewModel internal constructor(
+  private val runtime: MineGAppRuntime,
+  autoRestore: Boolean = true,
+) : ViewModel() {
+  private val mutableState = MutableStateFlow(MineGAppState())
   val state: StateFlow<MineGAppState> = mutableState.asStateFlow()
+  private var currentUserId: String? = null
+  private var reviewPollingJob: Job? = null
+
+  init {
+    if (autoRestore) restoreAuthentication()
+  }
+
+  fun restoreAuthentication() {
+    stopReviewPolling()
+    currentUserId = null
+    mutableState.value = MineGAppState(currentRoute = AppRoute.Restoring)
+    viewModelScope.launch {
+      try {
+        val session = runtime.restoreSession()
+        if (session == null) {
+          showLogin()
+        } else {
+          routeSession(session, allowCachedProfile = true)
+        }
+      } catch (problem: AccountProblem) {
+        showLogin(messageFor(problem), true)
+      } catch (_: Throwable) {
+        showLogin("会话恢复失败，请重新登录。", true)
+      }
+    }
+  }
 
   fun navigate(route: AppRoute) {
     mutableState.update { current ->
+      if (route.requiresProfile() && current.profile == null) {
+        return@update MineGAppState(
+          currentRoute = AppRoute.Login,
+          auth = AuthUiState(message = "登录状态已失效，请重新登录。", messageIsError = true),
+        )
+      }
       if (current.currentRoute == route) current
       else current.copy(
         currentRoute = route,
         backStack = current.backStack + current.currentRoute,
+        profileDraftNickname = if (route == AppRoute.ProfileEdit) current.profile?.nickname.orEmpty() else current.profileDraftNickname,
+        auth = if (route == AppRoute.ProfileEdit) AuthUiState() else current.auth,
         selectedMediaAction = MediaActionState.IDLE,
         dialog = null,
       )
@@ -31,7 +85,7 @@ class MineGAppViewModel : ViewModel() {
   }
 
   fun resetAcceptanceState() {
-    mutableState.value = MockMineGRepository.initialState()
+    restoreAuthentication()
   }
 
   fun debugNavigate(route: AppRoute) {
@@ -76,6 +130,12 @@ class MineGAppViewModel : ViewModel() {
 
   fun selectTab(tab: MainTab) {
     mutableState.update {
+      if (it.profile == null) {
+        return@update MineGAppState(
+          currentRoute = AppRoute.Login,
+          auth = AuthUiState(message = "请先登录后继续。", messageIsError = true),
+        )
+      }
       it.copy(
         currentRoute = tab.route(),
         backStack = emptyList(),
@@ -112,16 +172,24 @@ class MineGAppViewModel : ViewModel() {
   fun submitLogin() {
     val auth = mutableState.value.auth
     val errors = buildMap {
-      if (!auth.phone.matches(Regex("1\\d{10}"))) put("phone", "请输入有效的中国大陆手机号")
-      if (auth.password.length < 8) put("password", "密码至少需要 8 个字符")
+      if (AccountValidation.normalizePhone(auth.phone) == null) put("phone", "请输入有效的中国大陆手机号")
+      if (auth.password.isBlank()) put("password", "请输入密码")
       if (!auth.agreementAccepted) put("agreement", "请先阅读并同意服务协议与隐私政策")
     }
     if (errors.isNotEmpty()) {
       updateAuth { copy(fieldErrors = errors) }
       return
     }
-    mutableState.update {
-      it.copy(currentRoute = AppRoute.Permission, backStack = emptyList(), auth = auth.copy(message = null))
+    if (auth.loading) return
+    viewModelScope.launch {
+      updateAuth { copy(loading = true, fieldErrors = emptyMap(), message = null, messageIsError = false) }
+      try {
+        routeSession(runtime.signIn(auth.phone, auth.password, auth.agreementAccepted), allowCachedProfile = true)
+      } catch (problem: AccountProblem) {
+        showProblem(problem)
+      } catch (_: Throwable) {
+        updateAuth { copy(loading = false, message = "登录失败，请稍后重试。", messageIsError = true) }
+      }
     }
   }
 
@@ -130,58 +198,116 @@ class MineGAppViewModel : ViewModel() {
   fun submitSignUp() {
     val auth = mutableState.value.auth
     val errors = buildMap {
-      if (!auth.phone.matches(Regex("1\\d{10}"))) put("phone", "手机号格式不正确")
-      if (auth.password.length < 8) put("password", "密码至少需要 8 个字符")
+      if (AccountValidation.normalizePhone(auth.phone) == null) put("phone", "手机号格式不正确")
+      AccountValidation.passwordError(auth.password)?.let { put("password", it) }
       if (auth.password != auth.passwordConfirmation) put("passwordConfirmation", "两次输入的密码不一致")
     }
     if (errors.isNotEmpty()) {
       updateAuth { copy(fieldErrors = errors) }
       return
     }
-    mutableState.update {
-      it.copy(currentRoute = AppRoute.ReviewPending, backStack = emptyList(), auth = auth.copy(reviewSyncing = false, message = null))
+    if (auth.loading) return
+    viewModelScope.launch {
+      updateAuth { copy(loading = true, fieldErrors = emptyMap(), message = null, messageIsError = false) }
+      try {
+        routeSession(runtime.signUp(auth.phone, auth.password), allowCachedProfile = false)
+      } catch (problem: AccountProblem) {
+        showProblem(problem)
+      } catch (_: Throwable) {
+        updateAuth { copy(loading = false, message = "注册失败，请稍后重试。", messageIsError = true) }
+      }
     }
   }
 
-  fun refreshReviewStatus() {
-    mutableState.update {
-      it.copy(currentRoute = AppRoute.Permission, backStack = emptyList(), auth = it.auth.copy(reviewSyncing = false, message = "Mock 审核已通过"))
+  fun refreshReviewStatus() = refreshReviewStatus(manual = true)
+
+  private fun refreshReviewStatus(manual: Boolean) {
+    val userId = currentUserId ?: run {
+      returnToLogin()
+      return
+    }
+    if (manual && mutableState.value.auth.reviewSyncing) return
+    viewModelScope.launch {
+      if (manual) updateAuth { copy(reviewSyncing = true, message = null, messageIsError = false) }
+      try {
+        when (runtime.refreshReviewStatus()) {
+          ApprovalStatus.PENDING -> updateAuth {
+            copy(
+              reviewSyncing = false,
+              message = if (manual) "状态已刷新，申请仍在处理中。" else null,
+              messageIsError = false,
+            )
+          }
+          ApprovalStatus.APPROVED -> loadApprovedProfile(userId, allowCached = false)
+        }
+      } catch (problem: AccountProblem) {
+        if (problem.code in SESSION_ERRORS) {
+          performLogout("登录状态已失效，请重新登录。")
+        } else if (manual) {
+          updateAuth { copy(reviewSyncing = false, message = messageFor(problem), messageIsError = true) }
+        }
+      } catch (_: Throwable) {
+        if (manual) updateAuth { copy(reviewSyncing = false, message = "审核状态刷新失败，请稍后重试。", messageIsError = true) }
+      }
     }
   }
 
   fun returnToLogin() {
-    mutableState.update {
-      it.copy(
-        currentRoute = AppRoute.Login,
-        backStack = emptyList(),
-        auth = it.auth.copy(fieldErrors = emptyMap(), message = null),
-        dialog = null,
-        debugPanelVisible = false,
-      )
+    performLogout()
+  }
+
+  fun markLibraryPermissionRequested() {
+    runtime.markLibraryPermissionRequested()
+  }
+
+  fun onLibraryPermissionResult() {
+    val access = runtime.libraryAccess()
+    if (access == LibraryAccess.FULL) {
+      enterPrivateSpace(access)
+    } else {
+      mutableState.update {
+        it.copy(
+          currentRoute = AppRoute.Permission,
+          libraryAccess = access,
+          backup = it.backup.copy(status = BackupStatus.PERMISSION_REQUIRED),
+          auth = it.auth.copy(
+            message = if (access == LibraryAccess.LIMITED) {
+              "已选择部分照片，但自动备份需要完整相册权限。"
+            } else {
+              "未获得完整相册权限，不会创建扫描或备份任务。"
+            },
+            messageIsError = true,
+          ),
+        )
+      }
     }
   }
 
-  fun grantLibraryAccess() {
-    mutableState.update {
-      it.copy(
-        currentRoute = AppRoute.PrivateSpace,
-        backStack = emptyList(),
-        selectedTab = MainTab.PRIVATE_SPACE,
-        libraryAccess = LibraryAccess.FULL,
-        backup = it.backup.copy(status = BackupStatus.SCANNING, progress = 0.24f),
-      )
+  fun onForeground() {
+    if (mutableState.value.currentRoute == AppRoute.ReviewPending) {
+      refreshReviewStatus(manual = false)
+      return
+    }
+    if (mutableState.value.profile == null) return
+    val previous = mutableState.value.libraryAccess
+    val current = runtime.libraryAccess()
+    when {
+      previous == LibraryAccess.FULL && current != LibraryAccess.FULL -> mutableState.update {
+        it.copy(
+          currentRoute = AppRoute.Permission,
+          backStack = emptyList(),
+          libraryAccess = current,
+          backup = it.backup.copy(status = BackupStatus.PERMISSION_REQUIRED),
+        )
+      }
+      previous != LibraryAccess.FULL && current == LibraryAccess.FULL -> enterPrivateSpace(current)
+      else -> mutableState.update { it.copy(libraryAccess = current) }
     }
   }
 
   fun deferLibraryAccess() {
-    mutableState.update {
-      it.copy(
-        currentRoute = AppRoute.PrivateSpace,
-        backStack = emptyList(),
-        selectedTab = MainTab.PRIVATE_SPACE,
-        backup = it.backup.copy(status = BackupStatus.PERMISSION_REQUIRED),
-      )
-    }
+    if (mutableState.value.profile == null) returnToLogin()
+    enterPrivateSpace(runtime.libraryAccess())
   }
 
   fun selectLibraryTab(tab: LibraryTab) {
@@ -280,10 +406,7 @@ class MineGAppViewModel : ViewModel() {
           dialog = null,
         )
       }
-      AppDialog.Logout -> mutableState.value = MockMineGRepository.initialState().copy(
-        currentRoute = AppRoute.Login,
-        libraryAccess = LibraryAccess.NOT_DETERMINED,
-      )
+      AppDialog.Logout -> performLogout()
       null -> Unit
     }
   }
@@ -301,7 +424,80 @@ class MineGAppViewModel : ViewModel() {
   fun startBackup() = setAutoBackupEnabled(true)
 
   fun updateNickname(value: String) {
-    if (value.length <= 20) mutableState.update { it.copy(profile = it.profile.copy(nickname = value)) }
+    if (value.length <= 20) mutableState.update {
+      it.copy(profileDraftNickname = value, auth = it.auth.copy(message = null, messageIsError = false))
+    }
+  }
+
+  fun saveProfile() {
+    val current = mutableState.value
+    val existing = current.profile ?: run {
+      returnToLogin()
+      return
+    }
+    val nickname = current.profileDraftNickname.trim()
+    if (nickname.length !in 2..20 || !nickname.matches(Regex("[\\p{L}\\p{N} _-]+"))) {
+      updateAuth { copy(message = "昵称需为 2～20 个中文、字母、数字、空格、连字符或下划线。", messageIsError = true) }
+      return
+    }
+    if (current.auth.loading) return
+    viewModelScope.launch {
+      updateAuth { copy(loading = true, message = null, messageIsError = false) }
+      try {
+        val updated = runtime.updateProfile(nickname)
+        if (updated.id != existing.id) throw AccountProblem("PROFILE_MISMATCH", "account.profile.mismatch", false, "")
+        mutableState.update {
+          it.copy(
+            currentRoute = AppRoute.Profile,
+            backStack = it.backStack.dropLast(1),
+            profile = existing.copy(
+              nickname = updated.nickname,
+              maskedPhone = updated.maskedPhone,
+              avatarLabel = updated.nickname.firstOrNull()?.toString() ?: "我",
+              avatarUrl = updated.avatarUrl,
+            ),
+            profileDraftNickname = "",
+            auth = AuthUiState(),
+          )
+        }
+      } catch (problem: AccountProblem) {
+        updateAuth { copy(loading = false, message = messageFor(problem), messageIsError = true) }
+      } catch (_: Throwable) {
+        updateAuth { copy(loading = false, message = "资料保存失败，请稍后重试。", messageIsError = true) }
+      }
+    }
+  }
+
+  fun updateAvatar(uri: Uri) {
+    val existing = mutableState.value.profile ?: run {
+      returnToLogin()
+      return
+    }
+    if (mutableState.value.auth.loading) return
+    viewModelScope.launch {
+      updateAuth { copy(loading = true, message = null, messageIsError = false) }
+      try {
+        val updated = runtime.updateAvatar(uri)
+        if (updated.id != existing.id) {
+          throw AccountProblem("PROFILE_MISMATCH", "account.profile.mismatch", false, "")
+        }
+        mutableState.update {
+          it.copy(
+            profile = existing.copy(
+              nickname = updated.nickname,
+              maskedPhone = updated.maskedPhone,
+              avatarLabel = updated.nickname.firstOrNull()?.toString() ?: "我",
+              avatarUrl = updated.avatarUrl,
+            ),
+            auth = AuthUiState(message = "头像已更新。"),
+          )
+        }
+      } catch (problem: AccountProblem) {
+        updateAuth { copy(loading = false, message = messageFor(problem), messageIsError = true) }
+      } catch (_: Throwable) {
+        updateAuth { copy(loading = false, message = "头像处理或上传失败，请稍后重试。", messageIsError = true) }
+      }
+    }
   }
 
   fun setFeedbackCategory(category: FeedbackCategory) {
@@ -333,7 +529,271 @@ class MineGAppViewModel : ViewModel() {
     (mutableState.value.privateSpace.items + mutableState.value.familyAlbum.items + mutableState.value.recycleBin.items.map { it.media })
       .firstOrNull { it.id == id }
 
+  private suspend fun routeSession(session: AccountRouteSnapshot, allowCachedProfile: Boolean) {
+    currentUserId = session.userId
+    when (session.nextStep) {
+      AccountNextStep.REVIEW_PENDING -> {
+        mutableState.value = MineGAppState(
+          currentRoute = AppRoute.ReviewPending,
+          auth = AuthUiState(),
+        )
+        startReviewPolling()
+      }
+      AccountNextStep.APP_HOME -> loadApprovedProfile(session.userId, allowCachedProfile)
+    }
+  }
+
+  private suspend fun loadApprovedProfile(userId: String, allowCached: Boolean) {
+    stopReviewPolling()
+    val profile = runtime.loadProfile(userId, allowCached)
+    if (profile.id != userId) {
+      throw AccountProblem("PROFILE_MISMATCH", "account.profile.mismatch", false, "")
+    }
+    val userProfile = UserProfile(
+      id = profile.id,
+      nickname = profile.nickname,
+      maskedPhone = profile.maskedPhone,
+      avatarLabel = profile.nickname.firstOrNull()?.toString() ?: "我",
+      avatarUrl = profile.avatarUrl,
+    )
+    val access = runtime.libraryAccess()
+    mutableState.value = MineGAppState(
+      currentRoute = if (access == LibraryAccess.FULL) AppRoute.PrivateSpace else AppRoute.Permission,
+      selectedTab = MainTab.PRIVATE_SPACE,
+      profile = userProfile,
+      libraryAccess = access,
+      privateSpace = PrivateSpaceUiState(loadState = PageLoadState.LOADING),
+      familyAlbum = FamilyAlbumUiState(loadState = PageLoadState.EMPTY),
+      backup = BackupUiState(
+        loadState = if (access == LibraryAccess.FULL) PageLoadState.LOADING else PageLoadState.EMPTY,
+        status = if (access == LibraryAccess.FULL) BackupStatus.SCANNING else BackupStatus.PERMISSION_REQUIRED,
+      ),
+      recycleBin = RecycleBinUiState(loadState = PageLoadState.EMPTY),
+    )
+    loadHomeModels(userId, userProfile, access)
+  }
+
+  private fun enterPrivateSpace(access: LibraryAccess) {
+    val profile = mutableState.value.profile ?: run {
+      showLogin("请先登录后继续。", true)
+      return
+    }
+    mutableState.update {
+      it.copy(
+        currentRoute = AppRoute.PrivateSpace,
+        backStack = emptyList(),
+        selectedTab = MainTab.PRIVATE_SPACE,
+        libraryAccess = access,
+        backup = it.backup.copy(
+          loadState = if (access == LibraryAccess.FULL) PageLoadState.LOADING else it.backup.loadState,
+          status = if (access == LibraryAccess.FULL) BackupStatus.SCANNING else BackupStatus.PERMISSION_REQUIRED,
+        ),
+        auth = AuthUiState(),
+      )
+    }
+    val userId = currentUserId ?: profile.id.also { currentUserId = it }
+    viewModelScope.launch { loadHomeModels(userId, profile, access) }
+  }
+
+  private suspend fun loadHomeModels(userId: String, profile: UserProfile, access: LibraryAccess) {
+    try {
+      val media = runtime.listOwnerMedia().map { it.toMediaItem(profile) }
+      mutableState.update { state ->
+        if (state.profile?.id != userId) state else state.copy(
+          privateSpace = PrivateSpaceUiState(
+            loadState = if (media.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
+            items = media,
+          ),
+        )
+      }
+    } catch (problem: AccountProblem) {
+      if (problem.code in SESSION_ERRORS) {
+        performLogout("登录状态已失效，请重新登录。")
+        return
+      }
+      mutableState.update { state ->
+        if (state.profile?.id != userId) state else state.copy(
+          privateSpace = PrivateSpaceUiState(
+            loadState = PageLoadState.ERROR,
+            errorMessage = messageFor(problem),
+          ),
+        )
+      }
+    } catch (_: Throwable) {
+      mutableState.update { state ->
+        if (state.profile?.id != userId) state else state.copy(
+          privateSpace = PrivateSpaceUiState(loadState = PageLoadState.ERROR, errorMessage = "私人空间加载失败，请稍后重试。"),
+        )
+      }
+    }
+
+    if (access != LibraryAccess.FULL || mutableState.value.profile?.id != userId) return
+    try {
+      val local = runtime.refreshLocalLibrary(userId)
+      val albums = local.albums.map { album ->
+        LocalAlbum(
+          id = album.platformAlbumRef,
+          name = album.name,
+          mediaCount = album.mediaCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+          mediaIds = emptyList(),
+          coverUrls = listOfNotNull(album.coverThumbnailUri),
+        )
+      }
+      mutableState.update { state ->
+        if (state.profile?.id != userId) state else state.copy(
+          backup = state.backup.copy(
+            loadState = if (albums.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
+            status = BackupStatus.INDEXED,
+            progress = 1f,
+            indexedCount = local.scan.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            totalCount = local.scan.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            albums = albums,
+          ),
+        )
+      }
+    } catch (_: Throwable) {
+      mutableState.update { state ->
+        if (state.profile?.id != userId) state else state.copy(
+          backup = state.backup.copy(loadState = PageLoadState.ERROR, status = BackupStatus.SERVICE_UNAVAILABLE),
+        )
+      }
+    }
+  }
+
+  private fun OwnerMediaSummary.toMediaItem(owner: UserProfile): MediaItem {
+    val instant = runCatching { Instant.parse(capturedAt) }.getOrElse { Instant.EPOCH }
+    val dateTime = instant.atZone(ZoneId.systemDefault())
+    val kind = when (mediaType) {
+      "VIDEO" -> MediaKind.VIDEO
+      "GIF" -> MediaKind.GIF
+      "LIVE_PHOTO", "DYNAMIC" -> MediaKind.LIVE_PHOTO
+      else -> MediaKind.PHOTO
+    }
+    return MediaItem(
+      id = id,
+      title = when (kind) {
+        MediaKind.VIDEO -> "视频"
+        MediaKind.GIF -> "GIF"
+        MediaKind.LIVE_PHOTO -> "动态照片"
+        MediaKind.PHOTO -> "照片"
+      },
+      kind = kind,
+      capturedAt = DATE_TIME_FORMAT.format(dateTime),
+      dateGroup = DATE_GROUP_FORMAT.format(dateTime),
+      sizeLabel = "已安全备份",
+      owner = owner,
+      colorSeed = id.hashCode(),
+    )
+  }
+
+  private fun startReviewPolling() {
+    if (reviewPollingJob?.isActive == true) return
+    reviewPollingJob = viewModelScope.launch {
+      while (mutableState.value.currentRoute == AppRoute.ReviewPending) {
+        delay(10_000)
+        if (mutableState.value.currentRoute == AppRoute.ReviewPending) refreshReviewStatus(manual = false)
+      }
+    }
+  }
+
+  private fun stopReviewPolling() {
+    reviewPollingJob?.cancel()
+    reviewPollingJob = null
+  }
+
+  private fun performLogout(message: String? = null) {
+    stopReviewPolling()
+    mutableState.update { it.copy(currentRoute = AppRoute.Restoring, backStack = emptyList(), dialog = null) }
+    viewModelScope.launch {
+      runCatching { runtime.signOut() }
+      currentUserId = null
+      showLogin(message)
+    }
+  }
+
+  private fun showLogin(message: String? = null, isError: Boolean = false) {
+    stopReviewPolling()
+    currentUserId = null
+    mutableState.value = MineGAppState(
+      currentRoute = AppRoute.Login,
+      auth = AuthUiState(message = message, messageIsError = isError),
+    )
+  }
+
+  private fun showProblem(problem: AccountProblem) {
+    val field = when (problem.code) {
+      "PHONE_INVALID", "PHONE_ALREADY_REGISTERED" -> "phone"
+      "PASSWORD_INVALID", "CREDENTIALS_INVALID" -> "password"
+      "AGREEMENT_REQUIRED" -> "agreement"
+      else -> null
+    }
+    updateAuth {
+      copy(
+        loading = false,
+        reviewSyncing = false,
+        fieldErrors = if (field == null) emptyMap() else mapOf(field to messageFor(problem)),
+        message = if (field == null) messageFor(problem) else null,
+        messageIsError = true,
+      )
+    }
+  }
+
+  private fun messageFor(problem: AccountProblem): String = when (problem.code) {
+    "PHONE_INVALID" -> "请输入有效的中国大陆手机号。"
+    "PHONE_ALREADY_REGISTERED" -> "该手机号已经注册，请直接登录。"
+    "PASSWORD_INVALID" -> "密码需为 8～64 位，并同时包含字母和数字。"
+    "CREDENTIALS_INVALID" -> "手机号或密码错误。"
+    "AGREEMENT_REQUIRED" -> "请先同意服务协议和隐私政策。"
+    "ACCOUNT_PENDING" -> "账号仍在等待管理员审核。"
+    "NETWORK_UNAVAILABLE" -> "网络不可用，请检查连接后重试。"
+    "SERVICE_UNAVAILABLE" -> "服务暂时不可用，请稍后重试。"
+    "PROFILE_MISMATCH" -> "账号资料校验失败，请重新登录。"
+    else -> "操作失败，请稍后重试。"
+  }
+
   private fun updateAuth(update: AuthUiState.() -> AuthUiState) {
     mutableState.update { it.copy(auth = it.auth.update()) }
   }
+
+  override fun onCleared() {
+    stopReviewPolling()
+    runtime.close()
+    super.onCleared()
+  }
+
+  companion object {
+    private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy年M月d日 HH:mm", Locale.CHINA)
+    private val DATE_GROUP_FORMAT = DateTimeFormatter.ofPattern("M月d日", Locale.CHINA)
+    private val SESSION_ERRORS = setOf("AUTH_REQUIRED", "SESSION_INVALID", "SESSION_EXPIRED", "SESSION_REPLAYED")
+
+    fun factory(context: Context): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+      @Suppress("UNCHECKED_CAST")
+      override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        require(modelClass.isAssignableFrom(MineGAppViewModel::class.java))
+        return MineGAppViewModel(AndroidMineGAppRuntime(context)) as T
+      }
+    }
+  }
+}
+
+private fun AppRoute.requiresProfile(): Boolean = when (this) {
+  AppRoute.PrivateSpace,
+  AppRoute.Backup,
+  AppRoute.Profile,
+  is AppRoute.PrivateMediaDetail,
+  is AppRoute.FamilyMediaDetail,
+  AppRoute.SharedByMe,
+  is AppRoute.LocalAlbum,
+  AppRoute.BackupSettings,
+  AppRoute.ProfileEdit,
+  AppRoute.RecycleBin,
+  AppRoute.HelpFeedback,
+  AppRoute.Permission,
+  -> true
+  AppRoute.Restoring,
+  AppRoute.Login,
+  AppRoute.SignUp,
+  AppRoute.ReviewPending,
+  is AppRoute.Legal,
+  -> false
 }

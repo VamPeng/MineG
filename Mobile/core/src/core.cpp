@@ -3,11 +3,16 @@
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <chrono>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -86,6 +91,353 @@ bool extract_json_boolean(const std::string &json, const std::string &field, boo
   if (json.compare(value, 4, "true") == 0) return true;
   if (json.compare(value, 5, "false") == 0) return false;
   return fallback;
+}
+
+std::string extract_top_level_json_value(const std::string &json, const std::string &field) {
+  size_t index = json.find_first_not_of(" \t\r\n");
+  if (index == std::string::npos || json[index] != '{') return {};
+  ++index;
+  while (index < json.size()) {
+    index = json.find_first_not_of(" \t\r\n,", index);
+    if (index == std::string::npos || json[index] == '}') return {};
+    if (json[index] != '"') return {};
+    const size_t key_start = ++index;
+    bool escaped = false;
+    while (index < json.size()) {
+      const char character = json[index];
+      if (!escaped && character == '"') break;
+      escaped = !escaped && character == '\\';
+      if (character != '\\') escaped = false;
+      ++index;
+    }
+    if (index >= json.size()) return {};
+    const std::string key = json.substr(key_start, index - key_start);
+    index = json.find(':', index + 1U);
+    if (index == std::string::npos) return {};
+    index = json.find_first_not_of(" \t\r\n", index + 1U);
+    if (index == std::string::npos) return {};
+    const size_t value_start = index;
+    if (json[index] == '"') {
+      ++index;
+      escaped = false;
+      while (index < json.size()) {
+        const char character = json[index];
+        if (!escaped && character == '"') {
+          ++index;
+          break;
+        }
+        escaped = !escaped && character == '\\';
+        if (character != '\\') escaped = false;
+        ++index;
+      }
+    } else if (json[index] == '{' || json[index] == '[') {
+      const char opening = json[index];
+      const char closing = opening == '{' ? '}' : ']';
+      int depth = 0;
+      bool in_string = false;
+      escaped = false;
+      while (index < json.size()) {
+        const char character = json[index++];
+        if (in_string) {
+          if (!escaped && character == '"') in_string = false;
+          escaped = !escaped && character == '\\';
+          if (character != '\\') escaped = false;
+          continue;
+        }
+        if (character == '"') in_string = true;
+        else if (character == opening) ++depth;
+        else if (character == closing && --depth == 0) break;
+      }
+      if (depth != 0 || in_string) return {};
+    } else {
+      index = json.find_first_of(",}", index);
+      if (index == std::string::npos) return {};
+    }
+    size_t value_end = index;
+    while (value_end > value_start &&
+           std::string(" \t\r\n").find(json[value_end - 1U]) != std::string::npos) {
+      --value_end;
+    }
+    if (key == field) return json.substr(value_start, value_end - value_start);
+    index = json.find_first_not_of(" \t\r\n", index);
+    if (index != std::string::npos && json[index] == ',') ++index;
+  }
+  return {};
+}
+
+std::string top_level_json_string(const std::string &json, const std::string &field) {
+  const std::string value = extract_top_level_json_value(json, field);
+  if (value.size() < 2U || value.front() != '"' || value.back() != '"' ||
+      value.find('\\') != std::string::npos) {
+    return {};
+  }
+  return value.substr(1U, value.size() - 2U);
+}
+
+uint64_t top_level_json_u64(const std::string &json, const std::string &field) {
+  const std::string value = extract_top_level_json_value(json, field);
+  if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos) return 0;
+  try {
+    return std::stoull(value);
+  } catch (...) {
+    return 0;
+  }
+}
+
+bool supported_effect_type(const std::string &effect_type) {
+  return effect_type == "TransportEffect" || effect_type == "SecureStoreEffect" ||
+         effect_type == "MediaSourceEffect" ||
+         effect_type == "BackgroundSchedulerEffect" || effect_type == "FileEffect";
+}
+
+bool valid_json(sqlite3 *database, const std::string &json) {
+  sqlite3_stmt *statement = nullptr;
+  if (sqlite3_prepare_v2(database, "SELECT json_valid(?)", -1, &statement, nullptr) != SQLITE_OK) {
+    return false;
+  }
+  int status = sqlite3_bind_text(statement, 1, json.c_str(), static_cast<int>(json.size()),
+                                 SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  const bool result = status == SQLITE_ROW && sqlite3_column_int(statement, 0) == 1;
+  sqlite3_finalize(statement);
+  return result;
+}
+
+std::string operation_step_json(uint64_t operation_id, uint64_t sequence,
+                                const std::string &status, const std::string &effect_type,
+                                const std::string &effect_payload,
+                                const std::string &terminal_payload) {
+  std::string result = "{\"contractVersion\":\"foundation-v2\",\"operationId\":" +
+                       std::to_string(operation_id) + ",\"sequence\":" +
+                       std::to_string(sequence) + ",\"status\":\"" + status + "\"";
+  if (status == "WAITING_FOR_EFFECT") {
+    result += ",\"effect\":{\"contractVersion\":\"foundation-v2\",\"operationId\":" +
+              std::to_string(operation_id) + ",\"sequence\":" + std::to_string(sequence) +
+              ",\"effectType\":\"" + effect_type + "\",\"payload\":" + effect_payload + "}";
+  } else if (status == "COMPLETED") {
+    result += ",\"result\":" + (terminal_payload.empty() ? "null" : terminal_payload);
+  } else if (status == "FAILED") {
+    result += ",\"error\":" + (terminal_payload.empty() ?
+        "{\"code\":\"PLATFORM_EFFECT_FAILED\",\"retryable\":false}" : terminal_payload);
+  }
+  result += "}";
+  return result;
+}
+
+std::string hex_encode(const unsigned char *bytes, size_t size);
+
+std::string sqlite_json_text(sqlite3 *database, const std::string &json,
+                             const std::string &path) {
+  sqlite3_stmt *statement = nullptr;
+  if (sqlite3_prepare_v2(database, "SELECT json_extract(?,?)", -1, &statement, nullptr) !=
+      SQLITE_OK) {
+    return {};
+  }
+  int status = sqlite3_bind_text(statement, 1, json.c_str(), static_cast<int>(json.size()),
+                                 SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 2, path.c_str(), static_cast<int>(path.size()),
+                               SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  std::string result;
+  if (status == SQLITE_ROW && sqlite3_column_type(statement, 0) != SQLITE_NULL) {
+    const auto *value = sqlite3_column_text(statement, 0);
+    if (value != nullptr) result = reinterpret_cast<const char *>(value);
+  }
+  sqlite3_finalize(statement);
+  return result;
+}
+
+int64_t sqlite_json_integer(sqlite3 *database, const std::string &json,
+                            const std::string &path, int64_t fallback = 0) {
+  const std::string value = sqlite_json_text(database, json, path);
+  if (value.empty()) return fallback;
+  try {
+    return std::stoll(value);
+  } catch (...) {
+    return fallback;
+  }
+}
+
+bool sqlite_json_boolean(sqlite3 *database, const std::string &json, const std::string &path,
+                         bool fallback = false) {
+  const std::string value = sqlite_json_text(database, json, path);
+  if (value == "1" || value == "true") return true;
+  if (value == "0" || value == "false") return false;
+  return fallback;
+}
+
+std::string base64_encode(const uint8_t *bytes, size_t size, bool padded = true) {
+  static constexpr char kAlphabet[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  std::string result;
+  result.reserve(((size + 2U) / 3U) * 4U);
+  for (size_t index = 0; index < size; index += 3U) {
+    const uint32_t value = static_cast<uint32_t>(bytes[index]) << 16U |
+        (index + 1U < size ? static_cast<uint32_t>(bytes[index + 1U]) << 8U : 0U) |
+        (index + 2U < size ? static_cast<uint32_t>(bytes[index + 2U]) : 0U);
+    result += kAlphabet[(value >> 18U) & 0x3fU];
+    result += kAlphabet[(value >> 12U) & 0x3fU];
+    if (index + 1U < size) result += kAlphabet[(value >> 6U) & 0x3fU];
+    else if (padded) result += '=';
+    if (index + 2U < size) result += kAlphabet[value & 0x3fU];
+    else if (padded) result += '=';
+  }
+  return result;
+}
+
+std::string base64_encode(const std::string &value, bool padded = true) {
+  return base64_encode(reinterpret_cast<const uint8_t *>(value.data()), value.size(), padded);
+}
+
+bool base64_decode(const std::string &encoded, std::string &result) {
+  const auto decode = [](char value) -> int {
+    if (value >= 'A' && value <= 'Z') return value - 'A';
+    if (value >= 'a' && value <= 'z') return value - 'a' + 26;
+    if (value >= '0' && value <= '9') return value - '0' + 52;
+    if (value == '+') return 62;
+    if (value == '/') return 63;
+    return -1;
+  };
+  if (encoded.empty()) {
+    result.clear();
+    return true;
+  }
+  if (encoded.size() % 4U == 1U) return false;
+  result.clear();
+  result.reserve(encoded.size() / 4U * 3U);
+  uint32_t accumulator = 0;
+  int bits = 0;
+  bool padding = false;
+  for (const char character : encoded) {
+    if (character == '=') {
+      padding = true;
+      continue;
+    }
+    if (padding) return false;
+    const int value = decode(character);
+    if (value < 0) return false;
+    accumulator = (accumulator << 6U) | static_cast<uint32_t>(value);
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      result.push_back(static_cast<char>((accumulator >> bits) & 0xffU));
+    }
+  }
+  return true;
+}
+
+void wipe_string(std::string &value) {
+  if (!value.empty()) sodium_memzero(value.data(), value.size());
+  value.clear();
+  value.shrink_to_fit();
+}
+
+std::string now_rfc3339() {
+  const auto now = std::chrono::system_clock::now();
+  const auto seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
+  const auto milliseconds =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now - seconds).count();
+  const std::time_t value = std::chrono::system_clock::to_time_t(now);
+  std::tm utc{};
+#if defined(_WIN32)
+  gmtime_s(&utc, &value);
+#else
+  gmtime_r(&value, &utc);
+#endif
+  std::ostringstream output;
+  output << std::put_time(&utc, "%Y-%m-%dT%H:%M:%S") << '.' << std::setw(3)
+         << std::setfill('0') << milliseconds << 'Z';
+  return output.str();
+}
+
+bool rfc3339_is_after(const std::string &value, std::chrono::seconds margin) {
+  if (value.size() < 20U || (value[19] != 'Z' && value[19] != '.')) return false;
+  std::tm utc{};
+  std::istringstream input(value.substr(0, 19U));
+  input >> std::get_time(&utc, "%Y-%m-%dT%H:%M:%S");
+  if (input.fail()) return false;
+#if defined(_WIN32)
+  const std::time_t expiry = _mkgmtime(&utc);
+#else
+  const std::time_t expiry = timegm(&utc);
+#endif
+  return expiry > std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + margin);
+}
+
+std::string random_identifier() {
+  std::array<uint8_t, 16> bytes{};
+  randombytes_buf(bytes.data(), bytes.size());
+  std::string value = hex_encode(bytes.data(), bytes.size());
+  sodium_memzero(bytes.data(), bytes.size());
+  return value;
+}
+
+std::string normalize_phone(const std::string &value) {
+  size_t first = value.find_first_not_of(" \t\r\n");
+  size_t last = value.find_last_not_of(" \t\r\n");
+  if (first == std::string::npos) return {};
+  std::string phone = value.substr(first, last - first + 1U);
+  if (phone.rfind("+86", 0) == 0) phone.erase(0, 3U);
+  if (phone.size() != 11U || phone[0] != '1' || phone[1] < '3' || phone[1] > '9' ||
+      phone.find_first_not_of("0123456789") != std::string::npos) {
+    return {};
+  }
+  return "+86" + phone;
+}
+
+std::string masked_phone(const std::string &normalized) {
+  return normalized.size() == 14U ? normalized.substr(3U, 3U) + "****" +
+      normalized.substr(normalized.size() - 4U) : "***********";
+}
+
+bool valid_password(const std::string &password) {
+  if (password.size() < 8U || password.size() > 64U) return false;
+  bool letter = false;
+  bool digit = false;
+  for (const unsigned char value : password) {
+    if (value < 0x20U || value == 0x7fU) return false;
+    letter = letter || (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') ||
+             value >= 0x80U;
+    digit = digit || (value >= '0' && value <= '9');
+  }
+  return letter && digit;
+}
+
+std::string command_digest(const std::string &command) {
+  std::array<uint8_t, crypto_hash_sha256_BYTES> digest{};
+  if (crypto_hash_sha256(digest.data(), reinterpret_cast<const uint8_t *>(command.data()),
+                         command.size()) != 0) {
+    return {};
+  }
+  const std::string result = hex_encode(digest.data(), digest.size());
+  sodium_memzero(digest.data(), digest.size());
+  return result;
+}
+
+std::string secure_result_value(sqlite3 *database, const std::string &effect_result,
+                                const std::string &name) {
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "SELECT json_extract(value,'$.valueBase64') FROM json_each(?, '$.payload.values') "
+      "WHERE json_extract(value,'$.name')=? LIMIT 1";
+  if (sqlite3_prepare_v2(database, sql, -1, &statement, nullptr) != SQLITE_OK) return {};
+  int status = sqlite3_bind_text(statement, 1, effect_result.c_str(),
+                                 static_cast<int>(effect_result.size()), SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 2, name.c_str(), static_cast<int>(name.size()),
+                               SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  std::string encoded;
+  if (status == SQLITE_ROW && sqlite3_column_type(statement, 0) != SQLITE_NULL) {
+    const auto *value = sqlite3_column_text(statement, 0);
+    if (value != nullptr) encoded = reinterpret_cast<const char *>(value);
+  }
+  sqlite3_finalize(statement);
+  std::string decoded;
+  return !encoded.empty() && base64_decode(encoded, decoded) ? decoded : std::string{};
 }
 
 bool write_all(std::ofstream &output, const unsigned char *bytes, size_t size) {
@@ -189,6 +541,107 @@ bool unwrap_media_key(const unsigned char user_master_key[MINEG_KEY_BYTES],
 
 }  // namespace
 
+struct Core::ActiveAccountSession {
+  std::string user_id;
+  std::string access_token;
+  std::string access_expires_at;
+  std::string refresh_token;
+  std::string refresh_expires_at;
+  std::string approval_status;
+  std::string next_step;
+
+  ~ActiveAccountSession() {
+    wipe_string(access_token);
+    wipe_string(refresh_token);
+  }
+};
+
+struct Core::AccountOperation {
+  uint64_t operation_id = 0;
+  uint64_t sequence = 1;
+  std::string command_digest;
+  std::string contract_version;
+  std::string type;
+  std::string stage;
+  std::string status = "WAITING_FOR_EFFECT";
+  std::string effect_type;
+  std::string effect_payload;
+  std::string terminal_payload;
+  std::string last_effect_result;
+  std::string continuation;
+  std::string phone;
+  std::string masked_phone;
+  std::string password;
+  std::string idempotency_key;
+  std::string nickname;
+  std::string device_installation_id;
+  std::string user_id;
+  std::string access_token;
+  std::string access_expires_at;
+  std::string refresh_token;
+  std::string refresh_expires_at;
+  std::string approval_status;
+  std::string next_step;
+  std::string pending_error;
+  std::string public_key_base64;
+  std::string encrypted_bundle_base64;
+  std::string kdf_parameters;
+  std::string key_bundle_public;
+  std::string key_bundle_encrypted;
+  std::string family_envelope;
+  std::string device_wrap_key;
+  std::string device_unlock_blob;
+  std::string pending_grants_json;
+  std::string grant_id;
+  std::string recipient_public_key;
+  std::string encrypted_envelope;
+  std::string avatar_bytes;
+  std::string avatar_digest_base64;
+  std::string avatar_content_type;
+  std::string avatar_upload_id;
+  int64_t avatar_source_size = 0;
+  int64_t avatar_width = 0;
+  int64_t media_limit = 100;
+  int64_t grant_index = 0;
+  int64_t completed_grant_count = 0;
+  bool allow_cached_profile = false;
+  bool allow_cached_media = false;
+  bool replayed_after_refresh = false;
+  int effect_retry_count = 0;
+
+  ~AccountOperation() { clear_sensitive(); }
+
+  void clear_sensitive() {
+    wipe_string(phone);
+    wipe_string(masked_phone);
+    wipe_string(password);
+    wipe_string(idempotency_key);
+    wipe_string(nickname);
+    wipe_string(device_installation_id);
+    wipe_string(public_key_base64);
+    wipe_string(encrypted_bundle_base64);
+    wipe_string(kdf_parameters);
+    wipe_string(key_bundle_public);
+    wipe_string(key_bundle_encrypted);
+    wipe_string(family_envelope);
+    wipe_string(device_wrap_key);
+    wipe_string(device_unlock_blob);
+    wipe_string(pending_grants_json);
+    wipe_string(grant_id);
+    wipe_string(recipient_public_key);
+    wipe_string(encrypted_envelope);
+    wipe_string(avatar_bytes);
+    wipe_string(avatar_digest_base64);
+    wipe_string(avatar_content_type);
+    wipe_string(avatar_upload_id);
+    wipe_string(access_token);
+    wipe_string(refresh_token);
+    wipe_string(access_expires_at);
+    wipe_string(refresh_expires_at);
+    wipe_string(effect_payload);
+  }
+};
+
 Core::Core(const std::string &database_path) { open_and_migrate(database_path); }
 
 Core::~Core() {
@@ -196,6 +649,8 @@ Core::~Core() {
   lock_keys_locked();
   subscribers_.clear();
   cancelled_operations_.clear();
+  account_operations_.clear();
+  active_account_session_.reset();
   if (database_ != nullptr) {
     sqlite3_close_v2(database_);
     database_ = nullptr;
@@ -299,7 +754,40 @@ void Core::open_and_migrate(const std::string &database_path) {
       " ciphertext_sha256 TEXT NOT NULL,etag TEXT,state TEXT NOT NULL DEFAULT 'PENDING' "
       " CHECK(state IN ('PENDING','UPLOADED')),PRIMARY KEY(resource_id,part_number));"
       "INSERT OR IGNORE INTO schema_migrations(version) VALUES(4);"
-      "PRAGMA user_version=4;"
+      "CREATE TABLE IF NOT EXISTS core_operations("
+      " operation_id INTEGER PRIMARY KEY CHECK(operation_id>0),"
+      " contract_version TEXT NOT NULL CHECK(contract_version='foundation-v2'),"
+      " command_type TEXT NOT NULL,command_json TEXT NOT NULL CHECK(json_valid(command_json)),"
+      " sequence INTEGER NOT NULL CHECK(sequence>0),"
+      " status TEXT NOT NULL CHECK(status IN "
+      " ('WAITING_FOR_EFFECT','COMPLETED','FAILED','CANCELLED')),"
+      " effect_type TEXT NOT NULL,effect_payload TEXT NOT NULL CHECK(json_valid(effect_payload)),"
+      " effect_result_json TEXT,terminal_payload TEXT,"
+      " created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) ,"
+      " updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))"
+      ");"
+      "CREATE INDEX IF NOT EXISTS core_operations_recovery_idx "
+      " ON core_operations(status,updated_at,operation_id);"
+      "INSERT OR IGNORE INTO schema_migrations(version) VALUES(5);"
+      "CREATE TABLE IF NOT EXISTS current_profile_snapshots("
+      " user_id TEXT PRIMARY KEY,nickname TEXT NOT NULL,masked_phone TEXT NOT NULL,"
+      " avatar_url TEXT,profile_version INTEGER NOT NULL CHECK(profile_version>=1),"
+      " updated_at TEXT NOT NULL"
+      ");"
+      "INSERT OR IGNORE INTO schema_migrations(version) VALUES(6);"
+      "CREATE TABLE IF NOT EXISTS private_media_snapshots("
+      " user_id TEXT NOT NULL,media_id TEXT NOT NULL,media_type TEXT NOT NULL,"
+      " content_revision INTEGER NOT NULL CHECK(content_revision>=1),"
+      " captured_at TEXT NOT NULL,created_at TEXT NOT NULL,"
+      " PRIMARY KEY(user_id,media_id)"
+      ");"
+      "CREATE INDEX IF NOT EXISTS private_media_snapshot_order_idx ON "
+      " private_media_snapshots(user_id,captured_at DESC,created_at DESC,media_id DESC);"
+      "CREATE TABLE IF NOT EXISTS private_media_cache_state("
+      " user_id TEXT PRIMARY KEY,refreshed_at TEXT NOT NULL"
+      ");"
+      "INSERT OR IGNORE INTO schema_migrations(version) VALUES(7);"
+      "PRAGMA user_version=7;"
       "COMMIT;");
 }
 
@@ -423,6 +911,1421 @@ mineg_error_code_t Core::execute(uint64_t operation_id, const std::string &comma
   ++event_sequence_;
   emit_locked("{\"version\":1,\"type\":\"FoundationProbeChanged\",\"sequence\":" +
               std::to_string(event_sequence_) + ",\"value\":\"" + json_escape(value) + "\"}");
+  return MINEG_OK;
+}
+
+mineg_error_code_t Core::read_operation_step_locked(uint64_t operation_id, std::string &result,
+                                                     std::string *command_json,
+                                                     std::string *effect_result_json) {
+  if (operation_id > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "SELECT command_json,sequence,status,effect_type,effect_payload,effect_result_json,"
+      "terminal_payload FROM core_operations WHERE operation_id=?";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) {
+    return MINEG_DATABASE_ERROR;
+  }
+  int status = sqlite3_bind_int64(statement, 1, static_cast<long long>(operation_id));
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  if (status == SQLITE_DONE) {
+    sqlite3_finalize(statement);
+    return MINEG_NOT_FOUND;
+  }
+  if (status != SQLITE_ROW) {
+    sqlite3_finalize(statement);
+    return MINEG_DATABASE_ERROR;
+  }
+  const auto text_at = [statement](int column) -> std::string {
+    const auto *value = sqlite3_column_text(statement, column);
+    return value == nullptr ? std::string{} : reinterpret_cast<const char *>(value);
+  };
+  if (command_json != nullptr) *command_json = text_at(0);
+  const uint64_t sequence = static_cast<uint64_t>(sqlite3_column_int64(statement, 1));
+  const std::string operation_status = text_at(2);
+  const std::string effect_type = text_at(3);
+  const std::string effect_payload = text_at(4);
+  if (effect_result_json != nullptr) *effect_result_json = text_at(5);
+  const std::string terminal_payload = text_at(6);
+  sqlite3_finalize(statement);
+  result = operation_step_json(operation_id, sequence, operation_status, effect_type,
+                               effect_payload, terminal_payload);
+  return MINEG_OK;
+}
+
+mineg_error_code_t Core::account_operation_step_locked(AccountOperation &operation,
+                                                        std::string &result) {
+  result = operation_step_json(operation.operation_id, operation.sequence, operation.status,
+                               operation.effect_type, operation.effect_payload,
+                               operation.terminal_payload);
+  return MINEG_OK;
+}
+
+void Core::set_account_effect_locked(AccountOperation &operation,
+                                     const std::string &effect_type,
+                                     const std::string &payload,
+                                     const std::string &stage) {
+  wipe_string(operation.effect_payload);
+  operation.effect_type = effect_type;
+  operation.effect_payload = payload;
+  operation.stage = stage;
+  operation.status = "WAITING_FOR_EFFECT";
+  operation.terminal_payload.clear();
+  operation.effect_retry_count = 0;
+}
+
+void Core::finish_account_error_locked(AccountOperation &operation, const std::string &code,
+                                        bool retryable, const std::string &request_id) {
+  std::string key = code;
+  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char value) {
+    return static_cast<char>(std::tolower(value));
+  });
+  operation.status = "FAILED";
+  operation.terminal_payload = "{\"code\":\"" + json_escape(code) +
+      "\",\"messageKey\":\"account." + json_escape(key) +
+      "\",\"retryable\":" + (retryable ? "true" : "false") +
+      ",\"requestId\":\"" + json_escape(request_id) + "\"}";
+  operation.clear_sensitive();
+}
+
+void Core::issue_session_read_locked(AccountOperation &operation) {
+  set_account_effect_locked(
+      operation, "SecureStoreEffect",
+      "{\"action\":\"readSecrets\",\"names\":[\"account.accessToken\","
+      "\"account.refreshToken\",\"account.accessExpiresAt\","
+      "\"account.refreshExpiresAt\",\"device.installationId\"]}",
+      "READ_SESSION");
+}
+
+void Core::issue_session_write_locked(AccountOperation &operation,
+                                      const std::string &continuation) {
+  const auto item = [](const std::string &name, const std::string &value) {
+    return "{\"name\":\"" + name + "\",\"valueBase64\":\"" +
+        base64_encode(value) + "\"}";
+  };
+  const std::string payload =
+      "{\"action\":\"writeSecrets\",\"values\":[" +
+      item("account.accessToken", operation.access_token) + ',' +
+      item("account.refreshToken", operation.refresh_token) + ',' +
+      item("account.accessExpiresAt", operation.access_expires_at) + ',' +
+      item("account.refreshExpiresAt", operation.refresh_expires_at) + "]}";
+  operation.continuation = continuation;
+  set_account_effect_locked(operation, "SecureStoreEffect", payload, "WRITE_SESSION");
+}
+
+void Core::issue_session_cleanup_locked(AccountOperation &operation,
+                                        const std::string &completion) {
+  operation.continuation = completion;
+  set_account_effect_locked(operation, "BackgroundSchedulerEffect",
+                            "{\"action\":\"cancelBackup\"}", "CANCEL_SCHEDULER");
+}
+
+mineg_error_code_t Core::issue_account_request_locked(AccountOperation &operation,
+                                                       const std::string &purpose) {
+  std::string method;
+  std::string path;
+  std::string body;
+  std::string headers = "{}";
+  if (purpose == "SIGN_IN") {
+    method = "POST";
+    path = "/api/v1/auth/login";
+    body = "{\"phone\":\"" + json_escape(operation.phone) +
+        "\",\"password\":\"" + json_escape(operation.password) +
+        "\",\"device_installation_id\":\"" +
+        json_escape(operation.device_installation_id) +
+        "\",\"platform\":\"ANDROID\",\"agreement_accepted\":true,"
+        "\"terms_version\":\"1.0\",\"privacy_version\":\"1.0\"}";
+  } else if (purpose == "SIGN_UP") {
+    method = "POST";
+    path = "/api/v1/auth/register";
+    headers = "{\"Idempotency-Key\":\"" + json_escape(operation.idempotency_key) + "\"}";
+    body = "{\"phone\":\"" + json_escape(operation.phone) +
+        "\",\"password\":\"" + json_escape(operation.password) +
+        "\",\"public_key\":\"" + operation.public_key_base64 +
+        "\",\"encrypted_key_bundle\":\"" + operation.encrypted_bundle_base64 +
+        "\",\"kdf_parameters\":" + operation.kdf_parameters +
+        ",\"bundle_version\":1,\"device_installation_id\":\"" +
+        json_escape(operation.device_installation_id) +
+        "\",\"platform\":\"ANDROID\"}";
+  } else if (purpose == "REFRESH") {
+    method = "POST";
+    path = "/api/v1/auth/refresh";
+    body = "{\"refresh_token\":\"" + json_escape(operation.refresh_token) + "\"}";
+  } else if (purpose == "SIGN_OUT") {
+    method = "POST";
+    path = "/api/v1/auth/logout";
+    body = "{\"refresh_token\":\"" + json_escape(operation.refresh_token) + "\"}";
+  } else {
+    if (active_account_session_ == nullptr || active_account_session_->access_token.empty()) {
+      return MINEG_NOT_FOUND;
+    }
+    headers = "{\"Authorization\":\"Bearer " +
+        json_escape(active_account_session_->access_token) + "\"}";
+    if (purpose == "REVIEW") {
+      method = "GET";
+      path = "/api/v1/auth/approval-status";
+    } else if (purpose == "PROFILE_GET") {
+      method = "GET";
+      path = "/api/v1/me";
+    } else if (purpose == "PROFILE_UPDATE") {
+      method = "PATCH";
+      path = "/api/v1/me/profile";
+      body = "{\"nickname\":\"" + json_escape(operation.nickname) + "\"}";
+    } else if (purpose == "KEY_BUNDLE") {
+      method = "GET";
+      path = "/api/v1/me/key-bundle";
+    } else if (purpose == "KEY_GRANTS_LIST") {
+      method = "GET";
+      path = "/api/v1/key-grants/pending?limit=20";
+    } else if (purpose == "KEY_GRANT_COMPLETE") {
+      if (operation.grant_id.empty() || operation.recipient_public_key.size() != MINEG_KEY_BYTES ||
+          operation.encrypted_envelope.size() != MINEG_FAMILY_KEY_ENVELOPE_BYTES) {
+        return MINEG_INVALID_ARGUMENT;
+      }
+      method = "POST";
+      path = "/api/v1/key-grants/" + operation.grant_id + "/complete";
+      body = "{\"recipient_public_key\":\"" +
+          base64_encode(operation.recipient_public_key, false) +
+          "\",\"encrypted_envelope\":\"" + base64_encode(operation.encrypted_envelope, false) +
+          "\",\"algorithm\":\"X25519_SEALED_BOX\",\"envelope_version\":1}";
+    } else if (purpose == "PRIVATE_MEDIA_LIST") {
+      method = "GET";
+      path = "/api/v1/media?limit=" + std::to_string(operation.media_limit);
+    } else if (purpose == "AVATAR_CREATE") {
+      method = "POST";
+      path = "/api/v1/me/avatar/uploads";
+      headers = "{\"Authorization\":\"Bearer " +
+          json_escape(active_account_session_->access_token) +
+          "\",\"Idempotency-Key\":\"" + json_escape(operation.idempotency_key) + "\"}";
+      body = "{\"content_type\":\"" + json_escape(operation.avatar_content_type) +
+          "\",\"source_size\":" + std::to_string(operation.avatar_source_size) +
+          ",\"display_size\":" + std::to_string(operation.avatar_bytes.size()) +
+          ",\"width\":" + std::to_string(operation.avatar_width) +
+          ",\"height\":" + std::to_string(operation.avatar_width) +
+          ",\"content_sha256\":\"" + operation.avatar_digest_base64 + "\"}";
+    } else if (purpose == "AVATAR_COMPLETE") {
+      if (operation.avatar_upload_id.empty()) return MINEG_INVALID_ARGUMENT;
+      method = "POST";
+      path = "/api/v1/me/avatar/uploads/" + operation.avatar_upload_id + "/complete";
+      body = "{}";
+    } else {
+      return MINEG_INVALID_ARGUMENT;
+    }
+  }
+  std::string payload = "{\"action\":\"sendApiRequest\",\"method\":\"" + method +
+      "\",\"path\":\"" + path + "\",\"headers\":" + headers;
+  if (!body.empty()) payload += ",\"bodyBase64\":\"" + base64_encode(body) + "\"";
+  payload += "}";
+  set_account_effect_locked(operation, "TransportEffect", payload, "TRANSPORT_" + purpose);
+  if (purpose == "SIGN_IN" || purpose == "SIGN_UP") wipe_string(operation.password);
+  wipe_string(body);
+  return MINEG_OK;
+}
+
+bool Core::activate_account_session_locked(AccountOperation &operation) {
+  if (operation.user_id.empty() || operation.access_token.empty() ||
+      operation.refresh_token.empty() || operation.access_expires_at.empty() ||
+      operation.refresh_expires_at.empty() ||
+      (operation.approval_status != "PENDING" && operation.approval_status != "APPROVED") ||
+      (operation.next_step != "REVIEW_PENDING" && operation.next_step != "APP_HOME")) {
+    return false;
+  }
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "INSERT INTO account_state(singleton,user_id,masked_phone,approval_status,updated_at) "
+      "VALUES(1,?,?,?,?) ON CONFLICT(singleton) DO UPDATE SET user_id=excluded.user_id,"
+      "masked_phone=excluded.masked_phone,approval_status=excluded.approval_status,"
+      "updated_at=excluded.updated_at";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return false;
+  const std::string mask = operation.masked_phone.empty() ? "***********" : operation.masked_phone;
+  const std::string updated_at = now_rfc3339();
+  int status = sqlite3_bind_text(statement, 1, operation.user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, mask.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 3, operation.approval_status.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 4, updated_at.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return false;
+  auto session = std::make_unique<ActiveAccountSession>();
+  session->user_id = operation.user_id;
+  session->access_token = operation.access_token;
+  session->access_expires_at = operation.access_expires_at;
+  session->refresh_token = operation.refresh_token;
+  session->refresh_expires_at = operation.refresh_expires_at;
+  session->approval_status = operation.approval_status;
+  session->next_step = operation.next_step;
+  active_account_session_ = std::move(session);
+  ++event_sequence_;
+  emit_locked("{\"contractVersion\":\"account-v2\",\"type\":\"AccountRouteChanged\","
+              "\"sequence\":" + std::to_string(event_sequence_) + ",\"userId\":\"" +
+              json_escape(operation.user_id) + "\",\"approvalStatus\":\"" +
+              operation.approval_status + "\",\"nextStep\":\"" + operation.next_step + "\"}");
+  return true;
+}
+
+std::string Core::read_current_profile_snapshot_locked() {
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "SELECT p.user_id,p.nickname,p.masked_phone,p.avatar_url,p.profile_version,p.updated_at "
+      "FROM current_profile_snapshots p JOIN account_state a ON a.singleton=1 AND "
+      "a.user_id=p.user_id";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return {};
+  if (sqlite3_step(statement) != SQLITE_ROW) {
+    sqlite3_finalize(statement);
+    return {};
+  }
+  const auto text_at = [statement](int column) -> std::string {
+    const auto *value = sqlite3_column_text(statement, column);
+    return value == nullptr ? std::string{} : reinterpret_cast<const char *>(value);
+  };
+  const bool avatar_null = sqlite3_column_type(statement, 3) == SQLITE_NULL;
+  std::string result = "{\"id\":\"" + json_escape(text_at(0)) +
+      "\",\"nickname\":\"" + json_escape(text_at(1)) +
+      "\",\"maskedPhone\":\"" + json_escape(text_at(2)) + "\",\"avatarUrl\":" +
+      (avatar_null ? "null" : "\"" + json_escape(text_at(3)) + "\"") +
+      ",\"version\":" + std::to_string(sqlite3_column_int64(statement, 4)) +
+      ",\"updatedAt\":\"" + json_escape(text_at(5)) + "\"}";
+  sqlite3_finalize(statement);
+  return result;
+}
+
+bool Core::persist_current_profile_locked(const std::string &profile_json) {
+  const std::string user_id = sqlite_json_text(database_, profile_json, "$.id");
+  const std::string nickname = sqlite_json_text(database_, profile_json, "$.nickname");
+  const std::string mask = sqlite_json_text(database_, profile_json, "$.masked_phone");
+  const std::string avatar = sqlite_json_text(database_, profile_json, "$.avatar_url");
+  const int64_t version = sqlite_json_integer(database_, profile_json, "$.version", 1);
+  if (active_account_session_ == nullptr || user_id != active_account_session_->user_id ||
+      nickname.empty() || mask.empty() || version < 1) {
+    return false;
+  }
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "INSERT INTO current_profile_snapshots(user_id,nickname,masked_phone,avatar_url,"
+      "profile_version,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET "
+      "nickname=excluded.nickname,masked_phone=excluded.masked_phone,"
+      "avatar_url=excluded.avatar_url,profile_version=excluded.profile_version,"
+      "updated_at=excluded.updated_at";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return false;
+  const std::string updated_at = now_rfc3339();
+  int status = sqlite3_bind_text(statement, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, nickname.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 3, mask.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK && avatar.empty()) status = sqlite3_bind_null(statement, 4);
+  if (status == SQLITE_OK && !avatar.empty()) status = sqlite3_bind_text(statement, 4, avatar.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_int64(statement, 5, version);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 6, updated_at.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return false;
+  ++event_sequence_;
+  emit_locked("{\"contractVersion\":\"account-v2\",\"type\":\"CurrentProfileChanged\","
+              "\"sequence\":" + std::to_string(event_sequence_) + ",\"userId\":\"" +
+              json_escape(user_id) + "\",\"version\":" + std::to_string(version) + "}");
+  return true;
+}
+
+bool Core::has_private_media_cache_locked() {
+  if (active_account_session_ == nullptr) return false;
+  sqlite3_stmt *statement = nullptr;
+  if (sqlite3_prepare_v2(database_,
+                         "SELECT 1 FROM private_media_cache_state WHERE user_id=?", -1,
+                         &statement, nullptr) != SQLITE_OK) {
+    return false;
+  }
+  int status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1,
+                                 SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  const bool found = status == SQLITE_ROW;
+  sqlite3_finalize(statement);
+  return found;
+}
+
+std::string Core::read_private_media_snapshot_locked(int limit) {
+  if (active_account_session_ == nullptr) return {};
+  limit = std::clamp(limit, 1, 100);
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "SELECT media_id,media_type,content_revision,captured_at,created_at "
+      "FROM private_media_snapshots WHERE user_id=? "
+      "ORDER BY captured_at DESC,created_at DESC,media_id DESC LIMIT ?";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return {};
+  int status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1,
+                                 SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_int(statement, 2, limit);
+  if (status != SQLITE_OK) {
+    sqlite3_finalize(statement);
+    return {};
+  }
+  std::string result = "{\"items\":[";
+  int count = 0;
+  while ((status = sqlite3_step(statement)) == SQLITE_ROW) {
+    const auto text_at = [statement](int column) -> std::string {
+      const auto *value = sqlite3_column_text(statement, column);
+      return value == nullptr ? std::string{} : reinterpret_cast<const char *>(value);
+    };
+    if (count++ > 0) result += ',';
+    result += "{\"id\":\"" + json_escape(text_at(0)) +
+        "\",\"mediaType\":\"" + json_escape(text_at(1)) +
+        "\",\"contentRevision\":" + std::to_string(sqlite3_column_int64(statement, 2)) +
+        ",\"capturedAt\":\"" + json_escape(text_at(3)) +
+        "\",\"createdAt\":\"" + json_escape(text_at(4)) + "\"}";
+  }
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return {};
+  sqlite3_stmt *cache = nullptr;
+  std::string refreshed;
+  if (sqlite3_prepare_v2(database_,
+                         "SELECT refreshed_at FROM private_media_cache_state WHERE user_id=?", -1,
+                         &cache, nullptr) == SQLITE_OK) {
+    int cache_status = sqlite3_bind_text(cache, 1, active_account_session_->user_id.c_str(), -1,
+                                         SQLITE_TRANSIENT);
+    if (cache_status == SQLITE_OK && sqlite3_step(cache) == SQLITE_ROW) {
+      const auto *value = sqlite3_column_text(cache, 0);
+      if (value != nullptr) refreshed = reinterpret_cast<const char *>(value);
+    }
+  }
+  sqlite3_finalize(cache);
+  result += "],\"refreshedAt\":" +
+      (refreshed.empty() ? std::string("null") : "\"" + json_escape(refreshed) + "\"") + "}";
+  return result;
+}
+
+bool Core::persist_private_media_locked(const std::string &page_json) {
+  if (active_account_session_ == nullptr) return false;
+  sqlite3_stmt *validation = nullptr;
+  const char *validation_sql =
+      "SELECT coalesce(json_array_length(?1,'$.items'),-1),"
+      "coalesce((SELECT count(*) FROM json_each(?1,'$.items') item WHERE "
+      "length(coalesce(json_extract(item.value,'$.id'),''))=0 OR "
+      "length(coalesce(json_extract(item.value,'$.media_type'),''))=0 OR "
+      "coalesce(json_extract(item.value,'$.content_revision'),0)<1 OR "
+      "length(coalesce(json_extract(item.value,'$.captured_at'),''))=0 OR "
+      "length(coalesce(json_extract(item.value,'$.created_at'),''))=0),-1)";
+  if (sqlite3_prepare_v2(database_, validation_sql, -1, &validation, nullptr) != SQLITE_OK) {
+    return false;
+  }
+  int status = sqlite3_bind_text(validation, 1, page_json.c_str(),
+                                 static_cast<int>(page_json.size()), SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(validation);
+  const int item_count = status == SQLITE_ROW ? sqlite3_column_int(validation, 0) : -1;
+  const int invalid_count = status == SQLITE_ROW ? sqlite3_column_int(validation, 1) : -1;
+  sqlite3_finalize(validation);
+  if (item_count < 0 || item_count > 100 || invalid_count != 0) return false;
+  if (sqlite3_exec(database_, "BEGIN IMMEDIATE", nullptr, nullptr, nullptr) != SQLITE_OK) {
+    return false;
+  }
+  const auto rollback = [this]() {
+    sqlite3_exec(database_, "ROLLBACK", nullptr, nullptr, nullptr);
+    return false;
+  };
+  sqlite3_stmt *statement = nullptr;
+  if (sqlite3_prepare_v2(database_, "DELETE FROM private_media_snapshots WHERE user_id=?", -1,
+                         &statement, nullptr) != SQLITE_OK) return rollback();
+  status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1,
+                             SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return rollback();
+  const char *insert_sql =
+      "INSERT INTO private_media_snapshots(user_id,media_id,media_type,content_revision,"
+      "captured_at,created_at) SELECT ?1,json_extract(item.value,'$.id'),"
+      "json_extract(item.value,'$.media_type'),json_extract(item.value,'$.content_revision'),"
+      "json_extract(item.value,'$.captured_at'),json_extract(item.value,'$.created_at') "
+      "FROM json_each(?2,'$.items') item";
+  if (sqlite3_prepare_v2(database_, insert_sql, -1, &statement, nullptr) != SQLITE_OK) {
+    return rollback();
+  }
+  status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1,
+                             SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 2, page_json.c_str(), static_cast<int>(page_json.size()),
+                               SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return rollback();
+  const std::string refreshed_at = now_rfc3339();
+  const char *cache_sql =
+      "INSERT INTO private_media_cache_state(user_id,refreshed_at) VALUES(?,?) "
+      "ON CONFLICT(user_id) DO UPDATE SET refreshed_at=excluded.refreshed_at";
+  if (sqlite3_prepare_v2(database_, cache_sql, -1, &statement, nullptr) != SQLITE_OK) {
+    return rollback();
+  }
+  status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1,
+                             SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 2, refreshed_at.c_str(), -1, SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE || sqlite3_exec(database_, "COMMIT", nullptr, nullptr, nullptr) != SQLITE_OK) {
+    return rollback();
+  }
+  ++event_sequence_;
+  emit_locked("{\"contractVersion\":\"stage02-v2\",\"type\":"
+              "\"PrivateMediaSnapshotChanged\",\"sequence\":" +
+              std::to_string(event_sequence_) + ",\"userId\":\"" +
+              json_escape(active_account_session_->user_id) + "\",\"itemCount\":" +
+              std::to_string(item_count) + "}");
+  return true;
+}
+
+void Core::clear_account_session_locked() {
+  active_account_session_.reset();
+  lock_keys_locked();
+  sqlite3_exec(database_, "DELETE FROM account_state WHERE singleton=1", nullptr, nullptr, nullptr);
+}
+
+mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
+                                                         const std::string &command,
+                                                         std::string &result) {
+  const std::string contract_version = top_level_json_string(command, "contractVersion");
+  if (!valid_json(database_, command) ||
+      (contract_version != "account-v2" && contract_version != "stage02-v2")) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  const std::string digest = command_digest(command);
+  const auto existing = account_operations_.find(operation_id);
+  if (existing != account_operations_.end()) {
+    return existing->second->command_digest == digest
+        ? account_operation_step_locked(*existing->second, result)
+        : MINEG_INVALID_ARGUMENT;
+  }
+  std::string persisted_step;
+  const mineg_error_code_t persisted = read_operation_step_locked(operation_id, persisted_step);
+  if (persisted == MINEG_OK) return MINEG_INVALID_ARGUMENT;
+  if (persisted != MINEG_NOT_FOUND) return persisted;
+
+  auto operation = std::make_unique<AccountOperation>();
+  operation->operation_id = operation_id;
+  operation->command_digest = digest;
+  operation->contract_version = contract_version;
+  operation->type = top_level_json_string(command, "type");
+  AccountOperation *value = operation.get();
+  account_operations_.emplace(operation_id, std::move(operation));
+
+  const auto fail = [this, value, &result](const std::string &code) {
+    finish_account_error_locked(*value, code, false);
+    return account_operation_step_locked(*value, result);
+  };
+  const bool stage02_type = value->type == "CoordinateFamilyKeyGrants" ||
+      value->type == "PrivateMediaList" || value->type == "ProfileUpdateAvatar";
+  if ((contract_version == "stage02-v2") != stage02_type) {
+    return fail("COMMAND_NOT_SUPPORTED");
+  }
+  if (value->type == "AccountSignIn" || value->type == "AccountSignUp") {
+    value->phone = normalize_phone(top_level_json_string(command, "phone"));
+    value->password = top_level_json_string(command, "password");
+    if (value->phone.empty()) return fail("PHONE_INVALID");
+    if (!valid_password(value->password)) return fail("PASSWORD_INVALID");
+    value->masked_phone = masked_phone(value->phone);
+    if (value->type == "AccountSignIn" &&
+        !extract_json_boolean(command, "agreementAccepted", false)) {
+      return fail("AGREEMENT_REQUIRED");
+    }
+    if (value->type == "AccountSignUp") {
+      value->idempotency_key = top_level_json_string(command, "idempotencyKey");
+      if (value->idempotency_key.size() < 8U || value->idempotency_key.size() > 128U ||
+          value->idempotency_key.find_first_not_of(
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-") !=
+              std::string::npos) {
+        return fail("IDEMPOTENCY_KEY_INVALID");
+      }
+      mineg_buffer_t public_key{};
+      mineg_buffer_t encrypted_bundle{};
+      mineg_buffer_t kdf{};
+      const mineg_error_code_t code = mineg_core_create_user_key_bundle(
+          reinterpret_cast<const uint8_t *>(value->password.data()), value->password.size(),
+          &public_key, &encrypted_bundle, &kdf);
+      if (code != MINEG_OK) {
+        mineg_buffer_free(&public_key);
+        mineg_buffer_free(&encrypted_bundle);
+        mineg_buffer_free(&kdf);
+        return fail(code == MINEG_INVALID_ARGUMENT ? "PASSWORD_INVALID" : "KEY_BUNDLE_INVALID");
+      }
+      value->public_key_base64 = base64_encode(public_key.data, public_key.size, false);
+      value->encrypted_bundle_base64 =
+          base64_encode(encrypted_bundle.data, encrypted_bundle.size, false);
+      value->kdf_parameters.assign(reinterpret_cast<const char *>(kdf.data), kdf.size);
+      mineg_buffer_free(&public_key);
+      mineg_buffer_free(&encrypted_bundle);
+      mineg_buffer_free(&kdf);
+    }
+    set_account_effect_locked(
+        *value, "SecureStoreEffect",
+        "{\"action\":\"readSecrets\",\"names\":[\"device.installationId\"]}",
+        "READ_DEVICE");
+  } else if (value->type == "AccountRestoreSession" || value->type == "AccountSignOut") {
+    issue_session_read_locked(*value);
+  } else if (value->type == "AccountRefreshReviewStatus" ||
+             value->type == "ProfileGetCurrent" ||
+             value->type == "ProfileUpdateCurrent") {
+    value->allow_cached_profile = extract_json_boolean(command, "allowCached", false);
+    if (value->type == "ProfileUpdateCurrent") {
+      value->nickname = top_level_json_string(command, "nickname");
+      if (value->nickname.size() < 2U || value->nickname.size() > 80U ||
+          value->nickname.find_first_of("\r\n\t") != std::string::npos) {
+        return fail("NICKNAME_INVALID");
+      }
+    }
+    const std::string purpose = value->type == "AccountRefreshReviewStatus" ? "REVIEW" :
+        value->type == "ProfileGetCurrent" ? "PROFILE_GET" : "PROFILE_UPDATE";
+    if (active_account_session_ != nullptr) {
+      const mineg_error_code_t code = issue_account_request_locked(*value, purpose);
+      if (code != MINEG_OK) return fail("SESSION_INVALID");
+    } else {
+      value->continuation = purpose;
+      issue_session_read_locked(*value);
+    }
+  } else if (value->type == "CoordinateFamilyKeyGrants") {
+    value->password = top_level_json_string(command, "password");
+    if (!value->password.empty() && !valid_password(value->password)) {
+      return fail("PASSWORD_INVALID");
+    }
+    if (active_account_session_ != nullptr) {
+      const mineg_error_code_t code = issue_account_request_locked(*value, "KEY_BUNDLE");
+      if (code != MINEG_OK) return fail("SESSION_INVALID");
+    } else {
+      value->continuation = "KEY_BUNDLE";
+      issue_session_read_locked(*value);
+    }
+  } else if (value->type == "PrivateMediaList") {
+    value->media_limit = std::clamp<int64_t>(extract_json_integer(command, "limit", 100), 1, 100);
+    value->allow_cached_media = extract_json_boolean(command, "allowCached", true);
+    if (active_account_session_ != nullptr) {
+      const mineg_error_code_t code = issue_account_request_locked(*value, "PRIVATE_MEDIA_LIST");
+      if (code != MINEG_OK) return fail("SESSION_INVALID");
+    } else {
+      value->continuation = "PRIVATE_MEDIA_LIST";
+      issue_session_read_locked(*value);
+    }
+  } else if (value->type == "ProfileUpdateAvatar") {
+    value->idempotency_key = top_level_json_string(command, "idempotencyKey");
+    value->avatar_content_type = top_level_json_string(command, "contentType");
+    value->avatar_source_size = extract_json_integer(command, "sourceSize", 0);
+    value->avatar_width = extract_json_integer(command, "width", 0);
+    const std::string display_base64 = top_level_json_string(command, "displayBase64");
+    const bool valid_idempotency = value->idempotency_key.size() >= 8U &&
+        value->idempotency_key.size() <= 128U &&
+        value->idempotency_key.find_first_not_of(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-") ==
+            std::string::npos;
+    const bool valid_content_type = value->avatar_content_type == "image/jpeg" ||
+        value->avatar_content_type == "image/png" ||
+        value->avatar_content_type == "image/heic" ||
+        value->avatar_content_type == "image/heif" ||
+        value->avatar_content_type == "image/webp";
+    if (!valid_idempotency || !valid_content_type ||
+        value->avatar_source_size < 1 || value->avatar_source_size > 10LL * 1024LL * 1024LL ||
+        value->avatar_width < 1 || value->avatar_width > 1024 ||
+        !base64_decode(display_base64, value->avatar_bytes) || value->avatar_bytes.empty() ||
+        value->avatar_bytes.size() > 10U * 1024U * 1024U) {
+      return fail("AVATAR_INVALID");
+    }
+    std::array<unsigned char, crypto_hash_sha256_BYTES> digest_bytes{};
+    if (crypto_hash_sha256(digest_bytes.data(),
+                           reinterpret_cast<const unsigned char *>(value->avatar_bytes.data()),
+                           value->avatar_bytes.size()) != 0) {
+      sodium_memzero(digest_bytes.data(), digest_bytes.size());
+      return fail("CRYPTO_ERROR");
+    }
+    value->avatar_digest_base64 = base64_encode(digest_bytes.data(), digest_bytes.size(), false);
+    sodium_memzero(digest_bytes.data(), digest_bytes.size());
+    if (active_account_session_ != nullptr) {
+      const mineg_error_code_t code = issue_account_request_locked(*value, "AVATAR_CREATE");
+      if (code != MINEG_OK) return fail("SESSION_INVALID");
+    } else {
+      value->continuation = "AVATAR_CREATE";
+      issue_session_read_locked(*value);
+    }
+  } else {
+    return fail("COMMAND_NOT_SUPPORTED");
+  }
+  return account_operation_step_locked(*value, result);
+}
+
+mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
+                                                          const std::string &effect_result,
+                                                          std::string &result) {
+  const auto found = account_operations_.find(operation_id);
+  if (found == account_operations_.end()) return MINEG_NOT_FOUND;
+  AccountOperation &operation = *found->second;
+  const std::string digest = command_digest(effect_result);
+  if (!operation.last_effect_result.empty() && operation.last_effect_result == digest) {
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.status != "WAITING_FOR_EFFECT") return MINEG_INVALID_ARGUMENT;
+  if (!valid_json(database_, effect_result) ||
+      top_level_json_string(effect_result, "contractVersion") != "foundation-v2" ||
+      top_level_json_u64(effect_result, "operationId") != operation_id ||
+      top_level_json_u64(effect_result, "sequence") != operation.sequence ||
+      top_level_json_string(effect_result, "effectType") != operation.effect_type) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  const std::string effect_status = top_level_json_string(effect_result, "status");
+  if (effect_status != "SUCCEEDED" && effect_status != "FAILED" &&
+      effect_status != "CANCELLED") {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  operation.last_effect_result = digest;
+  ++operation.sequence;
+  if (effect_status == "CANCELLED") {
+    operation.status = "CANCELLED";
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+
+  const auto cached_profile_or_error = [this, &operation, &result](const std::string &code,
+                                                                   bool retryable,
+                                                                   const std::string &request_id = std::string{}) {
+    if (operation.type == "ProfileGetCurrent" && operation.allow_cached_profile && retryable) {
+      const std::string cached = read_current_profile_snapshot_locked();
+      if (!cached.empty()) {
+        operation.status = "COMPLETED";
+        operation.terminal_payload = cached;
+        operation.clear_sensitive();
+        return account_operation_step_locked(operation, result);
+      }
+    }
+    if (operation.type == "PrivateMediaList" && operation.allow_cached_media && retryable &&
+        has_private_media_cache_locked()) {
+      const std::string cached = read_private_media_snapshot_locked(
+          static_cast<int>(operation.media_limit));
+      if (!cached.empty()) {
+        operation.status = "COMPLETED";
+        operation.terminal_payload = cached;
+        operation.clear_sensitive();
+        return account_operation_step_locked(operation, result);
+      }
+    }
+    finish_account_error_locked(operation, code, retryable, request_id);
+    return account_operation_step_locked(operation, result);
+  };
+
+  const auto continue_key_grants = [this, &operation, &result,
+                                    &cached_profile_or_error]() -> mineg_error_code_t {
+    const int64_t count = sqlite_json_integer(database_, operation.pending_grants_json,
+                                               "$.itemCount", -1);
+    if (count < 0 || count > 20 || operation.grant_index < 0 || operation.grant_index > count) {
+      return cached_profile_or_error("RESPONSE_INVALID", false);
+    }
+    if (operation.grant_index == count) {
+      operation.status = "COMPLETED";
+      operation.terminal_payload = "{\"completed\":" +
+          std::string(operation.completed_grant_count > 0 ? "true" : "false") +
+          ",\"completedCount\":" + std::to_string(operation.completed_grant_count) +
+          ",\"keysAvailable\":true}";
+      operation.clear_sensitive();
+      return account_operation_step_locked(operation, result);
+    }
+    const std::string prefix = "$.items[" + std::to_string(operation.grant_index) + "]";
+    operation.grant_id = sqlite_json_text(database_, operation.pending_grants_json, prefix + ".id");
+    const std::string kind = sqlite_json_text(database_, operation.pending_grants_json,
+                                              prefix + ".kind");
+    const std::string recipient = sqlite_json_text(database_, operation.pending_grants_json,
+                                                   prefix + ".recipient_public_key");
+    if (operation.grant_id.empty() ||
+        (kind != "FAMILY_BOOTSTRAP" && kind != "MEMBER_GRANT") ||
+        !base64_decode(recipient, operation.recipient_public_key) ||
+        operation.recipient_public_key.size() != MINEG_KEY_BYTES) {
+      return cached_profile_or_error("KEY_GRANT_RESPONSE_INVALID", false);
+    }
+    const mineg_error_code_t envelope_code = create_family_key_envelope_locked(
+        reinterpret_cast<const uint8_t *>(operation.recipient_public_key.data()),
+        kind == "FAMILY_BOOTSTRAP", operation.encrypted_envelope);
+    if (envelope_code != MINEG_OK) {
+      return cached_profile_or_error(envelope_code == MINEG_NOT_FOUND ? "KEYS_LOCKED" :
+                                     "KEY_ENVELOPE_INVALID", false);
+    }
+    const mineg_error_code_t request_code = issue_account_request_locked(
+        operation, "KEY_GRANT_COMPLETE");
+    if (request_code != MINEG_OK) {
+      return cached_profile_or_error("KEY_GRANT_RESPONSE_INVALID", false);
+    }
+    return account_operation_step_locked(operation, result);
+  };
+
+  if (effect_status == "FAILED") {
+    const std::string code = sqlite_json_text(database_, effect_result, "$.error.code");
+    const bool retryable = sqlite_json_boolean(database_, effect_result, "$.error.retryable", false);
+    if (operation.effect_type == "TransportEffect" && retryable &&
+        operation.effect_retry_count < 1) {
+      ++operation.effect_retry_count;
+      return account_operation_step_locked(operation, result);
+    }
+    if (operation.stage == "TRANSPORT_SIGN_OUT") {
+      issue_session_cleanup_locked(operation, "SIGNED_OUT");
+      return account_operation_step_locked(operation, result);
+    }
+    if (operation.stage == "CANCEL_SCHEDULER") {
+      set_account_effect_locked(
+          operation, "SecureStoreEffect",
+          "{\"action\":\"deleteSecrets\",\"names\":[\"account.accessToken\","
+          "\"account.refreshToken\",\"account.accessExpiresAt\","
+          "\"account.refreshExpiresAt\",\"keys.userPublicKey\","
+          "\"keys.deviceUnlockBlob\"]}",
+          "DELETE_SESSION");
+      return account_operation_step_locked(operation, result);
+    }
+    if (operation.stage == "DELETE_SESSION") {
+      clear_account_session_locked();
+      finish_account_error_locked(operation, code.empty() ? "SECURE_STORE_ERROR" : code,
+                                  retryable);
+      return account_operation_step_locked(operation, result);
+    }
+    if (operation.stage == "WRITE_SESSION") {
+      issue_session_cleanup_locked(operation,
+                                   "ERROR:" + (code.empty() ? "SECURE_STORE_ERROR" : code));
+      return account_operation_step_locked(operation, result);
+    }
+    return cached_profile_or_error(code.empty() ? "PLATFORM_EFFECT_FAILED" : code, retryable);
+  }
+
+  if (operation.stage == "READ_DEVICE") {
+    operation.device_installation_id =
+        secure_result_value(database_, effect_result, "device.installationId");
+    if (operation.device_installation_id.empty()) {
+      operation.device_installation_id = random_identifier();
+      set_account_effect_locked(
+          operation, "SecureStoreEffect",
+          "{\"action\":\"writeSecrets\",\"values\":[{\"name\":"
+          "\"device.installationId\",\"valueBase64\":\"" +
+          base64_encode(operation.device_installation_id) + "\"}]}",
+          "WRITE_DEVICE");
+      return account_operation_step_locked(operation, result);
+    }
+    const mineg_error_code_t code = issue_account_request_locked(
+        operation, operation.type == "AccountSignIn" ? "SIGN_IN" : "SIGN_UP");
+    if (code != MINEG_OK) return cached_profile_or_error("INTERNAL_ERROR", false);
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "WRITE_DEVICE") {
+    const mineg_error_code_t code = issue_account_request_locked(
+        operation, operation.type == "AccountSignIn" ? "SIGN_IN" : "SIGN_UP");
+    if (code != MINEG_OK) return cached_profile_or_error("INTERNAL_ERROR", false);
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "READ_SESSION") {
+    operation.access_token = secure_result_value(database_, effect_result, "account.accessToken");
+    operation.refresh_token = secure_result_value(database_, effect_result, "account.refreshToken");
+    operation.access_expires_at =
+        secure_result_value(database_, effect_result, "account.accessExpiresAt");
+    operation.refresh_expires_at =
+        secure_result_value(database_, effect_result, "account.refreshExpiresAt");
+    operation.device_installation_id =
+        secure_result_value(database_, effect_result, "device.installationId");
+    const std::string account = read_account_state_locked();
+    operation.user_id = sqlite_json_text(database_, account, "$.state.userId");
+    operation.masked_phone = sqlite_json_text(database_, account, "$.state.maskedPhone");
+    operation.approval_status = sqlite_json_text(database_, account, "$.state.approvalStatus");
+    operation.next_step = operation.approval_status == "APPROVED" ? "APP_HOME" : "REVIEW_PENDING";
+    if (operation.type != "AccountSignOut" && !operation.access_token.empty() &&
+        !operation.user_id.empty() && rfc3339_is_after(operation.access_expires_at,
+                                                       std::chrono::seconds(30)) &&
+        activate_account_session_locked(operation)) {
+      if (operation.type == "AccountRestoreSession") {
+        operation.status = "COMPLETED";
+        operation.terminal_payload = "{\"userId\":\"" + json_escape(operation.user_id) +
+            "\",\"approvalStatus\":\"" + operation.approval_status +
+            "\",\"nextStep\":\"" + operation.next_step + "\"}";
+        operation.clear_sensitive();
+        return account_operation_step_locked(operation, result);
+      }
+      const mineg_error_code_t code = issue_account_request_locked(operation,
+                                                                    operation.continuation);
+      if (code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
+      return account_operation_step_locked(operation, result);
+    }
+    if (operation.refresh_token.empty()) {
+      if (operation.type == "AccountRestoreSession") {
+        issue_session_cleanup_locked(operation, "RESTORE_NULL");
+        return account_operation_step_locked(operation, result);
+      }
+      if (operation.type == "AccountSignOut") {
+        issue_session_cleanup_locked(operation, "SIGNED_OUT");
+        return account_operation_step_locked(operation, result);
+      }
+      return cached_profile_or_error("SESSION_INVALID", false);
+    }
+    if (operation.type == "AccountSignOut") {
+      issue_account_request_locked(operation, "SIGN_OUT");
+      return account_operation_step_locked(operation, result);
+    }
+    if (operation.type == "AccountRestoreSession") operation.continuation = "RESTORE";
+    const mineg_error_code_t code = issue_account_request_locked(operation, "REFRESH");
+    if (code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "WRITE_SESSION") {
+    if (!activate_account_session_locked(operation)) {
+      return cached_profile_or_error("SESSION_INVALID", false);
+    }
+    const std::string continuation = operation.continuation;
+    if (continuation == "COMPLETE_SESSION" || continuation == "RESTORE") {
+      operation.status = "COMPLETED";
+      operation.terminal_payload = "{\"userId\":\"" + json_escape(operation.user_id) +
+          "\",\"approvalStatus\":\"" + operation.approval_status +
+          "\",\"nextStep\":\"" + operation.next_step + "\"}";
+      operation.clear_sensitive();
+      return account_operation_step_locked(operation, result);
+    }
+    const mineg_error_code_t code = issue_account_request_locked(operation, continuation);
+    if (code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "CANCEL_SCHEDULER") {
+    set_account_effect_locked(
+        operation, "SecureStoreEffect",
+        "{\"action\":\"deleteSecrets\",\"names\":[\"account.accessToken\","
+        "\"account.refreshToken\",\"account.accessExpiresAt\","
+        "\"account.refreshExpiresAt\",\"keys.userPublicKey\","
+        "\"keys.deviceUnlockBlob\"]}",
+        "DELETE_SESSION");
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "DELETE_SESSION") {
+    clear_account_session_locked();
+    if (operation.continuation == "RESTORE_NULL") {
+      operation.status = "COMPLETED";
+      operation.terminal_payload = "null";
+    } else if (operation.continuation.rfind("ERROR:", 0) == 0) {
+      finish_account_error_locked(operation, operation.continuation.substr(6U), false);
+      return account_operation_step_locked(operation, result);
+    } else {
+      operation.status = "COMPLETED";
+      operation.terminal_payload = "{\"signedOut\":true}";
+    }
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+
+  if (operation.stage == "READ_KEY_SECRETS") {
+    operation.device_wrap_key = secure_result_value(database_, effect_result,
+                                                     "keys.deviceWrapKey");
+    const std::string stored_public = secure_result_value(database_, effect_result,
+                                                          "keys.userPublicKey");
+    operation.device_unlock_blob = secure_result_value(database_, effect_result,
+                                                        "keys.deviceUnlockBlob");
+    const bool stored_key_material_complete = stored_public == operation.key_bundle_public &&
+        stored_public.size() == MINEG_KEY_BYTES &&
+        operation.device_wrap_key.size() == MINEG_KEY_BYTES &&
+        !operation.device_unlock_blob.empty();
+    mineg_error_code_t key_code = MINEG_INVALID_ARGUMENT;
+    if (!operation.password.empty()) {
+      if (operation.device_wrap_key.size() != MINEG_KEY_BYTES) {
+        operation.device_wrap_key.assign(MINEG_KEY_BYTES, '\0');
+        randombytes_buf(operation.device_wrap_key.data(), operation.device_wrap_key.size());
+      }
+      key_code = unlock_user_key_bundle_locked(
+          reinterpret_cast<const uint8_t *>(operation.password.data()), operation.password.size(),
+          reinterpret_cast<const uint8_t *>(operation.key_bundle_public.data()),
+          reinterpret_cast<const uint8_t *>(operation.key_bundle_encrypted.data()),
+          operation.key_bundle_encrypted.size(),
+          reinterpret_cast<const uint8_t *>(operation.device_wrap_key.data()),
+          operation.device_unlock_blob);
+      wipe_string(operation.password);
+    } else if (stored_key_material_complete) {
+      key_code = restore_user_key_bundle_locked(
+          reinterpret_cast<const uint8_t *>(stored_public.data()),
+          reinterpret_cast<const uint8_t *>(operation.device_wrap_key.data()),
+          reinterpret_cast<const uint8_t *>(operation.device_unlock_blob.data()),
+          operation.device_unlock_blob.size());
+    }
+    if (key_code != MINEG_OK) {
+      return cached_profile_or_error(key_code == MINEG_INTEGRITY_ERROR ?
+                                     "KEY_BUNDLE_INVALID" : "KEYS_LOCKED", false);
+    }
+    if (!operation.family_envelope.empty()) {
+      const mineg_error_code_t family_code = unlock_family_key_envelope_locked(
+          reinterpret_cast<const uint8_t *>(operation.family_envelope.data()),
+          operation.family_envelope.size());
+      if (family_code != MINEG_OK) {
+        return cached_profile_or_error("KEY_ENVELOPE_INVALID", false);
+      }
+    }
+    if (stored_key_material_complete) {
+      const mineg_error_code_t request_code = issue_account_request_locked(
+          operation, "KEY_GRANTS_LIST");
+      if (request_code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
+      return account_operation_step_locked(operation, result);
+    }
+    const auto item = [](const std::string &name, const std::string &value) {
+      return "{\"name\":\"" + name + "\",\"valueBase64\":\"" +
+          base64_encode(value) + "\"}";
+    };
+    set_account_effect_locked(
+        operation, "SecureStoreEffect",
+        "{\"action\":\"writeSecrets\",\"values\":[" +
+        item("keys.deviceWrapKey", operation.device_wrap_key) + ',' +
+        item("keys.userPublicKey", operation.key_bundle_public) + ',' +
+        item("keys.deviceUnlockBlob", operation.device_unlock_blob) + "]}",
+        "WRITE_KEY_SECRETS");
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "WRITE_KEY_SECRETS") {
+    const mineg_error_code_t request_code = issue_account_request_locked(
+        operation, "KEY_GRANTS_LIST");
+    if (request_code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
+    return account_operation_step_locked(operation, result);
+  }
+
+  if (operation.stage == "TRANSPORT_AVATAR_OBJECT") {
+    const int64_t object_status = sqlite_json_integer(database_, effect_result,
+                                                       "$.payload.status", 0);
+    if (object_status < 200 || object_status >= 300) {
+      return cached_profile_or_error("OBJECT_STORAGE_UNAVAILABLE", true);
+    }
+    const mineg_error_code_t request_code = issue_account_request_locked(
+        operation, "AVATAR_COMPLETE");
+    if (request_code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
+    return account_operation_step_locked(operation, result);
+  }
+
+  if (operation.stage.rfind("TRANSPORT_", 0) != 0) {
+    return cached_profile_or_error("OPERATION_STATE_INVALID", false);
+  }
+  const int64_t http_status = sqlite_json_integer(database_, effect_result, "$.payload.status", 0);
+  const std::string request_id = sqlite_json_text(database_, effect_result, "$.payload.requestId");
+  const std::string encoded_body = sqlite_json_text(database_, effect_result, "$.payload.bodyBase64");
+  std::string response_body;
+  if (http_status < 100 || !base64_decode(encoded_body, response_body) ||
+      (!response_body.empty() && !valid_json(database_, response_body))) {
+    wipe_string(response_body);
+    return cached_profile_or_error("SERVICE_UNAVAILABLE", true, request_id);
+  }
+  const auto problem = [this, &response_body, http_status]() {
+    std::string code = sqlite_json_text(database_, response_body, "$.code");
+    if (code.empty()) code = "SERVICE_UNAVAILABLE";
+    const bool retryable = sqlite_json_boolean(database_, response_body, "$.retryable",
+                                                http_status >= 500);
+    return std::make_pair(code, retryable);
+  };
+  if (http_status < 200 || http_status >= 300) {
+    const auto [code, retryable] = problem();
+    if (retryable && http_status >= 500 && operation.effect_retry_count < 1) {
+      ++operation.effect_retry_count;
+      wipe_string(response_body);
+      return account_operation_step_locked(operation, result);
+    }
+    const bool authorized_request = operation.stage == "TRANSPORT_REVIEW" ||
+        operation.stage == "TRANSPORT_PROFILE_GET" ||
+        operation.stage == "TRANSPORT_PROFILE_UPDATE" ||
+        operation.stage == "TRANSPORT_KEY_BUNDLE" ||
+        operation.stage == "TRANSPORT_KEY_GRANTS_LIST" ||
+        operation.stage == "TRANSPORT_KEY_GRANT_COMPLETE" ||
+        operation.stage == "TRANSPORT_PRIVATE_MEDIA_LIST" ||
+        operation.stage == "TRANSPORT_AVATAR_CREATE" ||
+        operation.stage == "TRANSPORT_AVATAR_COMPLETE";
+    if (http_status == 401 && authorized_request && !operation.replayed_after_refresh &&
+        active_account_session_ != nullptr) {
+      operation.replayed_after_refresh = true;
+      operation.continuation = operation.stage.substr(std::string("TRANSPORT_").size());
+      operation.refresh_token = active_account_session_->refresh_token;
+      wipe_string(response_body);
+      issue_account_request_locked(operation, "REFRESH");
+      return account_operation_step_locked(operation, result);
+    }
+    if (operation.stage == "TRANSPORT_REFRESH" &&
+        (code == "AUTH_REQUIRED" || code == "SESSION_INVALID" ||
+         code == "SESSION_EXPIRED" || code == "SESSION_REPLAYED")) {
+      const std::string completion = operation.type == "AccountRestoreSession"
+          ? "RESTORE_NULL" : "ERROR:" + code;
+      wipe_string(response_body);
+      issue_session_cleanup_locked(operation, completion);
+      return account_operation_step_locked(operation, result);
+    }
+    wipe_string(response_body);
+    return cached_profile_or_error(code, retryable, request_id);
+  }
+
+  if (operation.stage == "TRANSPORT_SIGN_IN" || operation.stage == "TRANSPORT_SIGN_UP" ||
+      operation.stage == "TRANSPORT_REFRESH") {
+    operation.user_id = sqlite_json_text(database_, response_body, "$.user_id");
+    operation.access_token = sqlite_json_text(database_, response_body, "$.access_token");
+    operation.access_expires_at = sqlite_json_text(database_, response_body, "$.access_expires_at");
+    operation.refresh_token = sqlite_json_text(database_, response_body, "$.refresh_token");
+    operation.refresh_expires_at = sqlite_json_text(database_, response_body, "$.refresh_expires_at");
+    operation.approval_status = sqlite_json_text(database_, response_body, "$.approval_status");
+    operation.next_step = sqlite_json_text(database_, response_body, "$.next_step");
+    if (operation.masked_phone.empty()) {
+      const std::string account = read_account_state_locked();
+      operation.masked_phone = sqlite_json_text(database_, account, "$.state.maskedPhone");
+    }
+    const std::string continuation = operation.stage == "TRANSPORT_REFRESH"
+        ? operation.continuation : "COMPLETE_SESSION";
+    wipe_string(response_body);
+    issue_session_write_locked(operation, continuation);
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_SIGN_OUT") {
+    wipe_string(response_body);
+    issue_session_cleanup_locked(operation, "SIGNED_OUT");
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_REVIEW") {
+    const std::string approval = sqlite_json_text(database_, response_body, "$.status");
+    const std::string next = sqlite_json_text(database_, response_body, "$.next_step");
+    wipe_string(response_body);
+    if (active_account_session_ == nullptr ||
+        (approval != "PENDING" && approval != "APPROVED") ||
+        (next != "REVIEW_PENDING" && next != "APP_HOME")) {
+      return cached_profile_or_error("RESPONSE_INVALID", false, request_id);
+    }
+    active_account_session_->approval_status = approval;
+    active_account_session_->next_step = next;
+    sqlite3_stmt *statement = nullptr;
+    if (sqlite3_prepare_v2(database_,
+                           "UPDATE account_state SET approval_status=?,updated_at=? WHERE singleton=1",
+                           -1, &statement, nullptr) != SQLITE_OK) {
+      return cached_profile_or_error("DATABASE_ERROR", false);
+    }
+    int status = sqlite3_bind_text(statement, 1, approval.c_str(), -1, SQLITE_TRANSIENT);
+    const std::string updated_at = now_rfc3339();
+    if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, updated_at.c_str(), -1, SQLITE_TRANSIENT);
+    if (status == SQLITE_OK) status = sqlite3_step(statement);
+    sqlite3_finalize(statement);
+    if (status != SQLITE_DONE) return cached_profile_or_error("DATABASE_ERROR", false);
+    operation.status = "COMPLETED";
+    operation.terminal_payload = "{\"approvalStatus\":\"" + approval +
+        "\",\"nextStep\":\"" + next + "\"}";
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_PROFILE_GET" ||
+      operation.stage == "TRANSPORT_PROFILE_UPDATE") {
+    if (!persist_current_profile_locked(response_body)) {
+      wipe_string(response_body);
+      return cached_profile_or_error("PROFILE_MISMATCH", false, request_id);
+    }
+    wipe_string(response_body);
+    operation.status = "COMPLETED";
+    operation.terminal_payload = read_current_profile_snapshot_locked();
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_KEY_BUNDLE") {
+    const std::string public_base64 = sqlite_json_text(database_, response_body, "$.public_key");
+    const std::string bundle_base64 = sqlite_json_text(database_, response_body,
+                                                       "$.encrypted_key_bundle");
+    const std::string family_base64 = sqlite_json_text(database_, response_body,
+                                                       "$.family_envelope");
+    if (!base64_decode(public_base64, operation.key_bundle_public) ||
+        operation.key_bundle_public.size() != MINEG_KEY_BYTES ||
+        !base64_decode(bundle_base64, operation.key_bundle_encrypted) ||
+        (!family_base64.empty() && !base64_decode(family_base64, operation.family_envelope))) {
+      wipe_string(response_body);
+      return cached_profile_or_error("KEY_BUNDLE_INVALID", false, request_id);
+    }
+    wipe_string(response_body);
+    set_account_effect_locked(
+        operation, "SecureStoreEffect",
+        "{\"action\":\"readSecrets\",\"names\":[\"keys.deviceWrapKey\","
+        "\"keys.userPublicKey\",\"keys.deviceUnlockBlob\"]}",
+        "READ_KEY_SECRETS");
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_KEY_GRANTS_LIST") {
+    const int64_t count = sqlite_json_integer(database_, response_body, "$.items.#", -1);
+    sqlite3_stmt *count_statement = nullptr;
+    int64_t actual_count = -1;
+    if (sqlite3_prepare_v2(database_, "SELECT json_array_length(?,'$.items')", -1,
+                           &count_statement, nullptr) == SQLITE_OK) {
+      int count_status = sqlite3_bind_text(count_statement, 1, response_body.c_str(),
+                                           static_cast<int>(response_body.size()),
+                                           SQLITE_TRANSIENT);
+      if (count_status == SQLITE_OK && sqlite3_step(count_statement) == SQLITE_ROW) {
+        actual_count = sqlite3_column_int64(count_statement, 0);
+      }
+    }
+    sqlite3_finalize(count_statement);
+    (void)count;
+    if (actual_count < 0 || actual_count > 20) {
+      wipe_string(response_body);
+      return cached_profile_or_error("KEY_GRANT_RESPONSE_INVALID", false, request_id);
+    }
+    operation.pending_grants_json = "{\"itemCount\":" + std::to_string(actual_count) +
+        ",\"items\":" + extract_top_level_json_value(response_body, "items") + "}";
+    wipe_string(response_body);
+    operation.grant_index = 0;
+    operation.completed_grant_count = 0;
+    return continue_key_grants();
+  }
+  if (operation.stage == "TRANSPORT_KEY_GRANT_COMPLETE") {
+    const std::string completed_id = sqlite_json_text(database_, response_body, "$.grant_id");
+    wipe_string(response_body);
+    if (completed_id != operation.grant_id) {
+      return cached_profile_or_error("KEY_GRANT_RESPONSE_INVALID", false, request_id);
+    }
+    ++operation.grant_index;
+    ++operation.completed_grant_count;
+    wipe_string(operation.grant_id);
+    wipe_string(operation.recipient_public_key);
+    wipe_string(operation.encrypted_envelope);
+    return continue_key_grants();
+  }
+  if (operation.stage == "TRANSPORT_PRIVATE_MEDIA_LIST") {
+    if (!persist_private_media_locked(response_body)) {
+      wipe_string(response_body);
+      return cached_profile_or_error("PRIVATE_MEDIA_RESPONSE_INVALID", false, request_id);
+    }
+    wipe_string(response_body);
+    operation.status = "COMPLETED";
+    operation.terminal_payload = read_private_media_snapshot_locked(
+        static_cast<int>(operation.media_limit));
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_AVATAR_CREATE") {
+    operation.avatar_upload_id = sqlite_json_text(database_, response_body, "$.upload_id");
+    const std::string url = sqlite_json_text(database_, response_body, "$.grant.url");
+    const std::string method = sqlite_json_text(database_, response_body, "$.grant.method");
+    std::string headers = sqlite_json_text(database_, response_body, "$.grant.headers");
+    wipe_string(response_body);
+    if (operation.avatar_upload_id.empty() || url.empty() || method != "PUT") {
+      return cached_profile_or_error("AVATAR_UPLOAD_RESPONSE_INVALID", false, request_id);
+    }
+    if (headers.empty()) headers = "{}";
+    set_account_effect_locked(
+        operation, "TransportEffect",
+        "{\"action\":\"uploadObject\",\"url\":\"" + json_escape(url) +
+        "\",\"method\":\"PUT\",\"headers\":" + headers +
+        ",\"bodyBase64\":\"" + base64_encode(operation.avatar_bytes) + "\"}",
+        "TRANSPORT_AVATAR_OBJECT");
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_AVATAR_COMPLETE") {
+    if (!persist_current_profile_locked(response_body)) {
+      wipe_string(response_body);
+      return cached_profile_or_error("PROFILE_MISMATCH", false, request_id);
+    }
+    wipe_string(response_body);
+    operation.status = "COMPLETED";
+    operation.terminal_payload = read_current_profile_snapshot_locked();
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  wipe_string(response_body);
+  return cached_profile_or_error("OPERATION_STATE_INVALID", false);
+}
+
+mineg_error_code_t Core::start_operation(uint64_t operation_id, const std::string &command,
+                                          std::string &result) {
+  if (operation_id == 0 || operation_id > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) ||
+      command.empty() || command.size() > 16U * 1024U * 1024U) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  const std::string command_type = top_level_json_string(command, "type");
+  const std::string contract_version = top_level_json_string(command, "contractVersion");
+  if (contract_version == "account-v2" || contract_version == "stage02-v2") {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (cancelled_operations_.erase(operation_id) > 0) return MINEG_CANCELLED;
+    return start_account_operation_locked(operation_id, command, result);
+  }
+  const std::string effect_type = top_level_json_string(command, "effectType");
+  const std::string effect_payload = extract_top_level_json_value(command, "payload");
+  const int64_t max_retries = extract_json_integer(command, "maxRetries", 0);
+  if (contract_version != "foundation-v2" || command_type != "FoundationEffectProbe" ||
+      !supported_effect_type(effect_type) || effect_payload.size() < 2U ||
+      effect_payload.front() != '{' || effect_payload.back() != '}' || max_retries < 0 ||
+      max_retries > 3) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!valid_json(database_, command) || !valid_json(database_, effect_payload)) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  if (cancelled_operations_.erase(operation_id) > 0) return MINEG_CANCELLED;
+  std::string existing_command;
+  mineg_error_code_t existing =
+      read_operation_step_locked(operation_id, result, &existing_command, nullptr);
+  if (existing == MINEG_OK) return existing_command == command ? MINEG_OK : MINEG_INVALID_ARGUMENT;
+  if (existing != MINEG_NOT_FOUND) return existing;
+
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "INSERT INTO core_operations(operation_id,contract_version,command_type,command_json,"
+      "sequence,status,effect_type,effect_payload) VALUES(?, 'foundation-v2', ?, ?, 1, "
+      "'WAITING_FOR_EFFECT', ?, ?)";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) {
+    return MINEG_DATABASE_ERROR;
+  }
+  int status = sqlite3_bind_int64(statement, 1, static_cast<long long>(operation_id));
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 2, command_type.c_str(), -1, SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 3, command.c_str(), static_cast<int>(command.size()),
+                               SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 4, effect_type.c_str(), -1, SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 5, effect_payload.c_str(),
+                               static_cast<int>(effect_payload.size()), SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return MINEG_DATABASE_ERROR;
+  result = operation_step_json(operation_id, 1, "WAITING_FOR_EFFECT", effect_type,
+                               effect_payload, {});
+  ++event_sequence_;
+  emit_locked("{\"contractVersion\":\"foundation-v2\",\"type\":\"CoreOperationChanged\","
+              "\"sequence\":" + std::to_string(event_sequence_) + ",\"operationId\":" +
+              std::to_string(operation_id) + ",\"status\":\"WAITING_FOR_EFFECT\"}");
+  return MINEG_OK;
+}
+
+mineg_error_code_t Core::resume_operation(uint64_t operation_id,
+                                           const std::string &effect_result,
+                                           std::string &result) {
+  if (operation_id == 0 || operation_id > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) ||
+      effect_result.empty() || effect_result.size() > 1024U * 1024U ||
+      top_level_json_string(effect_result, "contractVersion") != "foundation-v2" ||
+      top_level_json_u64(effect_result, "operationId") != operation_id) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  const uint64_t result_sequence = top_level_json_u64(effect_result, "sequence");
+  const std::string result_effect_type = top_level_json_string(effect_result, "effectType");
+  const std::string result_status = top_level_json_string(effect_result, "status");
+  if (result_sequence == 0 || !supported_effect_type(result_effect_type) ||
+      (result_status != "SUCCEEDED" && result_status != "FAILED" &&
+       result_status != "CANCELLED")) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  std::string terminal_payload = extract_top_level_json_value(
+      effect_result, result_status == "SUCCEEDED" ? "payload" : "error");
+  if (terminal_payload.empty()) terminal_payload = "null";
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (account_operations_.find(operation_id) != account_operations_.end()) {
+      return resume_account_operation_locked(operation_id, effect_result, result);
+    }
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!valid_json(database_, effect_result) ||
+      (result_status == "SUCCEEDED" && terminal_payload != "null" &&
+       (terminal_payload.size() < 2U || terminal_payload.front() != '{' ||
+        terminal_payload.back() != '}')) ||
+      (result_status == "FAILED" &&
+       (terminal_payload.size() < 2U || terminal_payload.front() != '{' ||
+        terminal_payload.back() != '}'))) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  sqlite3_stmt *read = nullptr;
+  const char *read_sql =
+      "SELECT sequence,status,effect_type,effect_result_json,command_json FROM core_operations "
+      "WHERE operation_id=?";
+  if (sqlite3_prepare_v2(database_, read_sql, -1, &read, nullptr) != SQLITE_OK) {
+    return MINEG_DATABASE_ERROR;
+  }
+  int sqlite_status = sqlite3_bind_int64(read, 1, static_cast<long long>(operation_id));
+  if (sqlite_status == SQLITE_OK) sqlite_status = sqlite3_step(read);
+  if (sqlite_status == SQLITE_DONE) {
+    sqlite3_finalize(read);
+    return MINEG_NOT_FOUND;
+  }
+  if (sqlite_status != SQLITE_ROW) {
+    sqlite3_finalize(read);
+    return MINEG_DATABASE_ERROR;
+  }
+  const uint64_t expected_sequence = static_cast<uint64_t>(sqlite3_column_int64(read, 0));
+  const auto text_at = [read](int column) -> std::string {
+    const auto *value = sqlite3_column_text(read, column);
+    return value == nullptr ? std::string{} : reinterpret_cast<const char *>(value);
+  };
+  const std::string current_status = text_at(1);
+  const std::string expected_effect_type = text_at(2);
+  const std::string previous_result = text_at(3);
+  const std::string command_json = text_at(4);
+  sqlite3_finalize(read);
+  if (!previous_result.empty() && previous_result == effect_result) {
+    return read_operation_step_locked(operation_id, result);
+  }
+  if (current_status != "WAITING_FOR_EFFECT") {
+    return current_status == "CANCELLED" ? MINEG_CANCELLED : MINEG_INVALID_ARGUMENT;
+  }
+  if (result_sequence != expected_sequence || result_effect_type != expected_effect_type) {
+    return MINEG_INVALID_ARGUMENT;
+  }
+  const int64_t max_retries = extract_json_integer(command_json, "maxRetries", 0);
+  const bool retryable_failure = result_status == "FAILED" &&
+      extract_json_boolean(terminal_payload, "retryable", false) &&
+      result_sequence <= static_cast<uint64_t>(max_retries);
+  const std::string next_status = retryable_failure ? "WAITING_FOR_EFFECT" :
+                                  result_status == "SUCCEEDED" ? "COMPLETED" :
+                                  result_status == "FAILED" ? "FAILED" : "CANCELLED";
+  sqlite3_stmt *update = nullptr;
+  const char *update_sql =
+      "UPDATE core_operations SET sequence=sequence+1,status=?,effect_result_json=?,"
+      "terminal_payload=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') "
+      "WHERE operation_id=? AND status='WAITING_FOR_EFFECT' AND sequence=? AND effect_type=?";
+  if (sqlite3_prepare_v2(database_, update_sql, -1, &update, nullptr) != SQLITE_OK) {
+    return MINEG_DATABASE_ERROR;
+  }
+  sqlite_status = sqlite3_bind_text(update, 1, next_status.c_str(), -1, SQLITE_TRANSIENT);
+  if (sqlite_status == SQLITE_OK) {
+    sqlite_status = sqlite3_bind_text(update, 2, effect_result.c_str(),
+                                      static_cast<int>(effect_result.size()), SQLITE_TRANSIENT);
+  }
+  if (sqlite_status == SQLITE_OK && retryable_failure) sqlite_status = sqlite3_bind_null(update, 3);
+  if (sqlite_status == SQLITE_OK && !retryable_failure) {
+    sqlite_status = sqlite3_bind_text(update, 3, terminal_payload.c_str(),
+                                      static_cast<int>(terminal_payload.size()), SQLITE_TRANSIENT);
+  }
+  if (sqlite_status == SQLITE_OK) {
+    sqlite_status = sqlite3_bind_int64(update, 4, static_cast<long long>(operation_id));
+  }
+  if (sqlite_status == SQLITE_OK) {
+    sqlite_status = sqlite3_bind_int64(update, 5, static_cast<long long>(result_sequence));
+  }
+  if (sqlite_status == SQLITE_OK) {
+    sqlite_status = sqlite3_bind_text(update, 6, result_effect_type.c_str(), -1, SQLITE_TRANSIENT);
+  }
+  if (sqlite_status == SQLITE_OK) sqlite_status = sqlite3_step(update);
+  sqlite3_finalize(update);
+  if (sqlite_status != SQLITE_DONE || sqlite3_changes(database_) != 1) {
+    return MINEG_DATABASE_ERROR;
+  }
+  const mineg_error_code_t read_code = read_operation_step_locked(operation_id, result);
+  if (read_code != MINEG_OK) return read_code;
+  ++event_sequence_;
+  emit_locked("{\"contractVersion\":\"foundation-v2\",\"type\":\"CoreOperationChanged\","
+              "\"sequence\":" + std::to_string(event_sequence_) + ",\"operationId\":" +
+              std::to_string(operation_id) + ",\"status\":\"" + next_status + "\"}");
+  return MINEG_OK;
+}
+
+mineg_error_code_t Core::recover_operations(std::string &result) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "SELECT operation_id FROM core_operations WHERE status='WAITING_FOR_EFFECT' "
+      "ORDER BY updated_at,operation_id";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) {
+    return MINEG_DATABASE_ERROR;
+  }
+  std::vector<uint64_t> operation_ids;
+  int status = SQLITE_OK;
+  while ((status = sqlite3_step(statement)) == SQLITE_ROW) {
+    operation_ids.push_back(static_cast<uint64_t>(sqlite3_column_int64(statement, 0)));
+  }
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return MINEG_DATABASE_ERROR;
+  result = "{\"contractVersion\":\"foundation-v2\",\"operations\":[";
+  for (size_t index = 0; index < operation_ids.size(); ++index) {
+    std::string step;
+    const mineg_error_code_t code = read_operation_step_locked(operation_ids[index], step);
+    if (code != MINEG_OK) return code;
+    if (index > 0) result += ',';
+    result += step;
+  }
+  result += "]}";
   return MINEG_OK;
 }
 
@@ -1095,6 +2998,34 @@ mineg_error_code_t Core::query(const std::string &query, std::string &result) {
       result = read_account_state_locked();
       return MINEG_OK;
     }
+    if (type == "GetAccountRouteSnapshot") {
+      const std::string account = read_account_state_locked();
+      const std::string user_id = sqlite_json_text(database_, account, "$.state.userId");
+      const std::string approval = sqlite_json_text(database_, account, "$.state.approvalStatus");
+      if (user_id.empty()) {
+        result = "{\"contractVersion\":\"account-v2\",\"snapshot\":null}";
+      } else {
+        result = "{\"contractVersion\":\"account-v2\",\"snapshot\":{\"userId\":\"" +
+            json_escape(user_id) + "\",\"approvalStatus\":\"" + approval +
+            "\",\"nextStep\":\"" +
+            (approval == "APPROVED" ? "APP_HOME" : "REVIEW_PENDING") + "\"}}";
+      }
+      return MINEG_OK;
+    }
+    if (type == "GetCurrentProfileSnapshot") {
+      const std::string profile = read_current_profile_snapshot_locked();
+      result = "{\"contractVersion\":\"account-v2\",\"snapshot\":" +
+          (profile.empty() ? "null" : profile) + "}";
+      return MINEG_OK;
+    }
+    if (type == "ListPrivateMediaSnapshot") {
+      const int limit = static_cast<int>(std::clamp<int64_t>(
+          extract_json_integer(query, "limit", 100), 1, 100));
+      const std::string snapshot = read_private_media_snapshot_locked(limit);
+      result = "{\"contractVersion\":\"stage02-v2\",\"snapshot\":" +
+          (snapshot.empty() ? "null" : snapshot) + "}";
+      return MINEG_OK;
+    }
     if (type == "GetBackupSettings") {
       result = read_backup_settings_locked(query);
       return MINEG_OK;
@@ -1138,13 +3069,57 @@ mineg_error_code_t Core::unsubscribe(uint64_t token) {
 }
 
 mineg_error_code_t Core::cancel(uint64_t operation_id) {
-  if (operation_id == 0) return MINEG_INVALID_ARGUMENT;
+  if (operation_id == 0 || operation_id > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+    return MINEG_INVALID_ARGUMENT;
+  }
   std::lock_guard<std::mutex> lock(mutex_);
-  cancelled_operations_.insert(operation_id);
+  const auto account = account_operations_.find(operation_id);
+  if (account != account_operations_.end()) {
+    if (account->second->status == "WAITING_FOR_EFFECT") {
+      ++account->second->sequence;
+      account->second->status = "CANCELLED";
+      account->second->clear_sensitive();
+    }
+    return MINEG_OK;
+  }
+  sqlite3_stmt *statement = nullptr;
+  const char *sql =
+      "UPDATE core_operations SET sequence=sequence+1,status='CANCELLED',terminal_payload=NULL,"
+      "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') "
+      "WHERE operation_id=? AND status='WAITING_FOR_EFFECT'";
+  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) {
+    return MINEG_DATABASE_ERROR;
+  }
+  int status = sqlite3_bind_int64(statement, 1, static_cast<long long>(operation_id));
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  sqlite3_finalize(statement);
+  if (status != SQLITE_DONE) return MINEG_DATABASE_ERROR;
+  if (sqlite3_changes(database_) == 0) {
+    sqlite3_stmt *existing = nullptr;
+    if (sqlite3_prepare_v2(database_, "SELECT 1 FROM core_operations WHERE operation_id=?", -1,
+                           &existing, nullptr) != SQLITE_OK) {
+      return MINEG_DATABASE_ERROR;
+    }
+    status = sqlite3_bind_int64(existing, 1, static_cast<long long>(operation_id));
+    if (status == SQLITE_OK) status = sqlite3_step(existing);
+    const bool operation_exists = status == SQLITE_ROW;
+    sqlite3_finalize(existing);
+    if (!operation_exists) cancelled_operations_.insert(operation_id);
+  }
   return MINEG_OK;
 }
 
 mineg_error_code_t Core::unlock_user_key_bundle(
+    const uint8_t *password, size_t password_size, const uint8_t public_key[MINEG_KEY_BYTES],
+    const uint8_t *encrypted_bundle, size_t encrypted_bundle_size,
+    const uint8_t device_wrap_key[MINEG_KEY_BYTES], std::string &device_unlock_blob) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return unlock_user_key_bundle_locked(password, password_size, public_key, encrypted_bundle,
+                                       encrypted_bundle_size, device_wrap_key,
+                                       device_unlock_blob);
+}
+
+mineg_error_code_t Core::unlock_user_key_bundle_locked(
     const uint8_t *password, size_t password_size, const uint8_t public_key[MINEG_KEY_BYTES],
     const uint8_t *encrypted_bundle, size_t encrypted_bundle_size,
     const uint8_t device_wrap_key[MINEG_KEY_BYTES], std::string &device_unlock_blob) {
@@ -1159,10 +3134,7 @@ mineg_error_code_t Core::unlock_user_key_bundle(
       !std::equal(kBundleMagic.begin(), kBundleMagic.end(), encrypted_bundle)) {
     return MINEG_INVALID_ARGUMENT;
   }
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    lock_keys_locked();
-  }
+  lock_keys_locked();
   std::array<uint8_t, MINEG_KEY_BYTES> password_key{};
   std::array<uint8_t, 2U * MINEG_KEY_BYTES> plaintext{};
   std::array<uint8_t, MINEG_KEY_BYTES> derived_public{};
@@ -1197,14 +3169,11 @@ mineg_error_code_t Core::unlock_user_key_bundle(
             device_ciphertext.data(), &device_ciphertext_size, plaintext.data(), plaintext.size(),
             kDeviceMagic.data(), kDeviceMagic.size(), nullptr, device_nonce.data(),
             device_wrap_key) != 0 || device_ciphertext_size != device_ciphertext.size()) break;
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      lock_keys_locked();
-      std::copy(public_key, public_key + MINEG_KEY_BYTES, user_public_key_.begin());
-      std::copy(plaintext.begin(), plaintext.begin() + MINEG_KEY_BYTES, user_private_key_.begin());
-      std::copy(plaintext.begin() + MINEG_KEY_BYTES, plaintext.end(), user_master_key_.begin());
-      user_keys_unlocked_ = true;
-    }
+    lock_keys_locked();
+    std::copy(public_key, public_key + MINEG_KEY_BYTES, user_public_key_.begin());
+    std::copy(plaintext.begin(), plaintext.begin() + MINEG_KEY_BYTES, user_private_key_.begin());
+    std::copy(plaintext.begin() + MINEG_KEY_BYTES, plaintext.end(), user_master_key_.begin());
+    user_keys_unlocked_ = true;
     device_unlock_blob.assign(reinterpret_cast<const char *>(kDeviceMagic.data()), kDeviceMagic.size());
     device_unlock_blob.append(reinterpret_cast<const char *>(device_nonce.data()), device_nonce.size());
     device_unlock_blob.append(reinterpret_cast<const char *>(device_ciphertext.data()),
@@ -1221,6 +3190,14 @@ mineg_error_code_t Core::unlock_user_key_bundle(
 mineg_error_code_t Core::restore_user_key_bundle(
     const uint8_t public_key[MINEG_KEY_BYTES], const uint8_t device_wrap_key[MINEG_KEY_BYTES],
     const uint8_t *device_unlock_blob, size_t device_unlock_blob_size) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return restore_user_key_bundle_locked(public_key, device_wrap_key, device_unlock_blob,
+                                        device_unlock_blob_size);
+}
+
+mineg_error_code_t Core::restore_user_key_bundle_locked(
+    const uint8_t public_key[MINEG_KEY_BYTES], const uint8_t device_wrap_key[MINEG_KEY_BYTES],
+    const uint8_t *device_unlock_blob, size_t device_unlock_blob_size) {
   constexpr std::array<uint8_t, 8> kDeviceMagic = {'M', 'U', 'K', '0', '1', 0, 0, 0};
   constexpr size_t kBlobBytes = kDeviceMagic.size() + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES +
                                 2U * MINEG_KEY_BYTES + crypto_aead_xchacha20poly1305_ietf_ABYTES;
@@ -1229,10 +3206,7 @@ mineg_error_code_t Core::restore_user_key_bundle(
       !std::equal(kDeviceMagic.begin(), kDeviceMagic.end(), device_unlock_blob)) {
     return MINEG_INVALID_ARGUMENT;
   }
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    lock_keys_locked();
-  }
+  lock_keys_locked();
   const uint8_t *nonce = device_unlock_blob + kDeviceMagic.size();
   const uint8_t *ciphertext = nonce + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
   std::array<uint8_t, 2U * MINEG_KEY_BYTES> plaintext{};
@@ -1246,7 +3220,6 @@ mineg_error_code_t Core::restore_user_key_bundle(
       plaintext_size == plaintext.size() &&
       crypto_scalarmult_base(derived_public.data(), plaintext.data()) == 0 &&
       std::equal(derived_public.begin(), derived_public.end(), public_key)) {
-    std::lock_guard<std::mutex> lock(mutex_);
     lock_keys_locked();
     std::copy(public_key, public_key + MINEG_KEY_BYTES, user_public_key_.begin());
     std::copy(plaintext.begin(), plaintext.begin() + MINEG_KEY_BYTES, user_private_key_.begin());
@@ -1261,10 +3234,15 @@ mineg_error_code_t Core::restore_user_key_bundle(
 
 mineg_error_code_t Core::unlock_family_key_envelope(const uint8_t *encrypted_envelope,
                                                      size_t encrypted_envelope_size) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return unlock_family_key_envelope_locked(encrypted_envelope, encrypted_envelope_size);
+}
+
+mineg_error_code_t Core::unlock_family_key_envelope_locked(const uint8_t *encrypted_envelope,
+                                                            size_t encrypted_envelope_size) {
   if (encrypted_envelope == nullptr || encrypted_envelope_size != MINEG_FAMILY_KEY_ENVELOPE_BYTES) {
     return MINEG_INVALID_ARGUMENT;
   }
-  std::lock_guard<std::mutex> lock(mutex_);
   if (!user_keys_unlocked_) return MINEG_NOT_FOUND;
   sodium_memzero(family_key_.data(), family_key_.size());
   family_key_unlocked_ = false;
@@ -1283,8 +3261,15 @@ mineg_error_code_t Core::unlock_family_key_envelope(const uint8_t *encrypted_env
 mineg_error_code_t Core::create_family_key_envelope(
     const uint8_t recipient_public_key[MINEG_KEY_BYTES], bool bootstrap_if_needed,
     std::string &encrypted_envelope) {
-  if (recipient_public_key == nullptr) return MINEG_INVALID_ARGUMENT;
   std::lock_guard<std::mutex> lock(mutex_);
+  return create_family_key_envelope_locked(recipient_public_key, bootstrap_if_needed,
+                                           encrypted_envelope);
+}
+
+mineg_error_code_t Core::create_family_key_envelope_locked(
+    const uint8_t recipient_public_key[MINEG_KEY_BYTES], bool bootstrap_if_needed,
+    std::string &encrypted_envelope) {
+  if (recipient_public_key == nullptr) return MINEG_INVALID_ARGUMENT;
   if (!user_keys_unlocked_) return MINEG_NOT_FOUND;
   if (!family_key_unlocked_) {
     if (!bootstrap_if_needed) return MINEG_NOT_FOUND;

@@ -35,7 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mineg.mobile.BuildConfig
 
 @Composable
-fun MineGApp(viewModel: MineGAppViewModel) {
+fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   val route = state.currentRoute
 
@@ -45,6 +45,7 @@ fun MineGApp(viewModel: MineGAppViewModel) {
 
   Box(Modifier.fillMaxSize()) {
     when (route) {
+    AppRoute.Restoring -> RestoringPage(state.auth.message)
     AppRoute.Login -> LoginPage(
       state = state.auth,
       onPhoneChange = viewModel::updatePhone,
@@ -68,7 +69,11 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       onBackToLogin = viewModel::returnToLogin,
     )
     is AppRoute.Legal -> LegalPage(route.document, viewModel::back)
-    AppRoute.Permission -> PermissionPage(viewModel::grantLibraryAccess, viewModel::deferLibraryAccess)
+    AppRoute.Permission -> PermissionPage(
+      message = state.auth.message,
+      onGrant = onRequestLibraryAccess,
+      onDefer = viewModel::deferLibraryAccess,
+    )
     AppRoute.PrivateSpace -> PrivateSpacePage(
       privateState = state.privateSpace,
       sharedState = state.familyAlbum,
@@ -87,8 +92,8 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       onOpenAlbum = viewModel::openLocalAlbum,
       onStartBackup = viewModel::startBackup,
     )
-    AppRoute.Profile -> ProfilePage(
-      state.profile,
+    AppRoute.Profile -> state.profile?.let { profile -> ProfilePage(
+      profile,
       state.selectedTab,
       viewModel::selectTab,
       onEdit = { viewModel.navigate(AppRoute.ProfileEdit) },
@@ -97,7 +102,7 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       onSharedByMe = { viewModel.navigate(AppRoute.SharedByMe) },
       onHelp = { viewModel.navigate(AppRoute.HelpFeedback) },
       onLogout = viewModel::requestLogout,
-    )
+    ) } ?: RestoringPage("正在校验用户信息…")
     is AppRoute.PrivateMediaDetail -> PrivateMediaDetailPage(
       media = viewModel.mediaById(route.mediaId),
       actionState = state.selectedMediaAction,
@@ -119,7 +124,18 @@ fun MineGApp(viewModel: MineGAppViewModel) {
       viewModel::setAutoBackupEnabled,
       viewModel::setCellularBackupEnabled,
     )
-    AppRoute.ProfileEdit -> ProfileEditPage(state.profile, viewModel::updateNickname, viewModel::back)
+    AppRoute.ProfileEdit -> state.profile?.let { profile ->
+      ProfileEditPage(
+        profile = profile,
+        nickname = state.profileDraftNickname,
+        saving = state.auth.loading,
+        message = state.auth.message,
+        onNickname = viewModel::updateNickname,
+        onSave = viewModel::saveProfile,
+        onAvatar = viewModel::updateAvatar,
+        onBack = viewModel::back,
+      )
+    } ?: RestoringPage("正在校验用户信息…")
     AppRoute.RecycleBin -> RecycleBinPage(state.recycleBin, viewModel::back, viewModel::requestRestore)
     AppRoute.HelpFeedback -> HelpFeedbackPage(
       state.feedback,

@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.Exec
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.net.URI
 
@@ -74,6 +75,19 @@ val syncMineGBrandResources by tasks.registering(Sync::class) {
   into(layout.buildDirectory.dir("generated/mineg-brand-res/drawable-nodpi"))
 }
 
+val checkAndroidDataSovereignty by tasks.registering(Exec::class) {
+  group = "verification"
+  description = "Rejects unregistered Android production domain-data ownership"
+  commandLine(
+    "python3",
+    rootProject.layout.projectDirectory.file("../scripts/check_android_data_sovereignty.py").asFile.absolutePath,
+    "--source",
+    layout.projectDirectory.dir("src/main/java").asFile.absolutePath,
+    "--exceptions",
+    rootProject.layout.projectDirectory.file("../contracts/platform-data-exceptions-v1.json").asFile.absolutePath,
+  )
+}
+
 android {
   namespace = "com.mineg.mobile"
   compileSdk = 36
@@ -102,7 +116,7 @@ android {
   buildTypes {
     debug {
       val debugApiBaseUrl = providers.gradleProperty("minegDebugApiBaseUrl")
-        .orElse("https://api.invalid")
+        .orElse("http://127.0.0.1:8080")
         .get()
       buildConfigField(
         "String",
@@ -171,6 +185,14 @@ tasks.configureEach {
   }
 }
 
+tasks.named("check") {
+  dependsOn(checkAndroidDataSovereignty)
+}
+
+tasks.named("preBuild") {
+  dependsOn(checkAndroidDataSovereignty)
+}
+
 dependencies {
   libsodiumAar("com.goterl:lazysodium-android:5.2.0@aar")
 
@@ -195,6 +217,8 @@ dependencies {
   debugImplementation("androidx.compose.ui:ui-test-manifest")
   testImplementation(kotlin("test"))
   testImplementation("junit:junit:4.13.2")
+  testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+  testImplementation("org.json:json:20250517")
   androidTestImplementation("androidx.test.ext:junit:1.3.0")
   androidTestImplementation("androidx.test:core:1.7.0")
   androidTestImplementation("androidx.test:runner:1.7.0")

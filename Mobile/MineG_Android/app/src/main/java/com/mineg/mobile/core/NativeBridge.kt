@@ -8,6 +8,9 @@ internal object NativeBridge {
 
   external fun nativeCreate(databasePath: String): Long
   external fun nativeExecute(handle: Long, operationId: Long, commandJson: String): String
+  external fun nativeStartOperation(handle: Long, operationId: Long, commandJson: String): String
+  external fun nativeResumeOperation(handle: Long, operationId: Long, effectResultJson: String): String
+  external fun nativeRecoverOperations(handle: Long): String
   external fun nativeQuery(handle: Long, queryJson: String): String
   external fun nativeSubscribe(handle: Long, listener: CoreEventListener): Long
   external fun nativeUnsubscribe(handle: Long, subscriptionToken: Long)

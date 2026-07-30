@@ -2,6 +2,11 @@
 
 package com.mineg.mobile.app
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mineg.mobile.ui.theme.mineGBrandGradient
@@ -73,11 +79,12 @@ fun ProfilePage(
   onLogout: () -> Unit,
 ) {
   Scaffold(
+    modifier = Modifier.testTag("profile.home"),
     containerColor = MaterialTheme.colorScheme.background,
     bottomBar = { MineGBottomBar(selectedTab, onSelectTab) },
   ) { padding ->
     LazyColumn(
-      Modifier.padding(padding).fillMaxSize(),
+      Modifier.padding(padding).fillMaxSize().testTag("profile.home.list"),
       contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -103,7 +110,6 @@ fun ProfilePage(
               contentAlignment = Alignment.Center,
             ) {
               Text(profile.avatarLabel, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 34.sp)
-              PrototypeCroppedImage(MockVisualAssets.profileAvatar, Modifier.matchParentSize(), profile.nickname)
               profile.avatarUrl?.let {
                 AsyncImage(it, profile.nickname, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
               }
@@ -141,7 +147,7 @@ fun ProfilePage(
         }
       }
       item {
-        TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth().testTag("profile.home.signOut")) {
           Icon(Icons.AutoMirrored.Outlined.Logout, null, tint = MaterialTheme.colorScheme.error)
           Text(" 退出登录", color = MaterialTheme.colorScheme.error)
         }
@@ -151,7 +157,19 @@ fun ProfilePage(
 }
 
 @Composable
-fun ProfileEditPage(profile: UserProfile, onNickname: (String) -> Unit, onBack: () -> Unit) {
+fun ProfileEditPage(
+  profile: UserProfile,
+  nickname: String,
+  saving: Boolean,
+  message: String?,
+  onNickname: (String) -> Unit,
+  onSave: () -> Unit,
+  onAvatar: (Uri) -> Unit,
+  onBack: () -> Unit,
+) {
+  val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    uri?.let(onAvatar)
+  }
   Scaffold(topBar = { DetailTopBar("编辑个人资料", onBack) }) { padding ->
     Column(
       Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp),
@@ -160,17 +178,20 @@ fun ProfileEditPage(profile: UserProfile, onNickname: (String) -> Unit, onBack: 
     ) {
       Box(Modifier.size(112.dp).clip(CircleShape).background(mineGBrandGradient()), contentAlignment = Alignment.Center) {
         Text(profile.avatarLabel, color = MaterialTheme.colorScheme.onPrimary, fontSize = 38.sp, fontWeight = FontWeight.Black)
-        PrototypeCroppedImage(MockVisualAssets.profileAvatar, Modifier.matchParentSize(), profile.nickname)
         profile.avatarUrl?.let { AsyncImage(it, profile.nickname, Modifier.matchParentSize(), contentScale = ContentScale.Crop) }
       }
-      OutlinedButton(onClick = {}) {
+      OutlinedButton(
+        onClick = { avatarPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        enabled = !saving,
+      ) {
         Icon(Icons.Outlined.CameraAlt, null)
         Text(" 选择并裁剪头像")
       }
       OutlinedTextField(
-        value = profile.nickname,
+        value = nickname,
         onValueChange = onNickname,
         modifier = Modifier.fillMaxWidth(),
+        enabled = !saving,
         label = { Text("昵称") },
         supportingText = { Text("2～20 个字符，支持中文、字母、数字、空格、- 和 _") },
       )
@@ -181,7 +202,11 @@ fun ProfileEditPage(profile: UserProfile, onNickname: (String) -> Unit, onBack: 
         enabled = false,
         label = { Text("手机号不可修改") },
       )
-      Button(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("保存") }
+      message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+      Button(onClick = onSave, enabled = !saving, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+        if (saving) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+        else Text("保存")
+      }
       Text("保存后将更新你的个人资料展示。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }
   }

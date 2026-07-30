@@ -14,7 +14,7 @@ extern "C" {
 #define MINEG_API __attribute__((visibility("default")))
 #endif
 
-#define MINEG_ABI_VERSION 4U
+#define MINEG_ABI_VERSION 5U
 #define MINEG_KEY_BYTES 32U
 #define MINEG_FAMILY_KEY_ENVELOPE_BYTES 80U
 #define MINEG_MEDIA_KEY_ENVELOPE_BYTES 80U
@@ -56,6 +56,14 @@ MINEG_API mineg_error_code_t mineg_core_create(const char *database_path, mineg_
 MINEG_API mineg_error_code_t mineg_core_execute(mineg_core_t *core, uint64_t operation_id,
                                                 const uint8_t *command_json, size_t command_size,
                                                 mineg_buffer_t *out_result_json);
+MINEG_API mineg_error_code_t mineg_core_start_operation(
+    mineg_core_t *core, uint64_t operation_id, const uint8_t *command_json, size_t command_size,
+    mineg_buffer_t *out_operation_step_json);
+MINEG_API mineg_error_code_t mineg_core_resume_operation(
+    mineg_core_t *core, uint64_t operation_id, const uint8_t *effect_result_json,
+    size_t effect_result_size, mineg_buffer_t *out_operation_step_json);
+MINEG_API mineg_error_code_t mineg_core_recover_operations(
+    mineg_core_t *core, mineg_buffer_t *out_operations_json);
 MINEG_API mineg_error_code_t mineg_core_query(mineg_core_t *core, const uint8_t *query_json,
                                               size_t query_size, mineg_buffer_t *out_result_json);
 MINEG_API mineg_error_code_t mineg_core_subscribe(mineg_core_t *core, mineg_event_callback_t callback,

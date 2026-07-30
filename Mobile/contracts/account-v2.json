@@ -1,0 +1,49 @@
+{
+  "contractVersion": "2.0.0",
+  "wireVersion": "account-v2",
+  "status": "BASELINED",
+  "scope": "M3_D_ACCOUNT_SESSION_REVIEW_PROFILE",
+  "compatibleWith": "account-v1@1.0.0",
+  "commands": [
+    "AccountSignUp",
+    "AccountSignIn",
+    "AccountRestoreSession",
+    "AccountSignOut",
+    "AccountRefreshReviewStatus",
+    "ProfileGetCurrent",
+    "ProfileUpdateCurrent"
+  ],
+  "queries": [
+    "GetAccountRouteSnapshot",
+    "GetCurrentProfileSnapshot"
+  ],
+  "events": [
+    "AccountRouteChanged",
+    "CurrentProfileChanged"
+  ],
+  "bridgeSnapshots": {
+    "AccountRouteSnapshot": ["userId", "approvalStatus", "nextStep"],
+    "CurrentProfileSnapshot": ["id", "nickname", "maskedPhone", "avatarUrl", "version", "updatedAt"],
+    "AccountError": ["code", "messageKey", "retryable", "requestId"]
+  },
+  "secureStoreNames": [
+    "account.accessToken",
+    "account.refreshToken",
+    "account.accessExpiresAt",
+    "account.refreshExpiresAt",
+    "device.installationId"
+  ],
+  "rules": [
+    "Passwords and tokens are never persisted in Core SQLite or operation recovery records",
+    "Session HTTP responses are parsed by Core before SecureStoreEffect is emitted",
+    "HTTP 401 refresh and one-time replay are decided by Core",
+    "Profile cache fallback and account isolation are decided by Core",
+    "Android only transports bytes and stores named secrets"
+  ],
+  "effectActions": {
+    "TransportEffect": ["sendApiRequest"],
+    "SecureStoreEffect": ["readSecrets", "writeSecrets", "deleteSecrets"]
+  },
+  "jsonFieldStyle": "lowerCamelCase",
+  "apiFieldStyle": "snake_case"
+}

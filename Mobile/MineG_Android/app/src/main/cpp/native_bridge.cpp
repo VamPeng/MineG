@@ -104,6 +104,70 @@ Java_com_mineg_mobile_core_NativeBridge_nativeExecute(JNIEnv *env, jobject, jlon
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeStartOperation(
+    JNIEnv *env, jobject, jlong handle, jlong operation_id, jstring command) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || session->core == nullptr || command == nullptr || operation_id <= 0) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "startOperation");
+    return nullptr;
+  }
+  const std::string input = from_jstring(env, command);
+  mineg_buffer_t output{};
+  const mineg_error_code_t code = mineg_core_start_operation(
+      session->core, static_cast<uint64_t>(operation_id),
+      reinterpret_cast<const uint8_t *>(input.data()), input.size(), &output);
+  if (code != MINEG_OK) {
+    throw_error(env, code, "startOperation");
+    return nullptr;
+  }
+  const std::string result(reinterpret_cast<const char *>(output.data), output.size);
+  mineg_buffer_free(&output);
+  return env->NewStringUTF(result.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeResumeOperation(
+    JNIEnv *env, jobject, jlong handle, jlong operation_id, jstring effect_result) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || session->core == nullptr || effect_result == nullptr ||
+      operation_id <= 0) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "resumeOperation");
+    return nullptr;
+  }
+  const std::string input = from_jstring(env, effect_result);
+  mineg_buffer_t output{};
+  const mineg_error_code_t code = mineg_core_resume_operation(
+      session->core, static_cast<uint64_t>(operation_id),
+      reinterpret_cast<const uint8_t *>(input.data()), input.size(), &output);
+  if (code != MINEG_OK) {
+    throw_error(env, code, "resumeOperation");
+    return nullptr;
+  }
+  const std::string result(reinterpret_cast<const char *>(output.data), output.size);
+  mineg_buffer_free(&output);
+  return env->NewStringUTF(result.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_mineg_mobile_core_NativeBridge_nativeRecoverOperations(
+    JNIEnv *env, jobject, jlong handle) {
+  NativeSession *session = session_from(handle);
+  if (session == nullptr || session->core == nullptr) {
+    throw_error(env, MINEG_INVALID_ARGUMENT, "recoverOperations");
+    return nullptr;
+  }
+  mineg_buffer_t output{};
+  const mineg_error_code_t code = mineg_core_recover_operations(session->core, &output);
+  if (code != MINEG_OK) {
+    throw_error(env, code, "recoverOperations");
+    return nullptr;
+  }
+  const std::string result(reinterpret_cast<const char *>(output.data), output.size);
+  mineg_buffer_free(&output);
+  return env->NewStringUTF(result.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_com_mineg_mobile_core_NativeBridge_nativeQuery(JNIEnv *env, jobject, jlong handle,
                                                      jstring query) {
   return call_json(env, session_from(handle), 0, query, false);
