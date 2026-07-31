@@ -141,16 +141,50 @@ Service 返回的是对象/part 级别的短期授权，例如：
 - 永久删除原文件或历史版本。
 - 访问与 MineG 无关的前缀。
 
-## 7. 尚未执行的阿里云操作
+## 7. 阿里云操作进度与换机续接
 
-- [ ] 创建开发用私有 OSS Bucket。
-- [ ] 创建开发用 AssumeRole/RAM 策略并限制到测试 Bucket 与必要前缀。
-- [ ] 取得一组开发用临时 STS 凭据，确认包含四个字段且有明确过期时间。
-- [ ] 为生产 ECS 创建并绑定 MineG RAM Role。
-- [ ] 配置生产 Bucket、地域、内网 Endpoint 和角色名。
-- [ ] 验证 Bucket 阻止公共访问，App 只能使用短期签名 URL。
-- [ ] 验证越权对象键、过期 URL、错误长度/SHA-256、列桶与删除均被拒绝。
+### 已完成（2026-07-31）
+
+- [x] 创建独立开发 OSS Bucket；地域为 `cn-hangzhou`，使用标准存储和本地冗余。
+- [x] Bucket ACL 保持私有，已开启阻止公共访问，只允许 TLS 1.2 与 TLS 1.3。
+- [x] 创建开发 OSS 自定义权限策略，只允许 `media/*` 与 `avatars/*` 上必要的 `PutObject`、`GetObject`、`ListParts` 与 `AbortMultipartUpload`。
+- [x] 上述 OSS 策略继续显式拒绝 `DeleteObject` 与 `DeleteObjectVersion`。
+- [x] 创建本地联调 RAM Role，最大会话时间为 1 小时，并只绑定上述开发 OSS 权限策略。
+- [x] 创建仅供本地 AssumeRole 使用的 RAM 用户；不启用控制台登录，已创建一组 OpenAPI AccessKey。
+- [x] 创建并向该 RAM 用户绑定精确的 `sts:AssumeRole` 策略，资源只指向本地联调 RAM Role。
+- [x] 将本地联调 RAM Role 的信任策略从账号级 `root` 收紧为上述单个 RAM 用户，不保留通配符。
+- [x] 在原开发电脑通过 Homebrew 安装阿里云 CLI `3.4.11`；未创建 `~/.aliyun/config.json`，未向 CLI 配置文件写入 AccessKey。
+
+本文故意不记录真实 Bucket 名、账号 ID、权限策略名、RAM 用户名、RAM Role 名或 AccessKey。控制台中的实际资源与以下逻辑占位符一一对应：
+
+| 逻辑名称 | 用途 |
+| --- | --- |
+| `<development-bucket>` | 独立开发私有 OSS Bucket |
+| `<local-oss-policy>` | 限制到开发 Bucket、`media/*` 与 `avatars/*` 的 OSS 权限 |
+| `<local-oss-role>` | 本地联调通过 STS 扮演的临时角色 |
+| `<local-sts-caller>` | 只能调用指定角色 `sts:AssumeRole` 的 RAM 用户 |
+| `<local-assume-role-policy>` | 调用者的精确 AssumeRole 权限 |
+
+### 换机后从这里继续
+
+1. 在新设备安装阿里云 CLI `3.3.0` 或更高版本，并执行 `aliyun version` 验证。
+2. 确认 `<local-sts-caller>` 的 AccessKey Secret 已保存在密码管理器等安全位置。Secret 无法从控制台重新查看；如果没有保留，应创建一组替代 AccessKey，并立即禁用或删除遗失 Secret 的旧 AccessKey。
+3. 不执行会把长期 AccessKey 写入 `~/.aliyun/config.json` 的持久化配置。只在当前终端会话通过不回显的输入设置 `ALIBABA_CLOUD_ACCESS_KEY_ID` 与 `ALIBABA_CLOUD_ACCESS_KEY_SECRET`，并设置 `ALIBABA_CLOUD_IGNORE_PROFILE=TRUE`。
+4. 执行 `aliyun sts get-caller-identity --region cn-hangzhou`，确认身份类型为 RAM 用户，ARN 指向 `<local-sts-caller>`；只记录身份类型与脱敏 ARN。
+5. 对 `<local-oss-role>` 调用 `AssumeRole`，会话名使用可审计的 `mineg-local-dev`，有效期使用 3600 秒，不附加扩大权限的会话策略。
+6. 确认 STS 响应包含 `AccessKeyId`、`AccessKeySecret`、`SecurityToken`、`Expiration`，但不得把响应正文写入仓库、普通日志、命令历史或截图。
+7. 临时凭据到期后自动作废；离开终端前清除相关环境变量和保存 STS 响应的 shell 变量。
+
+### 仍未完成
+
+- [ ] 在新设备完成 `<local-sts-caller>` 身份验证与第一次 AssumeRole，确认云端授权链可用。
+- [ ] 使用临时 STS 凭据对开发 Bucket 执行最小正向/负向权限验证：允许目标前缀上传，拒绝列桶、跨前缀和删除。
+- [ ] 为开发 Bucket 配置未完成 multipart 的生命周期清理规则。
+- [ ] 在 Service 配置层实现仅 `local/test` 可用的临时 STS provider 与公网 OSS Endpoint。
+- [ ] 使用真实开发 Bucket 完成本地 Service → App → OSS → Service 核对闭环。
+- [ ] 验证越权对象键、过期 URL、错误长度/SHA-256、完成响应丢失与分片重试。
 - [ ] 核对服务/API/客户端日志不包含 Secret、Token、签名 URL 或媒体正文。
+- [ ] 为生产 ECS 创建并绑定独立 MineG RAM Role，配置生产 Bucket、同地域内网 Endpoint，并完成生产部署验收。
 
 ## 8. 项目后续实现任务
 
