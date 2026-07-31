@@ -3,7 +3,7 @@
 <html lang="zh-CN"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Memory - Media Detail</title>
+<title>MineG - 媒体详情</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -135,9 +135,8 @@
 <!-- TopAppBar -->
 <header class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center w-full px-margin-mobile py-sm">
 <button class="text-primary dark:text-primary-fixed-dim hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors p-unit rounded-full active:scale-95 transition-transform duration-200">
-<span class="material-symbols-outlined">arrow_back</span>
+<span aria-hidden="true">←</span>
 </button>
-<h1 class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim">Memory</h1>
 <div class="w-10 h-10" aria-hidden="true"></div>
 </header>
 <!-- Main Content Canvas -->
@@ -161,19 +160,15 @@
 </div>
 </div>
 </main>
-<!-- Collapsible Media Actions -->
-<button aria-controls="media-actions" aria-expanded="false" aria-label="展开操作" class="fixed bottom-lg left-1/2 -translate-x-1/2 z-[60] w-12 h-12 rounded-full bg-surface dark:bg-surface-dim text-primary shadow-lg flex items-center justify-center active:scale-90 transition-all duration-300" id="action-toggle" onclick="toggleMediaActions()">
-<span class="material-symbols-outlined text-[28px]" id="action-toggle-icon">keyboard_arrow_up</span>
-</button>
-<nav aria-hidden="true" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl translate-y-full opacity-0 pointer-events-none transition-all duration-300" id="media-actions">
+<nav aria-hidden="false" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl" id="media-actions">
 <button aria-label="下载" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">download</span>
+<span>下载</span>
 </button>
 <button aria-label="共享" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">share</span>
+<span>共享</span>
 </button>
 <button aria-label="删除" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">delete</span>
+<span>删除</span>
 </button>
 </nav>
 <script>

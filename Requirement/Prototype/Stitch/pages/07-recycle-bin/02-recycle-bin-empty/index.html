@@ -129,49 +129,15 @@
 <!-- TopAppBar -->
 <header class="fixed top-0 left-0 w-full z-50 bg-surface dark:bg-surface-dim shadow-sm grid grid-cols-[40px_1fr_40px] items-center px-margin-mobile h-16">
 <a aria-label="返回个人中心" class="w-10 h-10 rounded-full flex items-center justify-center text-primary dark:text-primary-fixed hover:bg-surface-variant/30 active:scale-95 transition-all" href="../../08-profile/01-profile-overview/index.html">
-<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+<span aria-hidden="true">←</span>
 </a>
 <h1 class="font-headline-md text-headline-md font-bold text-on-surface text-center">回收站</h1>
 <div aria-hidden="true" class="w-10"></div>
 </header>
 <!-- Main Content Canvas -->
 <main class="flex-grow flex flex-col items-center justify-center px-margin-mobile pt-20 pb-xl">
-<div class="w-full max-w-md flex flex-col items-center text-center">
-<!-- Empty State Illustration & Content -->
-<div class="relative w-64 h-64 mb-lg group">
-<!-- Tonal Layering Background Circle -->
-<div class="absolute inset-0 bg-surface-container rounded-full scale-90 opacity-50 blur-xl"></div>
-<!-- Central Illustration -->
-<div class="relative z-10 w-full h-full flex items-center justify-center animate-float">
-<img class="w-48 h-48 object-contain" data-alt="A minimalist, warm digital illustration of a peaceful Sage Green colored cloud with a small, friendly recycle symbol on its side. The scene is set against a soft cream background with gentle, diffused ambient lighting. The style is tactile and nostalgic, avoiding sharp edges, and emphasizing a sense of calm and private security for family memories." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPylMicdjTq_JvpEyoDw8YGgxnHW9b18tAGFgm4-HG1LdEua73hVBdaPgR_rUdh-9U574aNfG3ZkxsR3YXNLUtpxEE9nC7PRsh7eToAIh9Ge6vxGe-PhGvacAHTUsqrITvIf4Ewe4KThRuMvnte1I_sI9N7zX32SVYUPOfs06-bw_bPT7oQwVQBsT2KlghTo9rmimnJOXFfx1lrQApJQZM_sEK_pQNe9gcb80dxfUQMcvVxPja7ndy4RXtselHa9ybq7G_Sn3KRSg"/>
-</div>
-<!-- Decorative Elements -->
-<div class="absolute top-4 right-4 text-primary opacity-20 transform rotate-12">
-<span class="material-symbols-outlined text-4xl" data-icon="photo">photo</span>
-</div>
-<div class="absolute bottom-8 left-4 text-primary opacity-20 transform -rotate-12">
-<span class="material-symbols-outlined text-3xl" data-icon="videocam">videocam</span>
-</div>
-</div>
-<!-- Empty State Text -->
-<h3 class="font-headline-md text-headline-md text-on-surface-variant mb-sm">暂无删除内容</h3>
-<p class="font-body-md text-body-md text-outline px-lg max-w-xs leading-relaxed">
-                你删除的照片和视频会出现在这里，可随时恢复。
-            </p>
+<div class="w-full max-w-md text-center">
+<h3 class="font-headline-md text-headline-md text-on-surface-variant">暂无删除内容</h3>
 </div>
 </main>
-<!-- Subtle atmospheric micro-interaction -->
-<script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.querySelector('main');
-            container.addEventListener('mousemove', (e) => {
-                const moveX = (e.clientX - window.innerWidth / 2) / 40;
-                const moveY = (e.clientY - window.innerHeight / 2) / 40;
-                const illustration = document.querySelector('.animate-float');
-                if(illustration) {
-                    illustration.style.transform = `translate(${moveX}px, ${moveY}px)`;
-                }
-            });
-        });
-    </script>
 </body></html>

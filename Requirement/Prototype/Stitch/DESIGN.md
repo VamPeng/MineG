@@ -100,14 +100,14 @@ spacing:
 ---
 
 ## Brand & Style
-The design system is centered on the concept of a "digital hearth"—a secure, warm, and private space for families to store their most precious memories. It moves away from the frantic energy of social media, opting instead for a **Minimalist-Modern** aesthetic with **Tactile** warmth. 
+The product serves two fixed users and is not currently a promotional or growth product. The visual language remains **Minimalist-Modern** with **Tactile** warmth, but the UI must not add marketing copy, trust badges, private-cloud promises, security reassurance, storage messaging, or decorative explanations.
 
-The target audience includes multi-generational family members, requiring an interface that feels intuitive and reliable. The emotional response is one of safety and nostalgia. Visual density is kept low to reduce cognitive load for non-technical users, ensuring that the photos themselves remain the focal point. All interactions should feel deliberate and calm, reinforcing the "private cloud" promise.
+Photos and the current MVP task remain the focus. Every visible element must help the user act, understand a real state or result, recover from a blocker, or understand the direct consequence of an action. The authoritative content rule is [UI-CONTENT-RULES.md](./UI-CONTENT-RULES.md).
 
 ## Colors
 The authoritative color tokens and usage rules are defined in [THEME.md](./THEME.md). The palette is derived directly from the MineG logo and supported by warm neutral surfaces.
 - **Primary (Logo Gradient):** `#FD7106 → #FD5033 → #FD374B`, used for branding, primary interaction and selected navigation states.
-- **Secondary (Sage Green):** `#436444`, reserved for secure, synced and successful states rather than general branding.
+- **Secondary (Sage Green):** `#436444`, reserved for completed and successful states rather than general branding or security reassurance.
 - **Neutral Background (Cream & Warm Grey):** A soft `#F5F2ED` base replaces harsh whites to reduce eye strain and provide a "paper-like" feel. 
 - **Text (Charcoal Brown):** `#4A4540` provides high legibility for Simplified Chinese characters while feeling softer than pure black.
 - **Status Colors:** Clearly defined for technical states like "Backing up" or "Offline," using slightly desaturated tones to maintain the calm atmosphere.
@@ -144,7 +144,7 @@ This design system uses a **Rounded** shape language to evoke friendliness and s
 ## Components
 - **Buttons:** Brand primary buttons use the logo gradient with dark text. When white text is required, use the accessible solid action color `#D63B26`. Secondary buttons use a tonal border. Avoid sharp corners; use `rounded-md`.
 - **Cards (Memories):** Cards should have no visible border, using subtle elevation to separate them. Include a "Date" label in the top left and a "Shared by" avatar in the bottom right.
-- **Privacy Indicators:** A persistent but unobtrusive icon (e.g., a small shield or lock) should appear near the album title to reassure users of the private nature of the cloud.
+- **Content Indicators:** Do not add persistent privacy, security, encryption, cloud, or storage indicators. Icons must identify an available action, a real state, a blocker, or a media type.
 - **Lists:** Use high-contrast dividers (`#EAE7E2`) and include 16px of vertical padding for list items to ensure easy tapping.
 - **Input Fields:** Soft grey backgrounds use `#D63B26` for a clear focus outline. Error states use the dedicated error color `#BA1A1A`; the brand warm red must not be reused as an error signal.
-- **Empty States:** Use hand-drawn style iconography or soft illustrations to maintain the "family" feel when no photos are present.
+- **Empty States:** Prefer a short state label and an action only when an action is available. Illustrations are optional and must not introduce promotional, security, storage, or private-cloud messaging.

@@ -125,7 +125,7 @@
 <!-- TopAppBar -->
 <header class="bg-surface docked full-width top-0 shadow-sm grid grid-cols-[40px_1fr_40px] items-center w-full px-margin-mobile h-16 z-50">
 <a aria-label="返回回收站" class="w-10 h-10 rounded-full flex items-center justify-center text-primary hover:bg-surface-variant/30 active:scale-95 transition-all" href="../01-recycle-bin-populated/index.html">
-<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+<span aria-hidden="true">←</span>
 </a>
 <h1 class="font-headline-md text-headline-md font-bold text-on-surface text-center">恢复媒体</h1>
 <div aria-hidden="true" class="w-10"></div>
@@ -149,11 +149,6 @@
 <button class="w-full bg-transparent border border-outline-variant text-on-surface-variant py-3 px-6 rounded-lg font-medium hover:bg-surface-variant/20 active:scale-95 transition-all" data-cancel-restore>
                     取消
                 </button>
-</div>
-<!-- Privacy Indicator -->
-<div class="mt-lg flex items-center justify-center gap-2 text-outline">
-<span class="material-symbols-outlined text-sm" data-icon="lock">lock</span>
-<span class="font-label-sm text-label-sm">仅您可见，保护隐私安全</span>
 </div>
 </div>
 </main>

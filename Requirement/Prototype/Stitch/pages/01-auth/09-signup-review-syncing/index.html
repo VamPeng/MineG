@@ -126,105 +126,36 @@
 <!-- TopAppBar -->
 <header class="w-full top-0 z-50 bg-surface dark:bg-surface-dim flex items-center justify-between px-margin-mobile py-md">
 <div class="flex items-center gap-md">
-<button class="material-symbols-outlined text-primary dark:text-primary-fixed-dim hover:bg-surface-variant/20 transition-colors p-2 rounded-full active:scale-95 duration-200">
-                arrow_back
-            </button>
+<button aria-label="返回" class="text-primary dark:text-primary-fixed-dim hover:bg-surface-variant/20 transition-colors p-2 rounded-full active:scale-95 duration-200" onclick="history.back()">←</button>
 </div>
 <h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-primary-fixed-dim tracking-tight">MineG</h1>
 <div class="w-10"></div> <!-- Spacer for center alignment -->
 </header>
 <!-- Main Content -->
-<main class="flex-1 flex flex-col items-center justify-center px-margin-mobile pb-xl relative">
-<!-- Decorative Ambient Background Elements -->
-<div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-primary-container/10 rounded-full blur-3xl -z-10 animate-pulse-slow"></div>
-<div class="absolute bottom-1/4 left-1/4 w-48 h-48 bg-secondary-container/10 rounded-full blur-3xl -z-10 animate-float" style="animation-delay: -2s;"></div>
-<!-- Calm Waiting Graphic Section -->
-<section class="w-full max-w-sm flex flex-col items-center text-center space-y-lg">
-<div class="relative w-64 h-64 flex items-center justify-center mb-md">
-<!-- Central Calm Visual -->
-<div class="absolute inset-0 border-2 border-primary/20 rounded-full animate-pulse-slow"></div>
-<div class="absolute inset-4 border border-primary/10 rounded-full animate-float"></div>
-<div class="relative bg-surface-container-highest rounded-full w-48 h-48 flex items-center justify-center overflow-hidden shadow-sm">
-<img class="w-full h-full object-cover opacity-90" data-alt="A serene and minimalist digital illustration of a family-oriented private cloud. Soft sage green and warm cream colors dominate the scene. In the center, a stylized glowing house icon represents the digital hearth, surrounded by floating soft-edged circles suggesting secure memory storage and family connections. The lighting is diffused and warm, evoking a sense of safety and calm. Minimalist-modern aesthetic with tactile warmth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSrQHeRK6HBvWDqDusAxfT0vahIUcZChpfhmoPb88kDUhgQuMu2WFr-RzufURAMY2oOKht9QJJRxMGcP9Bs_jig6hxbdO3WsNgwkoCXuN_RTrIsqIBosvDsHPyn2n_FTybLMK9QSNF5EPblqSeEFEMjyjifaOZUHmhFHPnR3V_1rBH0ohlZuYcVFjwbOovqqpsT51tQNfv-qiNJS-OkhnMhS4K4d5ekCM5-4u8WNJB3RU677ZsyQ8jNOoRijRopwJNZFAcVNBYQXs"/>
-<div class="absolute inset-0 bg-gradient-to-t from-surface-container-highest/60 to-transparent"></div>
-<span class="material-symbols-outlined text-[64px] text-primary absolute" style="font-variation-settings: 'FILL' 1;">
-                        shield_person
-                    </span>
-</div>
-<!-- Status Tag -->
-<div class="absolute bottom-0 right-4 bg-primary text-on-primary px-4 py-1.5 rounded-full flex items-center gap-2 shadow-md animate-float">
-<span class="material-symbols-outlined text-[16px] animate-spin" style="animation-duration: 3s">refresh</span>
-<span class="font-label-sm text-label-sm">实时同步中</span>
-</div>
-</div>
-<!-- Typography Content -->
-<div class="space-y-sm">
-<h2 class="font-headline-md text-headline-md-mobile text-on-surface">注册申请正在审核</h2>
-<p class="text-on-surface-variant max-w-[280px] mx-auto">
-                    家庭管理员通过后，你就可以使用 MineG
-                </p>
-</div>
-<!-- Admin Indicators -->
-<div class="flex items-center gap-xs text-on-surface-variant">
-<span class="material-symbols-outlined text-[18px]">verified_user</span>
-<span class="text-label-sm font-label-sm">已通知家庭创建者</span>
-</div>
-</section>
-<!-- Action Section -->
-<section class="w-full max-w-sm mt-xl space-y-md">
-<!-- Primary Refresh Button -->
-<button class="w-full bg-primary text-on-primary py-4 rounded-xl flex items-center justify-center gap-md font-bold hover:brightness-110 active:scale-95 transition-all shadow-sm" id="refreshBtn">
-<span class="material-symbols-outlined" id="refreshIcon">refresh</span>
-<span>刷新审核状态</span>
-</button>
-<!-- Secondary Actions Card -->
-<div class="glass-card rounded-2xl p-sm flex flex-col items-center">
-<button class="w-full py-3 text-secondary font-semibold hover:bg-secondary/5 rounded-lg active:scale-95 transition-all text-body-md flex items-center justify-center gap-2">
-<span class="material-symbols-outlined text-[20px]">login</span>
-                    重新登录
+<main class="flex-1 flex items-center justify-center px-margin-mobile py-xl">
+<section class="w-full max-w-sm text-center">
+<h2 class="font-headline-md text-headline-md-mobile text-on-surface">注册申请待审核</h2>
+<p class="mt-sm text-on-surface-variant">审核通过后即可使用 MineG。</p>
+<div class="mt-xl space-y-md">
+<button class="w-full bg-primary text-on-primary py-4 rounded-xl font-bold active:scale-95 transition-all shadow-sm" id="refreshBtn">
+                    刷新状态
                 </button>
-<div class="w-10/12 h-[1px] bg-outline-variant/30 my-1"></div>
-<button class="w-full py-3 text-on-surface-variant font-medium hover:bg-surface-variant/20 rounded-lg active:scale-95 transition-all text-body-md flex items-center justify-center gap-2">
-<span class="material-symbols-outlined text-[20px]">logout</span>
+<button class="w-full py-3 text-on-surface-variant font-medium active:scale-95 transition-all">
                     退出当前账号
                 </button>
 </div>
 </section>
-<!-- Footer Privacy Reassurance -->
-<footer class="mt-xl text-center">
-<p class="text-label-sm font-label-sm text-outline flex items-center justify-center gap-1">
-<span class="material-symbols-outlined text-[14px]">lock</span>
-                MineG 承诺保护您的家庭隐私安全
-            </p>
-</footer>
 </main>
 <script>
-        // Micro-interaction for the refresh button
         const refreshBtn = document.getElementById('refreshBtn');
-        const refreshIcon = document.getElementById('refreshIcon');
 
         refreshBtn.addEventListener('click', () => {
-            refreshIcon.classList.add('animate-spin');
             refreshBtn.classList.add('opacity-80', 'pointer-events-none');
-            
-            // Simulate a network check
+            refreshBtn.textContent = '正在刷新…';
             setTimeout(() => {
-                refreshIcon.classList.remove('animate-spin');
                 refreshBtn.classList.remove('opacity-80', 'pointer-events-none');
-                
-                // Show a brief feedback toast or status change logic would go here
+                refreshBtn.textContent = '刷新状态';
             }, 1500);
-        });
-
-        // Subtle parallax effect on floating elements
-        document.addEventListener('mousemove', (e) => {
-            const moveX = (e.clientX - window.innerWidth / 2) / 50;
-            const moveY = (e.clientY - window.innerHeight / 2) / 50;
-            const floatingElements = document.querySelectorAll('.animate-float');
-            
-            floatingElements.forEach(el => {
-                el.style.transform = `translate(${moveX}px, ${moveY}px)`;
-            });
         });
     </script>
 </body></html>

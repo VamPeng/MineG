@@ -129,7 +129,7 @@
 <!-- Top Navigation Bar (Simplified for Auth Flow) -->
 <header class="w-full top-0 flex items-center justify-between px-margin-mobile py-md bg-surface dark:bg-surface-dim z-50">
 <div class="flex items-center gap-sm cursor-pointer active:scale-95 duration-200" onclick="history.back()">
-<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim">arrow_back</span>
+<span class="text-primary dark:text-primary-fixed-dim" aria-hidden="true">←</span>
 </div>
 <div class="absolute left-1/2 -translate-x-1/2">
 <h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-primary-fixed-dim">MineG</h1>
@@ -149,51 +149,33 @@
 <div class="space-y-xs">
 <label class="block font-label-sm text-label-sm text-on-surface-variant ml-xs" for="phone">手机号</label>
 <div class="relative flex items-center">
-<span class="material-symbols-outlined absolute left-md text-outline">smartphone</span>
-<input class="w-full pl-xl pr-md py-md bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary text-on-surface placeholder:text-outline-variant transition-all" id="phone" placeholder="请输入手机号码" type="tel" value="13800138000"/>
+<input class="w-full px-md py-md bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary text-on-surface placeholder:text-outline-variant transition-all" id="phone" placeholder="请输入手机号码" type="tel" value="13800138000"/>
 </div>
 </div>
 <!-- Password -->
 <div class="space-y-xs">
 <label class="block font-label-sm text-label-sm text-on-surface-variant ml-xs" for="password">设置密码</label>
 <div class="relative flex items-center">
-<span class="material-symbols-outlined absolute left-md text-outline">lock</span>
-<input class="w-full pl-xl pr-md py-md bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary text-on-surface transition-all" id="password" placeholder="建议8位以上数字或字母" type="password" value="Password123"/>
-<span class="material-symbols-outlined absolute right-md text-outline-variant cursor-pointer">visibility</span>
+<input class="w-full px-md py-md bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary text-on-surface transition-all" id="password" placeholder="建议8位以上数字或字母" type="password" value="Password123"/>
 </div>
 </div>
 <!-- Confirm Password with Error State -->
 <div class="space-y-xs">
 <label class="block font-label-sm text-label-sm text-error ml-xs" for="confirm-password">确认密码</label>
 <div class="relative flex items-center">
-<span class="material-symbols-outlined absolute left-md text-error">lock_reset</span>
-<input aria-describedby="password-error" aria-invalid="true" class="w-full pl-xl pr-md py-md bg-error-container/20 rounded-lg border-2 border-error focus:ring-2 focus:ring-error text-on-surface transition-all" id="confirm-password" placeholder="请再次输入密码" type="password" value="Password321"/>
-<span class="material-symbols-outlined absolute right-md text-error/60 cursor-pointer">visibility</span>
+<input aria-describedby="password-error" aria-invalid="true" class="w-full px-md py-md bg-error-container/20 rounded-lg border-2 border-error focus:ring-2 focus:ring-error text-on-surface transition-all" id="confirm-password" placeholder="请再次输入密码" type="password" value="Password321"/>
 </div>
 <!-- Error Message -->
 <div class="flex items-center gap-xs px-xs animate-shake" id="password-error">
-<span class="material-symbols-outlined text-[14px] text-error" style="font-variation-settings: 'FILL' 1;">error</span>
 <p class="font-label-sm text-label-sm text-error">两次密码不一致</p>
 </div>
 </div>
-<!-- Admin Review Notice -->
-<div class="mt-lg p-md bg-secondary-container/10 rounded-lg flex items-start gap-sm">
-<span class="material-symbols-outlined text-secondary mt-0.5 scale-75">info</span>
-<p class="text-on-secondary-fixed-variant text-sm font-label-sm leading-relaxed">
-                        注册后需要家庭管理员审核。审核通过后，您将获得访问家庭私有云空间的权限。
-                    </p>
-</div>
+<p class="mt-md text-sm text-on-surface-variant">注册后需要审核。</p>
 <!-- Submit Button -->
 <button class="w-full bg-primary py-md rounded-lg text-on-primary font-headline-md text-headline-md-mobile shadow-md active:scale-95 transition-transform duration-200 mt-md" type="submit">
                         提交注册
                     </button>
 </form>
-</div>
-<!-- Bottom Navigation Link -->
-<div class="mt-xl text-center">
-<p class="text-on-surface-variant">
-                    已有账号？ <a class="text-primary font-semibold hover:underline" href="#">直接登录</a>
-</p>
 </div>
 </div>
 </main>

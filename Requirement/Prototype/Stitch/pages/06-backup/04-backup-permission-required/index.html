@@ -124,51 +124,15 @@
   </style>
   </head>
 <body class="bg-background text-on-surface font-body-md text-body-md min-h-screen flex flex-col items-center overflow-x-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
-<!-- Top AppBar (Internal Only - No Nav Cluster per instruction for Task-Focused screen) -->
-<header class="w-full top-0 sticky z-40 bg-surface/80 backdrop-blur-sm shadow-sm flex items-center justify-between px-margin-mobile py-sm">
-<button class="flex items-center justify-center p-sm rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
-<span class="material-symbols-outlined text-on-surface">close</span>
-</button>
-<span class="font-headline-md text-headline-md-mobile text-primary tracking-tight">MineG</span>
-<div class="w-10"></div> <!-- Spacer for balance -->
-</header>
-<main class="flex-1 w-full max-w-md px-margin-mobile pt-lg pb-xl flex flex-col">
-<!-- Hero Section: Warm Family Visual with Privacy Emphasis -->
-<div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden mb-xl shadow-sm bg-surface-container-highest">
-<div class="permission-preview absolute inset-0 bg-cover bg-center" data-alt="A deliberately blurred family photo preview. The blur indicates that MineG cannot read the photo library before full permission is granted." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDb4pyswFVc4dQfgxQ8RAVUw3tbRb9Ax6PkKXtQU2zN7dovEzLm0yOMow7MWJlntdzDkuFE6598Gc6ZjmDKCckwNWQQ3MIMHm2wbtmzBaLLHl3rHUadAFKUhYJsH5GANEH53TcfEE6tv29j8HWLZXSDurt3H2FFs0J5hzwc0AFbmVlf190iW2Tyut7zgSAvq_SaQP_hMCM9rY6h_B4jjUGhyhLfWRu8mKxt4-G3Bc6cqn8g_S7IaXNZBAtp8BXy4X_VrTPICOs6CIs')">
-</div>
-<div class="absolute inset-0 bg-surface/10"></div>
-</div>
-<!-- Content Section -->
-<div class="flex-1 space-y-lg text-center px-sm">
+<main class="flex-1 w-full max-w-md px-margin-mobile py-xl flex flex-col justify-center">
+<div class="space-y-lg text-center px-sm">
 <div class="space-y-sm">
 <h1 class="font-display-lg-mobile text-display-lg-mobile text-on-surface tracking-tight">
                     允许 MineG 访问你的相册
                 </h1>
 <p class="text-on-surface-variant font-body-lg text-body-lg leading-relaxed">
-                    当前无法读取你的照片。开启完整相册权限后，MineG 才能扫描并自动备份照片、视频、GIF 和实况照片。
+                    开启完整相册权限后，MineG 才能读取并备份照片和视频。
                 </p>
-</div>
-<!-- Privacy Feature List (Bento-lite style) -->
-<div class="grid grid-cols-1 gap-md text-left">
-<div class="p-md bg-surface-container rounded-xl border border-outline-variant/30 flex items-start gap-md">
-<div class="w-10 h-10 rounded-lg bg-primary-fixed flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-on-primary-fixed-variant">lock</span>
-</div>
-<div>
-<h3 class="font-headline-md text-headline-md-mobile text-on-surface text-[16px] mb-xs">私人空间默认保存</h3>
-<p class="text-on-surface-variant text-label-sm font-label-sm">备份内容默认仅保存在你的「私人空间」，完全私密且安全。</p>
-</div>
-</div>
-<div class="p-md bg-surface-container rounded-xl border border-outline-variant/30 flex items-start gap-md">
-<div class="w-10 h-10 rounded-lg bg-secondary-fixed flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-on-secondary-fixed-variant">family_history</span>
-</div>
-<div>
-<h3 class="font-headline-md text-headline-md-mobile text-on-surface text-[16px] mb-xs">家庭共享由你控制</h3>
-<p class="text-on-surface-variant text-label-sm font-label-sm">只有你主动共享的内容才会出现在「家庭相册」中。</p>
-</div>
-</div>
 </div>
 </div>
 <!-- Action Buttons -->
@@ -181,11 +145,6 @@
             </button>
 </footer>
 </main>
-<!-- Subtle atmospheric background effect -->
-<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden opacity-50">
-<div class="absolute -top-1/4 -right-1/4 w-96 h-96 bg-primary-container/20 rounded-full blur-[100px]"></div>
-<div class="absolute top-1/2 -left-1/4 w-64 h-64 bg-secondary-container/10 rounded-full blur-[80px]"></div>
-</div>
 <script>
         // The prototype treats a click as a successful system authorization result.
         // Native apps should navigate only after the operating system reports full access.

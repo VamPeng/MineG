@@ -126,11 +126,9 @@
 <!-- Home Content Tabs -->
 <section class="mb-md flex w-full rounded-full bg-surface-container-high p-1" role="tablist" aria-label="首页内容">
 <a class="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-white px-4 py-2 font-label-sm text-label-sm font-semibold text-primary shadow-sm" href="index.html" role="tab" aria-selected="true" aria-current="page">
-<span class="material-symbols-outlined text-[18px]" aria-hidden="true">lock</span>
 <span>私人</span>
 </a>
 <a class="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 font-label-sm text-label-sm font-semibold text-on-surface-variant" href="../../05-family-album/01-family-album-timeline/index.html" role="tab" aria-selected="false">
-<span class="material-symbols-outlined text-[18px]" aria-hidden="true">share</span>
 <span>共享</span>
 </a>
 </section>
@@ -148,7 +146,7 @@
 <span class="text-[10px] text-white font-medium">0:15</span>
 </div>
 <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-<span class="material-symbols-outlined text-white/80 text-xl" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span class="text-white/80 text-xl" aria-hidden="true">▶</span>
 </div>
 </div>
 <!-- Live Photo -->
@@ -184,23 +182,7 @@
 </section>
 </main>
 <!-- BottomNavBar -->
-<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm pb-6 pt-2 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
-<!-- Private Space (Active) -->
-<button class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-xl px-3 py-1 active:scale-90 transition-all duration-150">
-<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield_person</span>
-<span class="font-label-sm text-label-sm">私人空间</span>
-</button>
-<!-- Backup -->
-<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-3 py-1 hover:bg-surface-container-low active:scale-90 transition-all duration-150">
-<span class="material-symbols-outlined">cloud_upload</span>
-<span class="font-label-sm text-label-sm">备份</span>
-</button>
-<!-- Profile -->
-<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-3 py-1 hover:bg-surface-container-low active:scale-90 transition-all duration-150">
-<span class="material-symbols-outlined">person</span>
-<span class="font-label-sm text-label-sm">我的</span>
-</button>
-</nav>
+<nav class="fixed bottom-0 left-0 w-full z-50" aria-label="主导航"></nav>
 <script>
         // Micro-interaction for cards
         document.querySelectorAll('.tonal-card').forEach(card => {

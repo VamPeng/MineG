@@ -139,12 +139,9 @@
 <header class="w-full flex flex-col items-center space-y-4 fade-in mt-8">
 <div class="relative">
 <img alt="MineG Logo" class="w-20 h-20 rounded-xl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSBlo-7LTk97wRd-hnuRFhQEXAcWwXaQ9qoe28y_PBarjz-Uzz_uDqRp85QV17a7GyRnid1Xegho2FfeAasTQy6xHrRgD-qu8Z_5e-BP8Q1xn4KsOuj0RRnsxK4dX-0sGt29efOOvUxtc3urC6CYd9W1cS6NsZsGnYN3GMJcTFlpXlklySjM0-CtmoLI8kUBALz9lzE58z-9irJLzfbcx5Q9voFR2vIW5edH-t_ReHpeUUxO2TtL96Z5_PwwMDfN2IICQ9AuM7W-s"/>
-<!-- Subtle glow effect -->
-<div class="absolute -inset-1 bg-primary/5 blur-lg rounded-full -z-10"></div>
 </div>
 <div class="text-center">
 <h1 class="font-headline-md text-headline-md text-on-surface tracking-tight">MineG</h1>
-<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">只属于家人的私人相册</p>
 </div>
 </header>
 <!-- Login Form -->
@@ -152,19 +149,13 @@
 <div class="space-y-4">
 <!-- Phone Number Input -->
 <div class="relative group">
-<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-outline">
-<span class="material-symbols-outlined text-[20px]">smartphone</span>
-</div>
-<input class="w-full h-14 pl-12 pr-4 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入手机号" type="tel"/>
+<input class="w-full h-14 px-4 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入手机号" type="tel"/>
 </div>
 <!-- Password Input -->
 <div class="relative group">
-<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-outline">
-<span class="material-symbols-outlined text-[20px]">lock</span>
-</div>
-<input class="w-full h-14 pl-12 pr-12 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入密码" type="password"/>
-<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors" id="toggle-password" type="button">
-<span class="material-symbols-outlined text-[20px]">visibility_off</span>
+<input class="w-full h-14 pl-4 pr-16 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入密码" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-label-sm text-outline hover:text-primary transition-colors" id="toggle-password" type="button">
+显示
 </button>
 </div>
 </div>
@@ -175,7 +166,7 @@
 <!-- Secondary Action -->
 <div class="text-center">
 <p class="font-body-md text-body-md text-on-surface-variant">
-            还没有账号？<a class="text-primary font-semibold hover:underline" href="#" id="register-link">立即注册</a>
+            还没有账号？<a class="text-primary font-semibold hover:underline" href="../04-signup-admin-review-notice/index.html" id="register-link">立即注册</a>
 </p>
 </div>
 </main>
@@ -187,11 +178,6 @@
             我已阅读并同意 <a class="text-on-surface-variant underline" href="#">服务协议</a> 与 <a class="text-on-surface-variant underline" href="#">隐私政策</a>
 </label>
 </div>
-<!-- Safety Badge -->
-<div class="flex items-center px-4 py-2 bg-surface-container rounded-full space-x-2">
-<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">verified_user</span>
-<span class="font-label-sm text-label-sm text-primary">私有存储 · 安全传输</span>
-</div>
 </footer>
 <script>
     // Simple micro-interaction for password visibility
@@ -202,10 +188,10 @@
     toggleBtn.addEventListener('click', () => {
         visible = !visible;
         passInput.type = visible ? 'text' : 'password';
-        toggleBtn.innerHTML = `<span class="material-symbols-outlined text-[20px]">${visible ? 'visibility' : 'visibility_off'}</span>`;
+        toggleBtn.textContent = visible ? '隐藏' : '显示';
     });
 
-    // 1. Login Flow: Login button -> SCREEN_32 (Private Space)
+    // Login
     document.getElementById('login-btn').addEventListener('click', (e) => {
         const checkbox = document.getElementById('privacy');
         if (!checkbox.checked) {
@@ -213,25 +199,14 @@
             return;
         }
         // Add a slight loading state
-        const originalText = e.target.innerHTML;
-        e.target.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span>';
+        const originalText = e.target.textContent;
+        e.target.textContent = '登录中…';
         
         setTimeout(() => {
-            // Simulated navigation to SCREEN_32
-            window.location.href = '#screen_32'; 
-            console.log('Navigating to Private Space ({{DATA:SCREEN:SCREEN_32}})');
-            e.target.innerHTML = originalText;
+            window.location.href = '../../03-private-space/01-private-space-overview/index.html';
+            e.target.textContent = originalText;
         }, 800);
     });
 
-    // 1. Login Flow: 立即注册 -> SCREEN_48 (Register)
-    document.getElementById('register-link').addEventListener('click', (e) => {
-        e.preventDefault();
-        window.location.href = '#screen_48';
-        console.log('Navigating to Register ({{DATA:SCREEN:SCREEN_48}})');
-    });
-
-    // Note: The specific screen transitions are simulated here since we are staying on this single HTML file.
-    // In a real environment, these would be direct file links or state changes in a SPA.
 </script>
 </body></html>

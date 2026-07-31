@@ -3,7 +3,7 @@
 <html class="light" lang="zh-CN"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Memory - Media Detail</title>
+<title>MineG - 媒体详情</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -135,9 +135,8 @@
 <!-- Top App Bar -->
 <header class="bg-surface/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-margin-mobile py-sm">
 <button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-200">
-<span class="material-symbols-outlined text-primary">arrow_back</span>
+<span class="text-primary" aria-hidden="true">←</span>
 </button>
-<h1 class="font-headline-md text-headline-md-mobile text-primary">Memory</h1>
 <div class="w-10 h-10" aria-hidden="true"></div>
 </header>
 <!-- Main Content Canvas -->
@@ -151,19 +150,15 @@
 </div>
 </div>
 </main>
-<!-- Collapsible Media Actions -->
-<button aria-controls="media-actions" aria-expanded="false" aria-label="展开操作" class="fixed bottom-lg left-1/2 -translate-x-1/2 z-[60] w-12 h-12 rounded-full bg-surface text-primary shadow-lg flex items-center justify-center active:scale-90 transition-all duration-300" id="action-toggle" onclick="toggleMediaActions()">
-<span class="material-symbols-outlined text-[28px]" id="action-toggle-icon">keyboard_arrow_up</span>
-</button>
-<nav aria-hidden="true" class="fixed bottom-0 left-0 w-full z-30 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl translate-y-full opacity-0 pointer-events-none transition-all duration-300" id="media-actions">
+<nav aria-hidden="false" class="fixed bottom-0 left-0 w-full z-30 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl" id="media-actions">
 <button aria-label="下载" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">download</span>
+<span>下载</span>
 </button>
 <button aria-label="共享" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">share</span>
+<span>共享</span>
 </button>
 <button aria-label="删除" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all" onclick="openDeleteModal()">
-<span class="material-symbols-outlined text-[24px]">delete</span>
+<span>删除</span>
 </button>
 </nav>
 <!-- Confirmation Modal Overlay -->
@@ -175,14 +170,11 @@
 <div class="p-lg">
 <!-- Icon/Header -->
 <div class="flex items-center gap-md mb-md">
-<div class="w-12 h-12 rounded-full bg-error-container flex items-center justify-center">
-<span class="material-symbols-outlined text-on-error-container" style="font-variation-settings: 'FILL' 1;">delete</span>
-</div>
 <h3 class="font-headline-md text-on-surface">移入回收站？</h3>
 </div>
 <!-- Description -->
 <p class="font-body-md text-on-surface-variant mb-xl">
-                    移入后媒体将在私人空间和家庭相册中隐藏。你可以在人工永久清理前从回收站恢复。
+                    移入后媒体将在私人空间和家庭相册中隐藏，可从回收站恢复。
                 </p>
 <!-- Actions -->
 <div class="flex flex-col gap-sm">

@@ -6,37 +6,27 @@
     <title>MineG - 备份设置</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
-    <link href="../local-albums.css" rel="stylesheet" />
+    <link href="../local-albums.css?v=20260731-mvp2" rel="stylesheet" />
 </head>
 <body>
     <div class="app-shell">
         <header class="top-bar settings-top-bar">
             <a class="icon-button" href="../03-backup-uploading/index.html" aria-label="返回本地相册">
-                <span class="material-symbols-outlined">arrow_back</span>
+                <span aria-hidden="true">←</span>
             </a>
             <h1>备份设置</h1>
             <span aria-hidden="true"></span>
         </header>
         <main class="content settings-content">
-            <section class="settings-intro">
-                <h2>选择备份方式</h2>
-                <p>设置会立即生效。关闭自动备份后，你仍然可以浏览本地相册并手动开始备份。</p>
-            </section>
             <section class="settings-card" aria-label="备份设置操作">
                 <div class="setting-row">
-                    <span class="setting-icon">
-                        <span class="material-symbols-outlined">cloud_sync</span>
-                    </span>
                     <div class="setting-copy">
                         <h3>自动备份</h3>
                         <p>发现新的本地媒体后自动上传</p>
                     </div>
-                    <button class="switch" id="auto-backup-switch" role="switch" aria-checked="true" aria-label="自动备份"></button>
+                    <button class="switch" id="auto-backup-switch" role="switch" aria-checked="false" aria-label="自动备份"></button>
                 </div>
                 <div class="setting-row" id="cellular-row">
-                    <span class="setting-icon">
-                        <span class="material-symbols-outlined">signal_cellular_alt</span>
-                    </span>
                     <div class="setting-copy">
                         <h3>允许移动网络备份</h3>
                         <p>无 Wi-Fi 时继续上传，可能产生流量费用</p>
@@ -44,10 +34,6 @@
                     <button class="switch" id="cellular-switch" role="switch" aria-checked="false" aria-label="允许移动网络备份"></button>
                 </div>
             </section>
-            <div class="settings-note">
-                <span class="material-symbols-outlined">lock</span>
-                <span>备份媒体默认只保存在你的私人空间。只有主动共享的媒体才会出现在家庭相册中。</span>
-            </div>
         </main>
     </div>
     <script>
@@ -72,7 +58,7 @@
             cellularRow.classList.toggle("is-disabled", !autoBackupEnabled);
         };
 
-        setSwitch(autoSwitch, isEnabled(autoBackupKey, true));
+        setSwitch(autoSwitch, isEnabled(autoBackupKey, false));
         setSwitch(cellularSwitch, isEnabled(cellularBackupKey, false));
         updateCellularAvailability();
 

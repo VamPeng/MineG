@@ -121,7 +121,7 @@
 <!-- Top AppBar (JSON Derived) -->
 <header class="w-full top-0 bg-surface dark:bg-surface-dim flex items-center justify-between px-margin-mobile py-md w-full z-10">
 <button class="active:scale-95 duration-200 hover:bg-surface-variant/20 transition-colors p-2 rounded-full">
-<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim">arrow_back</span>
+<span class="text-primary dark:text-primary-fixed-dim" aria-hidden="true">←</span>
 </button>
 <h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-primary-fixed-dim">MineG</h1>
 <div class="w-10"></div> <!-- Spacer for centering -->
@@ -136,12 +136,10 @@
 <div class="space-y-xs">
 <label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="phone">手机号</label>
 <div class="relative">
-<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-error">smartphone</span>
-<input aria-describedby="phone-error" aria-invalid="true" class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-2 border-error focus:ring-0 text-on-surface placeholder:text-outline-variant transition-all" id="phone" placeholder="请输入手机号码" type="tel" value="123456"/>
+<input aria-describedby="phone-error" aria-invalid="true" class="w-full px-4 py-3 bg-surface-container rounded-lg border-2 border-error focus:ring-0 text-on-surface placeholder:text-outline-variant transition-all" id="phone" placeholder="请输入手机号码" type="tel" value="123456"/>
 </div>
 <!-- Error Message -->
 <div class="flex items-center gap-1 mt-1 ml-1 text-error" id="phone-error">
-<span class="material-symbols-outlined text-[16px]">error</span>
 <span class="font-label-sm text-label-sm">手机号格式不正确</span>
 </div>
 </div>
@@ -149,10 +147,9 @@
 <div class="space-y-xs">
 <label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="password">设置密码</label>
 <div class="relative">
-<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">lock</span>
-<input class="w-full pl-12 pr-12 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" id="password" placeholder="建议8位以上数字或字母" type="password"/>
-<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors" type="button">
-<span class="material-symbols-outlined">visibility</span>
+<input class="w-full pl-4 pr-16 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" id="password" placeholder="建议8位以上数字或字母" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-label-sm text-outline hover:text-primary transition-colors" type="button">
+显示
 </button>
 </div>
 </div>
@@ -160,32 +157,17 @@
 <div class="space-y-xs">
 <label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="confirm-password">确认密码</label>
 <div class="relative">
-<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">verified_user</span>
-<input class="w-full pl-12 pr-4 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" id="confirm-password" placeholder="请再次输入密码" type="password"/>
+<input class="w-full px-4 py-3 bg-surface-container rounded-lg border-none focus:ring-2 focus:ring-primary-container text-on-surface placeholder:text-outline-variant transition-all" id="confirm-password" placeholder="请再次输入密码" type="password"/>
 </div>
 </div>
-<!-- Admin Review Notice -->
-<div class="mt-lg p-md bg-secondary-container/10 rounded-lg flex items-start gap-sm">
-<span class="material-symbols-outlined text-secondary mt-0.5 scale-75">info</span>
-<p class="text-on-secondary-fixed-variant text-sm font-label-sm leading-relaxed">
-                    注册后需要家庭管理员审核。审核通过后，您将获得访问家庭私有云空间的权限。
-                </p>
-</div>
+<p class="mt-md text-sm text-on-surface-variant">注册后需要审核。</p>
 <!-- Register Button -->
 <button class="w-full mt-lg bg-primary text-on-primary font-headline-md py-4 rounded-lg shadow-md active:scale-[0.98] transition-transform duration-200" type="button">
                     提交注册
                 </button>
 </form>
-<p class="text-center mt-xl font-body-md text-on-surface-variant">
-                已有账号？ <a class="text-primary font-semibold hover:underline" href="#">直接登录</a>
-</p>
 </div>
 </main>
-<!-- Background Atmospheric Effect -->
-<div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-<div class="absolute top-[-10%] right-[-10%] w-96 h-96 rounded-full bg-primary-fixed/20 blur-[100px]"></div>
-<div class="absolute bottom-[-10%] left-[-10%] w-80 h-80 rounded-full bg-secondary-fixed/20 blur-[80px]"></div>
-</div>
 <!-- Navigation suppression check: As per "Semantic Shell Mandate", BottomNavBar is suppressed on transactional screens like Sign-up -->
 <script>
         // Micro-interaction for input focus

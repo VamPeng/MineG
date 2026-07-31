@@ -142,19 +142,13 @@
 <div class="space-y-4">
 <!-- Phone Number Input -->
 <div class="relative group">
-<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-outline">
-<span class="material-symbols-outlined text-[20px]">smartphone</span>
-</div>
-<input class="w-full h-14 pl-12 pr-4 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入手机号" type="tel"/>
+<input class="w-full h-14 px-4 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入手机号" type="tel"/>
 </div>
 <!-- Password Input -->
 <div class="relative group">
-<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-outline">
-<span class="material-symbols-outlined text-[20px]">lock</span>
-</div>
-<input class="w-full h-14 pl-12 pr-12 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入密码" type="password"/>
-<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors" type="button">
-<span class="material-symbols-outlined text-[20px]">visibility_off</span>
+<input class="w-full h-14 pl-4 pr-16 bg-surface-container-low border-none rounded-xl font-body-md text-body-md placeholder:text-outline/60 focus:ring-2 focus:ring-primary transition-all" placeholder="请输入密码" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-label-sm text-outline hover:text-primary transition-colors" type="button">
+显示
 </button>
 </div>
 </div>
@@ -165,18 +159,10 @@
 <!-- Secondary Action -->
 <div class="text-center">
 <p class="font-body-md text-body-md text-on-surface-variant">
-                还没有账号？<a class="text-primary font-semibold hover:underline" href="#">立即注册</a>
+                还没有账号？<a class="text-primary font-semibold hover:underline" href="../04-signup-admin-review-notice/index.html">立即注册</a>
 </p>
 </div>
 </main>
-<!-- Footer -->
-<footer class="w-full flex flex-col items-center space-y-4 fade-in" style="animation-delay: 0.2s;">
-<!-- Safety Badge -->
-<div class="flex items-center px-4 py-2 bg-surface-container rounded-full space-x-2">
-<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">verified_user</span>
-<span class="font-label-sm text-label-sm text-primary">私有存储 · 安全传输</span>
-</div>
-</footer>
 <script>
         // Simple micro-interaction for password visibility
         const toggleBtn = document.querySelector('button[type="button"]');
@@ -186,12 +172,12 @@
         toggleBtn.addEventListener('click', () => {
             visible = !visible;
             passInput.type = visible ? 'text' : 'password';
-            toggleBtn.innerHTML = `<span class="material-symbols-outlined text-[20px]">${visible ? 'visibility' : 'visibility_off'}</span>`;
+            toggleBtn.textContent = visible ? '隐藏' : '显示';
         });
 
         // Login loading state (demo only)
         document.querySelector('button.bg-primary').addEventListener('click', (e) => {
-            e.target.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span>';
+            e.target.textContent = '登录中…';
             setTimeout(() => {
                 e.target.innerHTML = '登录';
             }, 1000);

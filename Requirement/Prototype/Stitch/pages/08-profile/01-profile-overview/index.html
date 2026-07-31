@@ -127,28 +127,17 @@
   </head>
 <body class="min-h-screen pb-32">
 <!-- TopAppBar -->
-<nav class="bg-surface sticky top-0 w-full z-40 flex items-center justify-between px-margin-mobile py-md w-full">
-<div class="flex items-center gap-sm">
-<button class="p-xs text-primary hover:bg-surface-variant/20 transition-colors active:scale-95 duration-200 rounded-full flex items-center justify-center">
-<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
-</button>
-</div>
-<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary">MineG</h1>
-<div class="w-10"></div> <!-- Spacer for center alignment -->
+<nav class="bg-surface sticky top-0 w-full z-40 px-margin-mobile py-md">
+<h1 class="font-headline-md text-headline-md-mobile text-on-surface">我的</h1>
 </nav>
 <main class="px-margin-mobile pt-lg">
 <!-- User Profile Card -->
 <section class="relative overflow-hidden bg-white rounded-xl p-lg profile-glow flex flex-col items-center gap-md border border-surface-container-high/50">
-<!-- Background Accent -->
-<div class="absolute -top-12 -right-12 w-32 h-32 bg-primary-fixed/30 rounded-full blur-2xl"></div>
 <!-- Avatar Section -->
 <div class="relative group">
-<div class="w-24 h-24 rounded-full border-4 border-surface overflow-hidden shadow-sm">
-<img class="w-full h-full object-cover" data-alt="A warm and gentle portrait of a middle-aged woman with a kind smile, looking directly at the camera. The photography style is high-end lifestyle portraiture with soft, natural morning light filtering through a window, creating a serene and trustworthy 'digital hearth' atmosphere. The background is a slightly blurred, cozy home interior with warm wooden textures and soft cream-colored walls, maintaining the MineG brand palette of Sage Green and warm neutrals." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwj_G4bzCQnl-rfLSXZTJuYZDGogkvvjnljhwS0fU5u61bcAN_CwHO5xr1LgMxmZgFOctFxj9ssbIx3T1ECfD-JVKEnZqWV1vsEqx7hDm9FkvqBXb8SQ1v-yJ7iE0SyQ7UqlJVkqtezfl4FcMlGchuCr-Wf5fdZDIuZRx73cw7FMCC_2Y91c7k75Kg4BmlkrGzU3BHg9VSpsOVvlkEFOVzv8FPkq3x3EnwFCctEf0YGoi_NsdbnrvC7YBuEkn_vAsyYd4U-awqWFU"/>
+<div aria-label="当前头像" class="w-24 h-24 rounded-full border-4 border-surface bg-primary-container text-on-primary-container flex items-center justify-center text-3xl font-bold shadow-sm">
+林
 </div>
-<button class="absolute bottom-0 right-0 bg-primary text-on-primary p-xs rounded-full shadow-lg border-2 border-white hover:scale-110 active:scale-95 transition-all">
-<span class="material-symbols-outlined !text-[18px]" data-icon="photo_camera">photo_camera</span>
-</button>
 </div>
 <!-- User Info -->
 <div class="text-center">
@@ -158,11 +147,9 @@
 <!-- Action Buttons Grid -->
 <div class="grid grid-cols-2 gap-sm w-full mt-sm">
 <button class="flex items-center justify-center gap-xs py-sm px-md rounded-lg bg-surface-container-low text-primary font-label-sm text-label-sm border border-outline-variant/30 hover:bg-surface-variant/20 transition-colors active:scale-95">
-<span class="material-symbols-outlined !text-[18px]" data-icon="edit_square">edit_square</span>
                     编辑昵称
                 </button>
 <button class="flex items-center justify-center gap-xs py-sm px-md rounded-lg bg-surface-container-low text-primary font-label-sm text-label-sm border border-outline-variant/30 hover:bg-surface-variant/20 transition-colors active:scale-95">
-<span class="material-symbols-outlined !text-[18px]" data-icon="account_circle">account_circle</span>
                     修改头像
                 </button>
 </div>
@@ -171,83 +158,55 @@
 <section class="mt-lg flex flex-col gap-sm">
 <div class="bg-white rounded-xl overflow-hidden border border-surface-container-high/50">
 <!-- Backup Setting -->
-<button class="w-full flex items-center justify-between p-md hover:bg-surface-variant/10 active:bg-surface-variant/20 transition-colors group">
-<div class="flex items-center gap-md">
-<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
-</div>
+<a class="w-full flex items-center justify-between p-md hover:bg-surface-variant/10 active:bg-surface-variant/20 transition-colors group" href="../../06-backup/01-auto-backup-default-on-decision-a/index.html">
+<div class="flex items-center">
 <div class="text-left">
 <p class="font-body-lg text-body-lg text-on-surface font-medium">备份设置</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant">管理照片自动上传与同步频率</p>
 </div>
 </div>
-<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
-</button>
+<span class="text-outline-variant" aria-hidden="true">›</span>
+</a>
 <div class="h-[1px] bg-surface-container-high mx-md"></div>
 <!-- Recycle Bin -->
 <a class="w-full flex items-center justify-between p-md hover:bg-surface-variant/10 active:bg-surface-variant/20 transition-colors group" href="../../07-recycle-bin/01-recycle-bin-populated/index.html">
-<div class="flex items-center gap-md">
-<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-<span class="material-symbols-outlined" data-icon="delete_outline">delete_outline</span>
-</div>
+<div class="flex items-center">
 <div class="text-left">
 <p class="font-body-lg text-body-lg text-on-surface font-medium">回收站</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant">查看并恢复已删除的照片和视频</p>
 </div>
 </div>
-<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+<span class="text-outline-variant" aria-hidden="true">›</span>
 </a>
 <div class="h-[1px] bg-surface-container-high mx-md"></div>
 <!-- Shared By Me -->
 <a class="w-full flex items-center justify-between p-md hover:bg-surface-variant/10 active:bg-surface-variant/20 transition-colors group" href="../../05-family-album/01-family-album-timeline/index.html?view=mine">
-<div class="flex items-center gap-md">
-<div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
-<span class="material-symbols-outlined" data-icon="share">share</span>
-</div>
+<div class="flex items-center">
 <div class="text-left">
 <p class="font-body-lg text-body-lg text-on-surface font-medium">我分享的</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant">查看我共享给家人的照片和视频</p>
 </div>
 </div>
-<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+<span class="text-outline-variant" aria-hidden="true">›</span>
 </a>
 </div>
 <!-- Help & Support -->
 <div class="bg-white rounded-xl overflow-hidden border border-surface-container-high/50 mt-sm">
 <button class="w-full flex items-center justify-between p-md hover:bg-surface-variant/10 active:bg-surface-variant/20 transition-colors group">
-<div class="flex items-center gap-md">
-<div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
-<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
-</div>
+<div class="flex items-center">
 <div class="text-left">
 <p class="font-body-lg text-body-lg text-on-surface font-medium">帮助与反馈</p>
 </div>
 </div>
-<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+<span class="text-outline-variant" aria-hidden="true">›</span>
 </button>
+<div class="h-[1px] bg-surface-container-high mx-md"></div>
+<a class="w-full flex items-center justify-between p-md text-error hover:bg-error-container/10 active:bg-error-container/20 transition-colors group" href="../02-logout-confirmation/index.html">
+<span class="font-body-lg text-body-lg font-medium">退出登录</span>
+<span aria-hidden="true">›</span>
+</a>
 </div>
 </section>
-<!-- Privacy Shield Indicator (Brand Guidance) -->
-<div class="mt-xl flex flex-col items-center opacity-40 grayscale pointer-events-none">
-<span class="material-symbols-outlined text-[32px] text-primary mb-xs" data-icon="shield_with_heart" style="font-variation-settings: 'FILL' 1;">shield_with_heart</span>
-<p class="font-label-sm text-label-sm">私有存储 · 安全传输</p>
-</div>
 </main>
 <!-- Bottom Navigation Bar -->
-<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-margin-mobile py-sm bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md rounded-t-xl shadow-sm">
-<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary active:scale-90 transition-all duration-150">
-<span class="material-symbols-outlined" data-icon="lock">lock</span>
-<span class="font-label-sm text-label-sm">私人空间</span>
-</button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary active:scale-90 transition-all duration-150">
-<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
-<span class="font-label-sm text-label-sm">备份</span>
-</button>
-<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-6 py-1 active:scale-90 transition-all duration-150">
-<span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
-<span class="font-label-sm text-label-sm">我的</span>
-</button>
-</nav>
+<nav class="fixed bottom-0 left-0 w-full z-50" aria-label="主导航"></nav>
 <script>
         // Micro-interactions
         document.querySelectorAll('button').forEach(btn => {

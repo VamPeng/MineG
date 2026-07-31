@@ -122,14 +122,12 @@
 <!-- Top AppBar (Identity Anchor) -->
 <header class="w-full top-0 z-50 bg-surface flex items-center justify-between px-margin-mobile py-md">
 <button class="text-primary hover:bg-surface-variant/20 transition-colors p-2 rounded-full active:scale-95 duration-200">
-<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+<span aria-hidden="true">←</span>
 </button>
 <h1 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-tight">MineG</h1>
 <div class="w-10"></div> <!-- Spacer for balance -->
 </header>
 <main class="flex-grow flex items-center justify-center px-margin-mobile py-xl relative overflow-hidden">
-<!-- Atmospheric Background Element -->
-<div class="absolute inset-0 hearth-glow -z-10"></div>
 <!-- Registration Card -->
 <div class="w-full max-w-md glass-panel p-lg rounded-xl shadow-sm border border-surface-variant/30 flex flex-col gap-lg">
 <div class="text-center">
@@ -141,12 +139,10 @@
 <div class="space-y-xs">
 <label class="font-label-sm text-label-sm text-on-surface-variant px-1" for="phone">手机号</label>
 <div class="relative group">
-<span class="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant material-symbols-outlined" data-icon="smartphone">smartphone</span>
-<input aria-describedby="phone-error" aria-invalid="true" class="w-full pl-12 pr-4 py-4 bg-surface-container rounded-lg border-2 border-error outline-none transition-all duration-200 text-body-md font-body-md text-on-surface placeholder:text-outline-variant focus:ring-0" id="phone" placeholder="请输入手机号码" type="tel" value="13800138000"/>
+<input aria-describedby="phone-error" aria-invalid="true" class="w-full px-4 py-4 bg-surface-container rounded-lg border-2 border-error outline-none transition-all duration-200 text-body-md font-body-md text-on-surface placeholder:text-outline-variant focus:ring-0" id="phone" placeholder="请输入手机号码" type="tel" value="13800138000"/>
 </div>
 <!-- Error Message -->
 <div class="flex items-center gap-1 px-1 mt-1 animate-pulse" id="phone-error">
-<span class="material-symbols-outlined text-[16px] text-error" data-icon="error">error</span>
 <p class="text-error font-label-sm text-label-sm">该手机号已注册</p>
 </div>
 </div>
@@ -154,10 +150,9 @@
 <div class="space-y-xs">
 <label class="font-label-sm text-label-sm text-on-surface-variant px-1" for="password">设置密码</label>
 <div class="relative group">
-<span class="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant material-symbols-outlined" data-icon="lock">lock</span>
-<input class="w-full pl-12 pr-12 py-4 bg-surface-container rounded-lg border-2 border-transparent focus:border-primary outline-none transition-all duration-200 text-body-md font-body-md text-on-surface placeholder:text-outline-variant" id="password" placeholder="建议8位以上数字或字母" type="password"/>
-<button class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary" type="button">
-<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<input class="w-full pl-4 pr-16 py-4 bg-surface-container rounded-lg border-2 border-transparent focus:border-primary outline-none transition-all duration-200 text-body-md font-body-md text-on-surface placeholder:text-outline-variant" id="password" placeholder="建议8位以上数字或字母" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-label-sm text-on-surface-variant hover:text-primary" type="button">
+显示
 </button>
 </div>
 </div>
@@ -165,33 +160,17 @@
 <div class="space-y-xs">
 <label class="font-label-sm text-label-sm text-on-surface-variant px-1" for="confirm-password">确认密码</label>
 <div class="relative group">
-<span class="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant material-symbols-outlined" data-icon="verified_user">verified_user</span>
-<input class="w-full pl-12 pr-4 py-4 bg-surface-container rounded-lg border-2 border-transparent focus:border-primary outline-none transition-all duration-200 text-body-md font-body-md text-on-surface placeholder:text-outline-variant" id="confirm-password" placeholder="请再次输入密码" type="password"/>
+<input class="w-full px-4 py-4 bg-surface-container rounded-lg border-2 border-transparent focus:border-primary outline-none transition-all duration-200 text-body-md font-body-md text-on-surface placeholder:text-outline-variant" id="confirm-password" placeholder="请再次输入密码" type="password"/>
 </div>
 </div>
-<!-- Admin Review Notice -->
-<div class="mt-lg p-md bg-secondary-container/10 rounded-lg flex items-start gap-sm">
-<span class="material-symbols-outlined text-secondary mt-0.5 scale-75" data-icon="info">info</span>
-<p class="text-on-secondary-fixed-variant text-sm font-label-sm leading-relaxed">
-                    注册后需要家庭管理员审核。审核通过后，您将获得访问家庭私有云空间的权限。
-                </p>
-</div>
+<p class="mt-md text-sm text-on-surface-variant">注册后需要审核。</p>
 <!-- Register Button -->
 <button class="w-full py-4 mt-lg bg-primary text-on-primary font-headline-md text-headline-md-mobile rounded-lg shadow-sm hover:opacity-90 active:scale-[0.98] transition-all duration-200">
                     提交注册
                 </button>
 </form>
-<!-- Links -->
-<div class="text-center">
-<p class="text-label-sm font-label-sm text-on-surface-variant">
-                    已有账号？ <a class="text-primary font-bold hover:underline" href="#">直接登录</a>
-</p>
-</div>
 </div>
 </main>
-<!-- Visual Accent Element (Digital Hearth) -->
-<div class="fixed -bottom-32 -right-32 w-64 h-64 bg-primary-fixed/20 blur-[100px] rounded-full"></div>
-<div class="fixed -top-32 -left-32 w-64 h-64 bg-secondary-fixed/20 blur-[100px] rounded-full"></div>
 <script>
         // Simple micro-interaction for input fields
         document.querySelectorAll('input').forEach(input => {

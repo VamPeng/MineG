@@ -142,7 +142,7 @@ a {
 
 .setting-row {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
     min-height: 86px;

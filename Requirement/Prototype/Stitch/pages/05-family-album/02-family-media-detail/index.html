@@ -117,6 +117,9 @@
   </style>
   </head>
 <body class="antialiased overflow-hidden select-none">
+<header class="fixed top-0 left-0 z-20 p-margin-mobile">
+<a aria-label="返回共享相册" class="flex h-10 w-10 items-center justify-center rounded-full bg-surface/80 text-on-surface shadow-sm" href="../01-family-album-timeline/index.html">←</a>
+</header>
 <!-- Main Content Canvas -->
 <main class="relative w-full h-[calc(100vh-80px)] flex items-center justify-center px-margin-mobile sm:px-margin-tablet">
 <!-- Photo Container with subtle Tonal Layering -->
@@ -128,23 +131,17 @@
 </main>
 <!-- Bottom Metadata Section -->
 <footer class="fixed bottom-0 w-full h-20 bg-surface/80 backdrop-blur-md flex flex-col items-center justify-center gap-1 border-none shadow-none z-10">
-<!-- "來自：晨曦爸爸" - Strict Labeling -->
+<!-- 共享者 -->
 <div class="flex items-center gap-2">
 <span class="font-label-sm text-label-sm text-outline">来自：</span>
-<span class="font-label-sm text-label-sm text-on-surface font-semibold">晨曦爸爸</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">我</span>
 </div>
 <!-- Date - Strict Labeling -->
 <div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-[14px] text-outline">calendar_today</span>
 <time class="font-label-sm text-label-sm text-outline-variant">2024年10月20日</time>
 </div>
 </footer>
-<!-- Anti-Interaction Overlay (Visual Reinforcement of Read-Only) -->
-<div class="fixed inset-0 pointer-events-none border-[12px] border-surface/10 rounded-3xl z-50"></div>
 <script>
-        // Micro-interaction: prevent context menu to reinforce "Read Only"
-        document.addEventListener('contextmenu', event => event.preventDefault());
-
         // Simple Fade-in effect for the main image
         window.addEventListener('load', () => {
             const img = document.querySelector('img');

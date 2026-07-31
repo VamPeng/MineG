@@ -3,7 +3,7 @@
 <html lang="zh-CN"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Memory - 媒体详情</title>
+<title>MineG - 媒体详情</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -146,15 +146,13 @@
 <!-- Top AppBar (from Shared Components JSON) -->
 <header class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md sticky top-0 z-50 docked full-width flex justify-between items-center w-full px-margin-mobile py-sm">
 <button class="flex items-center justify-center p-unit text-primary transition-colors hover:bg-surface-container-high active:scale-95 duration-200">
-<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+<span aria-hidden="true">←</span>
 </button>
-<h1 class="font-headline-md text-headline-md-mobile text-primary">Memory</h1>
 <div class="w-10 h-10" aria-hidden="true"></div>
 </header>
 <!-- Success Toast -->
 <div class="fixed top-24 left-1/2 -translate-x-1/2 z-[60] toast-active" id="success-toast">
 <div class="bg-primary text-on-primary px-lg py-sm rounded-full shadow-lg flex items-center gap-sm">
-<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
 <span class="font-label-sm text-label-sm">共享成功</span>
 </div>
 </div>
@@ -164,19 +162,15 @@
 <img class="w-full h-full object-cover" data-alt="A warm, nostalgic high-resolution photograph of a multi-generational family gathering around a large rustic wooden table in a sun-drenched dining room. The lighting is soft and golden, suggesting a late afternoon glow. The color palette is composed of warm creams, sage greens, and earthy browns, consistent with a digital hearth aesthetic. The focus is sharp on the joyful expressions of the family members, creating a feeling of safety, love, and private precious moments." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtHwVjm5UDlWzViHpQ3S0anAhTMGU6GQn3rMa9K2NaEPIFU2usgPVKJmsXHQ29qZDQjJ4j6h3oBCo6dQapxY4L131Ja29PgFl6wOJdkcHEXGjGIwZupI5KaFdFvDIDwj4liosvwdYp9OLH8s0wJpEbJ11XeLQIiGdnd-eH_pN6_XIbpnH1hZ8vA4fw0JhWab8q31xMh2DwsUAAF7dLOZKPgFu9fY49bbwmlEu9I7VUsYh6g1E61wXDYNuWbXTPZW_uPMNbiUP2SbM"/>
 </div>
 </main>
-<!-- Collapsible Media Actions -->
-<button aria-controls="media-actions" aria-expanded="false" aria-label="展开操作" class="fixed bottom-lg left-1/2 -translate-x-1/2 z-[60] w-12 h-12 rounded-full bg-surface dark:bg-surface-dim text-primary shadow-lg flex items-center justify-center active:scale-90 transition-all duration-300" id="action-toggle" onclick="toggleMediaActions()">
-<span class="material-symbols-outlined text-[28px]" id="action-toggle-icon">keyboard_arrow_up</span>
-</button>
-<nav aria-hidden="true" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl translate-y-full opacity-0 pointer-events-none transition-all duration-300" id="media-actions">
+<nav aria-hidden="false" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-sm bg-surface dark:bg-surface-dim shadow-[0_-2px_12px_rgba(0,0,0,0.05)] rounded-t-xl" id="media-actions">
 <button aria-label="下载" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">download</span>
+<span>下载</span>
 </button>
 <button aria-label="共享" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">share</span>
+<span>共享</span>
 </button>
 <button aria-label="删除" class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest active:scale-90 transition-all">
-<span class="material-symbols-outlined text-[24px]">delete</span>
+<span>删除</span>
 </button>
 </nav>
 <script>

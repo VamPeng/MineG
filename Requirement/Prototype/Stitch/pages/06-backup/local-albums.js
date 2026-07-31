@@ -8,7 +8,7 @@
         localStorage.setItem(storageKey, requestedSetting);
     }
 
-    const autoBackupEnabled = localStorage.getItem(storageKey) !== "0";
+    const autoBackupEnabled = localStorage.getItem(storageKey) === "1";
 
     const images = [
         "https://lh3.googleusercontent.com/aida-public/AB6AXuDhmqSlNB97JLa6iEpG7z-IWlDeKlX_-_ZVDKqpqbhnN5Fyzvqr4vDjNVAvRGV8fHuWhdAtMCGImtYIr27oFjwsmoTsHVnbS3vXs8nye0HTP2gKZl7jFp1Dssu3MAtKDpc3-G337eG2gMS6pvOvYzqM55VDgTNpK51-9cs-TN8Z2ybjsbfyJt_Hl6juow3s9Yi6z-II6mgzuSTYUXSEnwhq8ogNCvLNWh5U7cL8usPClmsjbMsFF3UFfSuH2ucS3FrcWlBDbLF4S34",
@@ -62,20 +62,10 @@
             image: images[0],
             className: "paused"
         },
-        storage: {
-            chip: "空间不足",
-            chipIcon: "cloud_alert",
-            title: "同步需要处理",
-            description: "云端空间不足，请清理空间后继续",
-            percent: "68%",
-            progress: "68%",
-            image: images[0],
-            className: "error-state"
-        },
         service: {
             chip: "服务异常",
             chipIcon: "cloud_off",
-            title: "暂时无法连接云端",
+            title: "暂时无法连接服务",
             description: "本地媒体仍可浏览，稍后将自动重试",
             percent: "68%",
             progress: "68%",
@@ -90,9 +80,9 @@
     };
 
     const albums = [
-        { name: "最近项目", count: "1,286 项", imageIndexes: [0, 1, 2, 3, 4, 5], videoIndexes: [2] },
-        { name: "家庭时光", count: "238 项", imageIndexes: [6, 7, 0, 2, 5, 1], videoIndexes: [1, 4] },
-        { name: "旅行", count: "96 项", imageIndexes: [4, 3, 5, 1, 0, 7], videoIndexes: [] }
+        { name: "最近项目", imageIndexes: [0, 1, 2, 3, 4, 5], videoIndexes: [2] },
+        { name: "家庭时光", imageIndexes: [6, 7, 0, 2, 5, 1], videoIndexes: [1, 4] },
+        { name: "旅行", imageIndexes: [4, 3, 5, 1, 0, 7], videoIndexes: [] }
     ];
 
     function mediaTile(imageIndex, isVideo, index) {
@@ -101,7 +91,7 @@
                 <img alt="本地相册媒体缩略图" src="${images[imageIndex]}" />
                 ${isVideo ? `
                     <span class="media-badge" aria-label="视频">
-                        <span class="material-symbols-outlined">play_arrow</span>
+                        <span aria-hidden="true">▶</span>
                     </span>
                 ` : ""}
             </button>
@@ -113,7 +103,6 @@
             <section class="album-section">
                 <div class="album-heading">
                     <h2>${album.name}</h2>
-                    <span class="album-count">${album.count}</span>
                 </div>
                 <div class="media-grid">
                     ${album.imageIndexes.map((imageIndex, index) =>
@@ -128,20 +117,10 @@
         if (state.complete) {
             return `
                 <section class="sync-panel">
-                    <div class="sync-heading">
-                        <p class="eyebrow">同步状态</p>
-                        <span class="status-chip">
-                            <span class="material-symbols-outlined">${state.chipIcon}</span>
-                            ${state.chip}
-                        </span>
-                    </div>
                     <div class="sync-card complete-card">
                         <div>
-                            <div class="complete-icon">
-                                <span class="material-symbols-outlined">check_circle</span>
-                            </div>
-                            <h2>同步完成</h2>
-                            <p>本地媒体已全部安全备份</p>
+                            <h2>备份完成</h2>
+                            <p>已完成当前备份</p>
                         </div>
                     </div>
                 </section>
@@ -150,13 +129,6 @@
 
         return `
             <section class="sync-panel ${state.className}">
-                <div class="sync-heading">
-                    <p class="eyebrow">同步状态</p>
-                    <span class="status-chip">
-                        <span class="material-symbols-outlined">${state.chipIcon}</span>
-                        ${state.chip}
-                    </span>
-                </div>
                 <div class="sync-card" style="--progress: ${state.progress}">
                     <img class="sync-photo" alt="当前正在同步的本地媒体" src="${state.image}" />
                     <div class="sync-shade"></div>
@@ -178,20 +150,10 @@
     function disabledStatusPanel() {
         return `
             <section class="sync-panel paused">
-                <div class="sync-heading">
-                    <p class="eyebrow">同步状态</p>
-                    <span class="status-chip">
-                        <span class="material-symbols-outlined">pause_circle</span>
-                        自动备份已关闭
-                    </span>
-                </div>
                 <div class="sync-card complete-card">
                     <div>
-                        <div class="complete-icon">
-                            <span class="material-symbols-outlined">cloud_off</span>
-                        </div>
-                        <h2>浏览你的本地媒体</h2>
-                        <p>点击下方按钮即可开始备份</p>
+                        <h2>自动备份已关闭</h2>
+                        <p>开启后才会上传新照片和视频</p>
                     </div>
                 </div>
             </section>
@@ -206,7 +168,7 @@
             <header class="top-bar">
                 <h1>本地相册</h1>
                 <a class="icon-button" href="../01-auto-backup-default-on-decision-a/index.html" aria-label="打开备份设置">
-                    <span class="material-symbols-outlined">settings</span>
+                    <span>设置</span>
                 </a>
             </header>
             <main class="content">
@@ -218,27 +180,9 @@
                 </div>
             </main>
             <button class="start-backup" id="start-backup" type="button">
-                <span class="material-symbols-outlined">cloud_upload</span>
                 开始备份
             </button>
-            <nav class="bottom-nav" aria-label="主导航">
-                <a class="nav-item" href="../../03-private-space/01-private-space-overview/index.html">
-                    <span class="material-symbols-outlined">shield_person</span>
-                    <span>私人空间</span>
-                </a>
-                <a class="nav-item" href="../../05-family-album/01-family-album-timeline/index.html">
-                    <span class="material-symbols-outlined">photo_library</span>
-                    <span>家庭相册</span>
-                </a>
-                <a class="nav-item active" href="../03-backup-uploading/index.html" aria-current="page">
-                    <span class="material-symbols-outlined">cloud_upload</span>
-                    <span>备份</span>
-                </a>
-                <a class="nav-item" href="../../08-profile/01-profile-overview/index.html">
-                    <span class="material-symbols-outlined">person</span>
-                    <span>我的</span>
-                </a>
-            </nav>
+            <nav class="bottom-nav" aria-label="主导航"></nav>
         </div>
     `;
 
