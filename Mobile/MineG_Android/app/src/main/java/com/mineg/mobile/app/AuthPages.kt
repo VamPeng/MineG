@@ -66,7 +66,7 @@ fun LoginPage(
   onSignUp: () -> Unit,
   onLegal: (LegalDocument) -> Unit,
 ) {
-  AuthPageFrame(title = "只属于家人的私人相册", subtitle = "照片先在设备端加密，再安全备份。", semanticId = "auth.login") {
+  AuthPageFrame(title = "只属于家人的私人相册", subtitle = "照片通过安全连接，备份至私人存储。", semanticId = "auth.login") {
     state.message?.let { InlineMessage(it, state.messageIsError) }
     OutlinedTextField(
       value = state.phone,

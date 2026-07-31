@@ -358,7 +358,7 @@ private data class BackupPresentation(
 private fun backupPresentation(status: BackupStatus): BackupPresentation = when (status) {
   BackupStatus.PERMISSION_REQUIRED -> BackupPresentation("需要相册权限", "授予完整权限后才能建立本地索引", Icons.Outlined.Lock, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
   BackupStatus.SCANNING -> BackupPresentation("正在扫描媒体库", "首次扫描会分批进行，不影响浏览", Icons.Outlined.Refresh, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
-  BackupStatus.UPLOADING -> BackupPresentation("正在安全备份", "媒体已在设备端加密", Icons.Outlined.CloudQueue, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+  BackupStatus.UPLOADING -> BackupPresentation("正在安全备份", "原始媒体通过安全连接上传", Icons.Outlined.CloudQueue, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
   BackupStatus.WAITING_WIFI -> BackupPresentation("等待 Wi-Fi", "连接 Wi-Fi 后自动继续", Icons.Outlined.CloudQueue, MaterialTheme.mineGColors.warning, MaterialTheme.mineGColors.warningContainer)
   BackupStatus.NETWORK_OFFLINE -> BackupPresentation("网络离线", "网络恢复后从已确认进度继续", Icons.Outlined.CloudOff, MaterialTheme.mineGColors.warning, MaterialTheme.mineGColors.warningContainer)
   BackupStatus.DEVICE_STORAGE_FULL -> BackupPresentation("设备空间不足", "释放设备空间后重试", Icons.Outlined.Storage, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.errorContainer)
@@ -454,7 +454,7 @@ fun PrivateMediaDetailPage(
   Scaffold(
     topBar = {
       DetailTopBar("Memory", onBack) {
-        Icon(Icons.Outlined.Lock, "已加密", tint = MaterialTheme.mineGColors.success)
+        Icon(Icons.Outlined.Lock, "私人内容", tint = MaterialTheme.mineGColors.success)
       }
     },
     containerColor = MaterialTheme.colorScheme.background,

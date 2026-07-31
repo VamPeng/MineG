@@ -234,7 +234,7 @@ private fun BrandLockup() {
 
 @Composable
 private fun LoginScreen(state: AccountUiState, viewModel: AccountViewModel) {
-  AuthFrame("欢迎回来", "登录你的私人家庭相册，所有密钥材料只在设备端处理。", "auth.login") {
+  AuthFrame("欢迎回来", "登录你的私人家庭相册，媒体通过安全连接传输。", "auth.login") {
     AccountMessage(state)
     OutlinedTextField(
       value = state.phone,
@@ -629,7 +629,7 @@ private fun BackupOverviewScreen(state: AccountUiState, viewModel: AccountViewMo
             )
             state.singleMediaBackup?.let { backup ->
               Text(
-                "单媒体加密备份：${backup.state.name} · ${backup.uploadedParts}/${backup.partCount} 分片",
+                "单媒体原始内容备份：${backup.state.name} · ${backup.uploadedParts}/${backup.partCount} 分片",
                 modifier = Modifier.testTag("backup.overview.singleMediaStatus"),
                 style = MaterialTheme.typography.bodySmall,
               )
