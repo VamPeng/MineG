@@ -9,6 +9,7 @@
 .env
 .env.*
 !.env.example
+/Secret/
 
 # Go
 Service/bin/
@@ -26,6 +27,7 @@ Frontend/.local/
 Mobile/MineG_Android/.gradle/
 Mobile/MineG_Android/.kotlin/
 Mobile/MineG_Android/local.properties
+Mobile/MineG_Android/mineg-debug.keystore
 Mobile/MineG_Android/build/
 Mobile/MineG_Android/app/.cxx/
 Mobile/MineG_Android/app/build/

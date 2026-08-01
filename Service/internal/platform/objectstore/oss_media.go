@@ -16,6 +16,9 @@ func (s *OSSProfileObjects) BeginMediaUpload(ctx context.Context, prefix string,
 	if err := validateMediaUpload(prefix, resources, lifetime); err != nil {
 		return MediaUploadGrant{}, err
 	}
+	if err := s.ensureCredentialLifetime(lifetime); err != nil {
+		return MediaUploadGrant{}, err
+	}
 	grant := MediaUploadGrant{Purpose: resources[0].Purpose, ScopePrefix: prefix, ExpiresAt: time.Now().UTC().Add(lifetime), Resources: make([]MediaResourceGrant, 0, len(resources))}
 	for _, resource := range resources {
 		metadataName := "mineg-content-sha256"
@@ -36,20 +39,15 @@ func (s *OSSProfileObjects) BeginMediaUpload(ctx context.Context, prefix string,
 		}
 		item := MediaResourceGrant{ResourceID: resource.ID, ObjectKey: resource.ObjectKey, UploadID: *initiated.UploadId, Parts: make([]MediaPartGrant, 0, len(resource.Parts))}
 		for _, part := range resource.Parts {
-			presigned, err := s.presignClient.Presign(ctx, &oss.UploadPartRequest{
-				Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(resource.ObjectKey), UploadId: initiated.UploadId,
-				PartNumber: part.Number, ContentLength: oss.Ptr(part.Size),
-			}, oss.PresignExpires(lifetime))
+			partGrant, err := s.presignMediaUploadPart(ctx, resource.ObjectKey, *initiated.UploadId, part.Number, part.Size, lifetime)
 			if err != nil {
 				grant.Resources = append(grant.Resources, item)
 				_ = s.AbortMediaUpload(ctx, grant.Resources)
 				return MediaUploadGrant{}, fmt.Errorf("presign media upload part: %w", err)
 			}
-			item.Parts = append(item.Parts, MediaPartGrant{Number: part.Number, Grant: ObjectGrant{
-				URL: presigned.URL, Method: presigned.Method, ExpiresAt: presigned.Expiration, Headers: presigned.SignedHeaders,
-			}})
-			if presigned.Expiration.Before(grant.ExpiresAt) {
-				grant.ExpiresAt = presigned.Expiration
+			item.Parts = append(item.Parts, MediaPartGrant{Number: part.Number, Grant: partGrant})
+			if partGrant.ExpiresAt.Before(grant.ExpiresAt) {
+				grant.ExpiresAt = partGrant.ExpiresAt
 			}
 		}
 		grant.Resources = append(grant.Resources, item)
@@ -61,6 +59,9 @@ func (s *OSSProfileObjects) ResumeMediaUpload(ctx context.Context, prefix string
 	if err := validateMediaUpload(prefix, resources, lifetime); err != nil || len(existing) != len(resources) {
 		return MediaUploadGrant{}, errors.New("invalid media upload resume")
 	}
+	if err := s.ensureCredentialLifetime(lifetime); err != nil {
+		return MediaUploadGrant{}, err
+	}
 	grant := MediaUploadGrant{Purpose: resources[0].Purpose, ScopePrefix: prefix, ExpiresAt: time.Now().UTC().Add(lifetime), Resources: make([]MediaResourceGrant, 0, len(resources))}
 	for index, resource := range resources {
 		prior := existing[index]
@@ -69,23 +70,32 @@ func (s *OSSProfileObjects) ResumeMediaUpload(ctx context.Context, prefix string
 		}
 		item := MediaResourceGrant{ResourceID: resource.ID, ObjectKey: resource.ObjectKey, UploadID: prior.UploadID, Parts: make([]MediaPartGrant, 0, len(resource.Parts))}
 		for _, part := range resource.Parts {
-			presigned, err := s.presignClient.Presign(ctx, &oss.UploadPartRequest{
-				Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(resource.ObjectKey), UploadId: oss.Ptr(prior.UploadID),
-				PartNumber: part.Number, ContentLength: oss.Ptr(part.Size),
-			}, oss.PresignExpires(lifetime))
+			partGrant, err := s.presignMediaUploadPart(ctx, resource.ObjectKey, prior.UploadID, part.Number, part.Size, lifetime)
 			if err != nil {
 				return MediaUploadGrant{}, fmt.Errorf("presign resumed media upload part: %w", err)
 			}
-			item.Parts = append(item.Parts, MediaPartGrant{Number: part.Number, Grant: ObjectGrant{
-				URL: presigned.URL, Method: presigned.Method, ExpiresAt: presigned.Expiration, Headers: presigned.SignedHeaders,
-			}})
-			if presigned.Expiration.Before(grant.ExpiresAt) {
-				grant.ExpiresAt = presigned.Expiration
+			item.Parts = append(item.Parts, MediaPartGrant{Number: part.Number, Grant: partGrant})
+			if partGrant.ExpiresAt.Before(grant.ExpiresAt) {
+				grant.ExpiresAt = partGrant.ExpiresAt
 			}
 		}
 		grant.Resources = append(grant.Resources, item)
 	}
 	return grant, nil
+}
+
+func (s *OSSProfileObjects) presignMediaUploadPart(ctx context.Context, objectKey, uploadID string, partNumber int32, size int64, lifetime time.Duration) (ObjectGrant, error) {
+	presigned, err := s.presignClient.Presign(ctx, &oss.UploadPartRequest{
+		Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(objectKey), UploadId: oss.Ptr(uploadID),
+		PartNumber: partNumber, ContentLength: oss.Ptr(size),
+		RequestCommon: oss.RequestCommon{Headers: map[string]string{"content-type": "application/octet-stream"}},
+	}, oss.PresignExpires(lifetime))
+	if err != nil {
+		return ObjectGrant{}, err
+	}
+	return ObjectGrant{
+		URL: presigned.URL, Method: presigned.Method, ExpiresAt: presigned.Expiration, Headers: presigned.SignedHeaders,
+	}, nil
 }
 
 func (s *OSSProfileObjects) VerifyAndCompleteMediaUpload(ctx context.Context, resources []MediaResourceVerification) error {

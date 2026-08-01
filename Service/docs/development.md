@@ -39,7 +39,23 @@ go run ./cmd/api
 
 `admin-bootstrap` 只允许在空的 `admin_users` 表上成功一次；密码不会写入日志。移动端注册、登录、单媒体上传和管理员接口均位于 `/api/v1`。管理端状态变更要求与 `MINEG_ADMIN_ORIGIN` 完全一致的 `Origin`、有效 Session Cookie 和 `X-CSRF-Token`。
 
-当前本地启动脚本不配置 OSS，头像和媒体对象接口会明确返回 `OBJECT_STORAGE_UNAVAILABLE`，不会回退为后端正文代理。本地通过临时 STS 凭据连接开发 Bucket 的方式尚待实现；当前行为、目标配置、四个临时凭据字段和 App 签名授权边界见[《OSS 身份、ECS RAM Role 与 App 上传授权》](../../Deployment/private-album-infra/docs/02-oss-ram-role.md)。
+未设置 OSS 变量时，`local-backend.sh` 继续使用 `DisabledMediaObjects`，头像和媒体对象接口明确返回 `OBJECT_STORAGE_UNAVAILABLE`，不会回退为后端正文代理。需要连接隔离开发 Bucket 时，先设置四个非 Secret 参数，再使用安全包装脚本：
+
+```bash
+export MINEG_OSS_REGION=cn-hangzhou
+export MINEG_OSS_BUCKET='<development-bucket>'
+export MINEG_OSS_PUBLIC_ORIGIN='https://oss-cn-hangzhou.aliyuncs.com'
+export MINEG_LOCAL_OSS_ROLE_ARN='acs:ram::<account-id>:role/<local-oss-role>'
+./local-oss-backend.sh
+```
+
+也可以把上述四个非 Secret 参数写入被 Git 忽略的 `.env.local-oss`；脚本会安全解析白名单字段，显式环境变量优先。不得在该文件中加入 AccessKey 或 STS 凭据。
+
+脚本通过阿里云 CLI 验证调用者、执行一次 3600 秒 `AssumeRole`、解析 `AccessKeyId`、`AccessKeySecret`、`SecurityToken` 与 `Expiration`，随后清除长期调用者凭据，只把临时 STS 注入 Service。调用者 AccessKey 未预先导出时脚本会无回显提示输入；不得把 Secret 写在命令行、`.env`、CLI Profile、日志或截图中。临时凭据到期后需停止并重新运行脚本。完整权限边界和验收项见[《OSS 身份、ECS RAM Role 与 App 上传授权》](../../Deployment/private-album-infra/docs/02-oss-ram-role.md)。
+
+首次联调先执行 `./local-oss-backend.sh --check-only`。它会创建一个不会完成为对象的 128 KiB 临时 multipart、验证 part 上传与列出，然后主动中止；同时确认列桶、跨前缀读取和对象删除均返回 `AccessDenied`。即使进程异常中断，未完成分片也会被 7 天生命周期规则兜底清理。检查通过后再执行 `./local-oss-backend.sh` 启动服务。
+
+需要在当前电脑持久保存本地调用者 AccessKey 时，执行 `./save-local-aliyun-secret.sh` 并按提示输入。脚本把两个长期凭据写入项目根目录下 Git 忽略的 `Secret/aliyun-local.env`，目录权限为 `0700`、文件权限为 `0600`。`local-oss-backend.sh` 只解析这两个白名单字段且显式环境变量优先；不会 `source` 或执行 Secret 文件内容。该文件是本机明文凭据，只能作为开发机本地存储，不得提交、复制到聊天或用于生产。
 
 探针为 `GET /api/v1/platform/probe`。它仅验证 Android/C++ 到 HTTPS JSON API 的纵向链路，不是业务接口。生产环境必须由入口代理终止 HTTPS；服务进程只监听内网 HTTP。
 

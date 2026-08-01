@@ -31,6 +31,15 @@ Environment overrides:
   MINEG_BOOTSTRAP_ADMIN_USERNAME  Initial local admin (default: reviewer)
   MINEG_BOOTSTRAP_ADMIN_PASSWORD  Initial local password (default: Stage01-admin-2026)
 
+Optional local OSS settings (must be supplied together):
+  MINEG_OSS_REGION
+  MINEG_OSS_BUCKET
+  MINEG_OSS_PUBLIC_ORIGIN
+  MINEG_OSS_ACCESS_KEY_ID
+  MINEG_OSS_ACCESS_KEY_SECRET
+  MINEG_OSS_SECURITY_TOKEN
+  MINEG_OSS_STS_EXPIRATION     RFC3339 expiration from AssumeRole
+
 The script deliberately ignores Service/.env. Pass overrides explicitly so an old
 Docker or deployment database URL cannot be used accidentally.
 EOF

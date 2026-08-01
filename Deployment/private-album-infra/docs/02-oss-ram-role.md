@@ -85,19 +85,20 @@ MINEG_OSS_PUBLIC_ORIGIN=https://oss-cn-hangzhou.aliyuncs.com
 MINEG_OSS_ACCESS_KEY_ID=仅示意，不填写真实值
 MINEG_OSS_ACCESS_KEY_SECRET=仅示意，不填写真实值
 MINEG_OSS_SECURITY_TOKEN=仅示意，不填写真实值
+MINEG_OSS_STS_EXPIRATION=AssumeRole 返回的 RFC3339 过期时间
 ```
 
 真实值只能写入被 Git 忽略的本地 Secret/环境变量，不能写入本文、`.env.example`、命令历史、日志或截图。优先使用短期 STS；不得把生产 RAM 用户的长期 AccessKey 当成本地默认方案。
 
 本地 Service 使用公网 Endpoint 完成签名、multipart 和对象核对。Android 通过 `adb reverse` 访问本地 Service，拿到的 App 上传授权格式与 ECS 环境完全一致。
 
-### 当前项目状态（2026-07-31）
+### 当前项目状态（2026-08-01）
 
 - ECS `ecs_ram_role + IMDSv2` 凭据提供方已经实现。
-- 本地 STS 凭据提供方和 `MINEG_OSS_PUBLIC_ORIGIN` 尚未实现。
-- 当前 `Service/local-backend.sh` 不注入 OSS 配置，运行时使用 `DisabledMediaObjects`。
-- 因此当前本地 App 创建媒体上传会话会得到 `503 OBJECT_STORAGE_UNAVAILABLE`，不能完成真实 OSS 直传。
-- 在本地模式实现并验收之前，上述本地环境变量只是目标接口，不代表当前程序已经支持。
+- 本地 STS 凭据提供方和 `MINEG_OSS_PUBLIC_ORIGIN` 已实现，只允许 `local/test` 使用完整临时凭据及明确过期时间。
+- `Service/local-oss-backend.sh` 会通过阿里云 CLI 执行一次 `AssumeRole`，清除长期调用者凭据后再启动本地 Service。
+- 未配置 OSS 时，`Service/local-backend.sh` 仍使用 `DisabledMediaObjects`；配置不完整、凭据过期或本地/部署凭据混用会在启动前被拒绝。
+- 真实开发 Bucket 的本地上传闭环尚未验收，不能仅凭配置实现判定 E2 已完成。
 
 ## 5. App 获得的授权
 
@@ -154,6 +155,10 @@ Service 返回的是对象/part 级别的短期授权，例如：
 - [x] 创建并向该 RAM 用户绑定精确的 `sts:AssumeRole` 策略，资源只指向本地联调 RAM Role。
 - [x] 将本地联调 RAM Role 的信任策略从账号级 `root` 收紧为上述单个 RAM 用户，不保留通配符。
 - [x] 在原开发电脑通过 Homebrew 安装阿里云 CLI `3.4.11`；未创建 `~/.aliyun/config.json`，未向 CLI 配置文件写入 AccessKey。
+- [x] 在当前开发设备安装阿里云 CLI `3.4.11`，并实现本地 STS 启动脚本；脚本只在内存中使用长期调用者凭据，成功 AssumeRole 后立即清除长期凭据再启动 Service。
+- [x] Service 已实现仅 `local/test` 可用的临时 STS provider 与公网 OSS Endpoint，并通过配置负测试阻止本地凭据与部署 ECS RAM Role 混用。
+- [x] 通过控制台和只读 OpenAPI 复核本地联调 Role 的 3600 秒会话上限、单一调用者信任关系、精确 AssumeRole 权限、开发 OSS 前缀权限与启用中的调用者 AccessKey。
+- [x] 为开发 Bucket 启用生命周期规则：完整对象不处理，只自动清理生成超过 7 天仍未完成的 multipart 分片。
 
 本文故意不记录真实 Bucket 名、账号 ID、权限策略名、RAM 用户名、RAM Role 名或 AccessKey。控制台中的实际资源与以下逻辑占位符一一对应：
 
@@ -179,8 +184,6 @@ Service 返回的是对象/part 级别的短期授权，例如：
 
 - [ ] 在新设备完成 `<local-sts-caller>` 身份验证与第一次 AssumeRole，确认云端授权链可用。
 - [ ] 使用临时 STS 凭据对开发 Bucket 执行最小正向/负向权限验证：允许目标前缀上传，拒绝列桶、跨前缀和删除。
-- [ ] 为开发 Bucket 配置未完成 multipart 的生命周期清理规则。
-- [ ] 在 Service 配置层实现仅 `local/test` 可用的临时 STS provider 与公网 OSS Endpoint。
 - [ ] 使用真实开发 Bucket 完成本地 Service → App → OSS → Service 核对闭环。
 - [ ] 验证越权对象键、过期 URL、错误长度/SHA-256、完成响应丢失与分片重试。
 - [ ] 核对服务/API/客户端日志不包含 Secret、Token、签名 URL 或媒体正文。
@@ -188,11 +191,11 @@ Service 返回的是对象/part 级别的短期授权，例如：
 
 ## 8. 项目后续实现任务
 
-1. 在配置层增加仅 `local/test` 可用的临时 STS provider 和公网 OSS Endpoint。
-2. `deployment` 继续强制 `ecs_ram_role + IMDSv2`，并拒绝通过环境变量注入 AccessKey。
-3. 本地启动脚本只读取显式的开发 Secret，不提供长期 AccessKey 默认值。
-4. 增加配置负测试，确保本地/部署凭据来源不能混用。
-5. 使用真实开发 Bucket 完成本地 Service → App → OSS → Service 核对闭环。
+1. [x] 在配置层增加仅 `local/test` 可用的临时 STS provider 和公网 OSS Endpoint。
+2. [x] `deployment` 继续强制 `ecs_ram_role + IMDSv2`，并拒绝通过环境变量注入 AccessKey。
+3. [x] 本地启动脚本只读取显式的开发 Secret，不提供长期 AccessKey 默认值。
+4. [x] 增加配置负测试，确保本地/部署凭据来源不能混用。
+5. [ ] 使用真实开发 Bucket 完成本地 Service → App → OSS → Service 核对闭环。
 
 ## 官方参考
 

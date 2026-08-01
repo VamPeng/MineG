@@ -51,8 +51,10 @@ func main() {
 	var mediaObjects objectstore.MediaObjects = objectstore.DisabledMediaObjects{}
 	if cfg.OSSRegion != "" {
 		ossObjects, objectErr := objectstore.NewOSSProfileObjects(objectstore.OSSProfileConfig{
-			Region: cfg.OSSRegion, Bucket: cfg.OSSBucket, InternalEndpoint: cfg.OSSInternalOrigin,
-			ECSRAMRole: cfg.OSSECSRAMRole,
+			Region: cfg.OSSRegion, Bucket: cfg.OSSBucket, PublicEndpoint: cfg.OSSPublicOrigin,
+			InternalEndpoint: cfg.OSSInternalOrigin, ECSRAMRole: cfg.OSSECSRAMRole,
+			AccessKeyID: cfg.OSSAccessKeyID, AccessKeySecret: cfg.OSSAccessKeySecret,
+			SecurityToken: cfg.OSSSecurityToken, CredentialsExpiration: cfg.OSSSTSExpiration,
 		})
 		if objectErr != nil {
 			logger.Error("OSS object setup failed", "error", objectErr.Error())

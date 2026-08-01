@@ -113,8 +113,18 @@ android {
     }
   }
 
+  signingConfigs {
+    create("minegDebug") {
+      storeFile = rootProject.file("mineg-debug.keystore")
+      storePassword = "android"
+      keyAlias = "minegdebug"
+      keyPassword = "android"
+    }
+  }
+
   buildTypes {
     debug {
+      signingConfig = signingConfigs.getByName("minegDebug")
       val debugApiBaseUrl = providers.gradleProperty("minegDebugApiBaseUrl")
         .orElse("http://127.0.0.1:8080")
         .get()

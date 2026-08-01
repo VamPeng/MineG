@@ -28,6 +28,118 @@ func TestNormalizeOSSEndpointRequiresCredentialFreeHTTPSOrigin(t *testing.T) {
 	}
 }
 
+func TestLocalTemporarySTSCredentialsIncludeTokenAndExpiration(t *testing.T) {
+	expiration := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	provider, err := newOSSCredentialsProvider(OSSProfileConfig{
+		PublicEndpoint: "https://oss-cn-hangzhou.aliyuncs.com",
+		AccessKeyID:    "temporary-ak", AccessKeySecret: "temporary-sk", SecurityToken: "temporary-token",
+		CredentialsExpiration: expiration,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentials, err := provider.GetCredentials(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if credentials.AccessKeyID != "temporary-ak" || credentials.AccessKeySecret != "temporary-sk" ||
+		credentials.SecurityToken != "temporary-token" || credentials.Expires == nil || !credentials.Expires.Equal(expiration) {
+		t.Fatalf("unexpected temporary credentials: token=%t expiration=%v", credentials.SecurityToken != "", credentials.Expires)
+	}
+}
+
+func TestLocalTemporarySTSConstructorPresignsWithSecurityToken(t *testing.T) {
+	expiration := time.Now().UTC().Add(time.Hour)
+	objects, err := NewOSSProfileObjects(OSSProfileConfig{
+		Region: "cn-hangzhou", Bucket: "mineg-private", PublicEndpoint: "https://oss-cn-hangzhou.aliyuncs.com",
+		AccessKeyID: "temporary-ak", AccessKeySecret: "temporary-sk", SecurityToken: "temporary-token",
+		CredentialsExpiration: expiration,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := objects.IssueAvatarUpload(context.Background(), ProfileObjectMetadata{
+		Key: "avatars/user-001/upload-001.webp", Size: 1024, ContentType: "image/webp", SHA256: make([]byte, 32),
+	}, 5*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := url.Parse(grant.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Query().Get("x-oss-security-token") != "temporary-token" {
+		t.Fatalf("temporary security token missing from presigned URL: %s", grant.URL)
+	}
+}
+
+func TestMediaUploadPartPresignBindsStableHTTPHeaders(t *testing.T) {
+	client := oss.NewClient(oss.LoadDefaultConfig().
+		WithCredentialsProvider(osscredentials.NewStaticCredentialsProvider("temporary-id", "temporary-secret", "temporary-token")).
+		WithRegion("cn-hangzhou").
+		WithEndpoint("https://oss-cn-hangzhou.aliyuncs.com").
+		WithAdditionalHeaders([]string{"content-length"}))
+	objects := &OSSProfileObjects{bucket: "mineg-private", presignClient: client}
+
+	grant, err := objects.presignMediaUploadPart(
+		context.Background(), "media/owner/upload/resource.original", "multipart-upload-id", 1, 1024, 5*time.Minute,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if grant.Headers["Content-Length"] != "1024" || grant.Headers["Content-Type"] != "application/octet-stream" {
+		t.Fatalf("multipart grant omitted signed framing headers: %#v", grant.Headers)
+	}
+}
+
+func TestLocalTemporarySTSRejectsIncompleteExpiredAndMixedConfiguration(t *testing.T) {
+	valid := OSSProfileConfig{
+		PublicEndpoint: "https://oss-cn-hangzhou.aliyuncs.com",
+		AccessKeyID:    "temporary-ak", AccessKeySecret: "temporary-sk", SecurityToken: "temporary-token",
+		CredentialsExpiration: time.Now().UTC().Add(time.Hour),
+	}
+	for name, mutate := range map[string]func(*OSSProfileConfig){
+		"missing token": func(config *OSSProfileConfig) { config.SecurityToken = "" },
+		"expired":       func(config *OSSProfileConfig) { config.CredentialsExpiration = time.Now().UTC().Add(-time.Minute) },
+		"mixed role":    func(config *OSSProfileConfig) { config.ECSRAMRole = "mineg-api" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			config := valid
+			mutate(&config)
+			if _, err := newOSSCredentialsProvider(config); err == nil {
+				t.Fatal("expected invalid local STS configuration to be rejected")
+			}
+		})
+	}
+}
+
+func TestLocalTemporarySTSDoesNotIssueGrantPastCredentialExpiration(t *testing.T) {
+	objects := &OSSProfileObjects{credentialsExpiration: time.Now().UTC().Add(5 * time.Minute)}
+	if err := objects.ensureCredentialLifetime(10 * time.Minute); err == nil {
+		t.Fatal("expected grant beyond STS expiration to be rejected")
+	}
+	if err := objects.ensureCredentialLifetime(time.Minute); err != nil {
+		t.Fatalf("short grant rejected: %v", err)
+	}
+}
+
+type permissionCheckError struct{ code string }
+
+func (e permissionCheckError) Error() string     { return e.code }
+func (e permissionCheckError) ErrorCode() string { return e.code }
+
+func TestRequireAccessDenied(t *testing.T) {
+	if err := requireAccessDenied("negative check", func() error { return permissionCheckError{code: "AccessDenied"} }); err != nil {
+		t.Fatalf("AccessDenied rejected: %v", err)
+	}
+	if err := requireAccessDenied("negative check", func() error { return nil }); err == nil {
+		t.Fatal("unexpected success accepted")
+	}
+	if err := requireAccessDenied("negative check", func() error { return permissionCheckError{code: "NoSuchKey"} }); err == nil {
+		t.Fatal("wrong error code accepted")
+	}
+}
+
 func TestAvatarPresignIsExactShortLivedPutWithoutBroadActions(t *testing.T) {
 	config := oss.LoadDefaultConfig().
 		WithCredentialsProvider(osscredentials.NewStaticCredentialsProvider("temporary-ak", "temporary-sk")).

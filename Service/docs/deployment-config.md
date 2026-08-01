@@ -19,6 +19,8 @@ OSS 临时云凭据、ECS RAM Role、App 签名 URL 与本地 STS 联调模式�
 | `MINEG_SHUTDOWN_TIMEOUT` | 否 | 在途请求排空上限，默认 `20s` |
 | `MINEG_READ_HEADER_TIMEOUT` | 否 | 请求头读取上限，默认 `5s` |
 
+部署模式禁止设置 `MINEG_OSS_PUBLIC_ORIGIN`、`MINEG_OSS_ACCESS_KEY_ID`、`MINEG_OSS_ACCESS_KEY_SECRET`、`MINEG_OSS_SECURITY_TOKEN` 或 `MINEG_OSS_STS_EXPIRATION`。这些变量只允许在 `local/test` 中成组使用，且必须包含未过期的完整 AssumeRole 结果；反之，本地模式禁止使用 `MINEG_OSS_INTERNAL_ORIGIN` 或 `MINEG_OSS_ECS_RAM_ROLE`。配置校验会拒绝两种凭据来源混用。
+
 发布顺序固定为：数据库备份 → 独立运行 `/app/mineg-migrate up` → 首次部署时以一次性 Secret 执行 `/app/mineg-admin-bootstrap` → 滚动更新 `mineg-api`。bootstrap 成功后立即销毁一次性管理员密码 Secret；重复执行会失败。
 
 入口代理负责 HTTPS 和同源 `/api` 路由；`mineg_admin_session` 始终设置 `Secure`、`HttpOnly`、`SameSite=Strict`，因此本地或部署环境都不得通过明文 HTTP 验收管理端登录。管理端 Session 30 分钟闲置失效、8 小时绝对失效。不得让容器端口直接暴露公网。

@@ -16,24 +16,92 @@ import (
 )
 
 type OSSProfileConfig struct {
-	Region           string
-	Bucket           string
-	InternalEndpoint string
-	ECSRAMRole       string
+	Region                string
+	Bucket                string
+	PublicEndpoint        string
+	InternalEndpoint      string
+	ECSRAMRole            string
+	AccessKeyID           string
+	AccessKeySecret       string
+	SecurityToken         string
+	CredentialsExpiration time.Time
 }
 
 type OSSProfileObjects struct {
-	bucket        string
-	presignClient *oss.Client
-	headClient    *oss.Client
+	bucket                string
+	presignClient         *oss.Client
+	headClient            *oss.Client
+	credentialsExpiration time.Time
 }
 
 func NewOSSProfileObjects(config OSSProfileConfig) (*OSSProfileObjects, error) {
 	config.Region = strings.TrimSpace(config.Region)
 	config.Bucket = strings.TrimSpace(config.Bucket)
+	config.PublicEndpoint = strings.TrimSpace(config.PublicEndpoint)
+	config.InternalEndpoint = strings.TrimSpace(config.InternalEndpoint)
 	config.ECSRAMRole = strings.TrimSpace(config.ECSRAMRole)
+	config.AccessKeyID = strings.TrimSpace(config.AccessKeyID)
+	config.AccessKeySecret = strings.TrimSpace(config.AccessKeySecret)
+	config.SecurityToken = strings.TrimSpace(config.SecurityToken)
 	if config.Region == "" || config.Bucket == "" || strings.ContainsAny(config.Bucket, "/?#") {
 		return nil, errors.New("OSS profile region and bucket are required")
+	}
+	provider, err := newOSSCredentialsProvider(config)
+	if err != nil {
+		return nil, err
+	}
+	publicConfig := oss.LoadDefaultConfig().
+		WithCredentialsProvider(provider).
+		WithRegion(config.Region).
+		WithAdditionalHeaders([]string{"content-length"}).
+		WithConnectTimeout(5 * time.Second).
+		WithReadWriteTimeout(15 * time.Second)
+	if config.PublicEndpoint != "" {
+		endpoint, err := normalizeOSSEndpoint(config.PublicEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		publicConfig.WithEndpoint(endpoint)
+	}
+	internalConfig := publicConfig.Copy()
+	if config.InternalEndpoint != "" {
+		endpoint, err := normalizeOSSEndpoint(config.InternalEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		internalConfig.WithEndpoint(endpoint)
+	} else if config.PublicEndpoint == "" {
+		internalConfig.WithUseInternalEndpoint(true)
+	}
+	return &OSSProfileObjects{
+		bucket: config.Bucket, presignClient: oss.NewClient(publicConfig), headClient: oss.NewClient(&internalConfig),
+		credentialsExpiration: config.CredentialsExpiration,
+	}, nil
+}
+
+func newOSSCredentialsProvider(config OSSProfileConfig) (osscredentials.CredentialsProvider, error) {
+	localSTSConfigured := config.AccessKeyID != "" || config.AccessKeySecret != "" || config.SecurityToken != "" || !config.CredentialsExpiration.IsZero()
+	if localSTSConfigured {
+		if config.PublicEndpoint == "" || config.InternalEndpoint != "" || config.ECSRAMRole != "" || config.AccessKeyID == "" ||
+			config.AccessKeySecret == "" || config.SecurityToken == "" || config.CredentialsExpiration.IsZero() {
+			return nil, errors.New("local OSS requires a public endpoint and complete temporary STS credentials")
+		}
+		if !config.CredentialsExpiration.After(time.Now().UTC()) {
+			return nil, errors.New("local OSS temporary STS credentials are expired")
+		}
+		expiration := config.CredentialsExpiration.UTC()
+		return osscredentials.CredentialsProviderFunc(func(context.Context) (osscredentials.Credentials, error) {
+			if !expiration.After(time.Now().UTC()) {
+				return osscredentials.Credentials{}, errors.New("local OSS temporary STS credentials are expired")
+			}
+			return osscredentials.Credentials{
+				AccessKeyID: config.AccessKeyID, AccessKeySecret: config.AccessKeySecret,
+				SecurityToken: config.SecurityToken, Expires: &expiration,
+			}, nil
+		}), nil
+	}
+	if config.PublicEndpoint != "" || config.InternalEndpoint == "" || config.ECSRAMRole == "" {
+		return nil, errors.New("deployment OSS requires an internal endpoint and ECS RAM role credentials")
 	}
 	credentialConfig := new(openapicredentials.Config).
 		SetType("ecs_ram_role").
@@ -47,7 +115,7 @@ func NewOSSProfileObjects(config OSSProfileConfig) (*OSSProfileObjects, error) {
 	if err != nil {
 		return nil, fmt.Errorf("configure ECS RAM role credentials: %w", err)
 	}
-	provider := osscredentials.CredentialsProviderFunc(func(context.Context) (osscredentials.Credentials, error) {
+	return osscredentials.CredentialsProviderFunc(func(context.Context) (osscredentials.Credentials, error) {
 		value, err := credential.GetCredential()
 		if err != nil {
 			return osscredentials.Credentials{}, err
@@ -59,31 +127,15 @@ func NewOSSProfileObjects(config OSSProfileConfig) (*OSSProfileObjects, error) {
 			AccessKeyID: *value.AccessKeyId, AccessKeySecret: *value.AccessKeySecret,
 			SecurityToken: *value.SecurityToken,
 		}, nil
-	})
-	publicConfig := oss.LoadDefaultConfig().
-		WithCredentialsProvider(provider).
-		WithRegion(config.Region).
-		WithAdditionalHeaders([]string{"content-length"}).
-		WithConnectTimeout(5 * time.Second).
-		WithReadWriteTimeout(15 * time.Second)
-	internalConfig := *publicConfig
-	if strings.TrimSpace(config.InternalEndpoint) != "" {
-		endpoint, err := normalizeOSSEndpoint(config.InternalEndpoint)
-		if err != nil {
-			return nil, err
-		}
-		internalConfig.WithEndpoint(endpoint)
-	} else {
-		internalConfig.WithUseInternalEndpoint(true)
-	}
-	return &OSSProfileObjects{
-		bucket: config.Bucket, presignClient: oss.NewClient(publicConfig), headClient: oss.NewClient(&internalConfig),
-	}, nil
+	}), nil
 }
 
 func (s *OSSProfileObjects) IssueAvatarUpload(ctx context.Context, object ProfileObjectMetadata, lifetime time.Duration) (ObjectGrant, error) {
 	if err := validateAvatarObject(object, lifetime); err != nil || !strings.HasPrefix(object.Key, "avatars/") {
 		return ObjectGrant{}, errors.New("invalid avatar object grant")
+	}
+	if err := s.ensureCredentialLifetime(lifetime); err != nil {
+		return ObjectGrant{}, err
 	}
 	digest := base64.RawStdEncoding.EncodeToString(object.SHA256)
 	result, err := s.presignClient.Presign(ctx, &oss.PutObjectRequest{
@@ -129,6 +181,9 @@ func (s *OSSProfileObjects) IssueAvatarRead(ctx context.Context, key string, lif
 	if !strings.HasPrefix(key, "avatars/") || lifetime <= 0 || lifetime > 15*time.Minute {
 		return ObjectGrant{}, errors.New("invalid avatar read grant")
 	}
+	if err := s.ensureCredentialLifetime(lifetime); err != nil {
+		return ObjectGrant{}, err
+	}
 	result, err := s.presignClient.Presign(ctx, &oss.GetObjectRequest{
 		Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(key),
 	}, oss.PresignExpires(lifetime))
@@ -142,7 +197,14 @@ func normalizeOSSEndpoint(value string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(value))
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil ||
 		(parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", errors.New("OSS internal endpoint must be a credential-free HTTPS origin")
+		return "", errors.New("OSS endpoint must be a credential-free HTTPS origin")
 	}
 	return parsed.Host, nil
+}
+
+func (s *OSSProfileObjects) ensureCredentialLifetime(lifetime time.Duration) error {
+	if !s.credentialsExpiration.IsZero() && !time.Now().UTC().Add(lifetime).Before(s.credentialsExpiration) {
+		return errors.New("local OSS temporary STS credentials expire before the requested object grant")
+	}
+	return nil
 }

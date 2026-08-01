@@ -761,6 +761,36 @@ int main() {
     const std::string client_media_id = json_string(create_body, "client_media_id");
     const std::string resource_id = json_string(create_body, "resource_id");
     mineg_buffer_free(&step);
+    const std::string upload_session_expired = transport_result(
+        9301, 2, 401,
+        R"({"code":"SESSION_EXPIRED","title":"Session expired","detail":"Refresh required.","retryable":false})");
+    expect(mineg_core_resume_operation(
+               account_core, 9301,
+               reinterpret_cast<const uint8_t *>(upload_session_expired.data()),
+               upload_session_expired.size(), &step),
+           MINEG_OK, "refresh an expired media upload session");
+    assert(as_string(step).find("/api/v1/auth/refresh") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string upload_rotated_body =
+        R"({"user_id":"user-v2","access_token":"access-secret-v3","access_expires_at":"2026-07-30T12:45:00Z","refresh_token":"refresh-secret-v3","refresh_expires_at":"2026-08-30T12:30:00Z","approval_status":"APPROVED","next_step":"APP_HOME"})";
+    const std::string upload_refresh_response = transport_result(9301, 3, 200, upload_rotated_body);
+    expect(mineg_core_resume_operation(
+               account_core, 9301,
+               reinterpret_cast<const uint8_t *>(upload_refresh_response.data()),
+               upload_refresh_response.size(), &step),
+           MINEG_OK, "persist the rotated media upload session");
+    assert(as_string(step).find("writeSecrets") != std::string::npos);
+    mineg_buffer_free(&step);
+    const std::string upload_session_written =
+        effect_result(9301, 4, "SecureStoreEffect", R"({"written":true})");
+    expect(mineg_core_resume_operation(
+               account_core, 9301,
+               reinterpret_cast<const uint8_t *>(upload_session_written.data()),
+               upload_session_written.size(), &step),
+           MINEG_OK, "replay media creation after refreshing the session");
+    assert(as_string(step).find("/api/v1/uploads") != std::string::npos);
+    assert(decode_base64(json_string(as_string(step), "bodyBase64")) == create_body);
+    mineg_buffer_free(&step);
     const std::string created_original_body =
         "{\"id\":\"30000000-0000-4000-8000-000000000001\",\"client_media_id\":\"" + client_media_id +
         "\",\"state\":\"PENDING\",\"purpose\":\"MEDIA_ORIGINAL\",\"deduplicated\":false,"
@@ -772,7 +802,7 @@ int main() {
         "\",\"object_key\":\"media/user-v2/session/original.original\",\"upload_id\":\"oss-upload-1\","
         "\"parts\":[{\"part_number\":1,\"grant\":{\"url\":\"https://objects.invalid/part-1\","
         "\"method\":\"PUT\",\"expires_at\":\"2026-07-30T01:10:00Z\",\"headers\":{}}}]}]}}";
-    const std::string created_original = transport_result(9301, 2, 201, created_original_body);
+    const std::string created_original = transport_result(9301, 5, 201, created_original_body);
     expect(mineg_core_resume_operation(account_core, 9301,
                                       reinterpret_cast<const uint8_t *>(created_original.data()),
                                       created_original.size(), &step),
@@ -782,7 +812,7 @@ int main() {
     assert(as_string(step).find("ciphertextPath") == std::string::npos);
     mineg_buffer_free(&step);
     const std::string object_uploaded = effect_result(
-        9301, 3, "TransportEffect", R"({"etag":"etag-original-1"})");
+        9301, 6, "TransportEffect", R"({"etag":"etag-original-1"})");
     expect(mineg_core_resume_operation(account_core, 9301,
                                       reinterpret_cast<const uint8_t *>(object_uploaded.data()),
                                       object_uploaded.size(), &step),
@@ -792,7 +822,7 @@ int main() {
     assert(report_body.find("ciphertext_") == std::string::npos);
     mineg_buffer_free(&step);
     const std::string part_reported = transport_result(
-        9301, 4, 200,
+        9301, 7, 200,
         "{\"upload_id\":\"30000000-0000-4000-8000-000000000001\",\"resource_id\":\"" +
             resource_id + "\",\"part_number\":1,\"state\":\"UPLOADED\"}");
     expect(mineg_core_resume_operation(account_core, 9301,
@@ -802,7 +832,7 @@ int main() {
     assert(as_string(step).find("/complete") != std::string::npos);
     mineg_buffer_free(&step);
     const std::string original_completed = transport_result(
-        9301, 5, 200,
+        9301, 8, 200,
         R"({"upload_id":"30000000-0000-4000-8000-000000000001","media_id":"40000000-0000-4000-8000-000000000001","state":"COMPLETED","outcome":"COMPLETED","deduplicated":false})");
     expect(mineg_core_resume_operation(account_core, 9301,
                                       reinterpret_cast<const uint8_t *>(original_completed.data()),
@@ -811,7 +841,7 @@ int main() {
     assert(as_string(step).find("releaseMediaResource") != std::string::npos);
     mineg_buffer_free(&step);
     const std::string original_released = effect_result(
-        9301, 6, "MediaSourceEffect", R"({"released":true})");
+        9301, 9, "MediaSourceEffect", R"({"released":true})");
     expect(mineg_core_resume_operation(account_core, 9301,
                                       reinterpret_cast<const uint8_t *>(original_released.data()),
                                       original_released.size(), &step),

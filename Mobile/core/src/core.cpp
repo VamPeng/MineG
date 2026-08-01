@@ -634,6 +634,7 @@ struct Core::AccountOperation {
   std::string media_upload_id;
   std::string media_upload_response;
   std::string media_pending_result;
+  std::string media_part_etag;
   std::vector<int64_t> media_part_sizes;
   std::vector<std::string> media_part_digests;
   int64_t media_source_descriptor = -1;
@@ -691,6 +692,7 @@ struct Core::AccountOperation {
     wipe_string(media_upload_id);
     wipe_string(media_upload_response);
     wipe_string(media_pending_result);
+    wipe_string(media_part_etag);
     for (auto &digest : media_part_digests) wipe_string(digest);
     media_part_digests.clear();
     media_part_sizes.clear();
@@ -1900,6 +1902,52 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
     return true;
   };
 
+  const auto issue_media_create = [&operation, &issue_media_api]() {
+    if (operation.media_part_sizes.empty() ||
+        operation.media_part_sizes.size() != operation.media_part_digests.size()) return false;
+    std::string parts = "[";
+    for (size_t index = 0; index < operation.media_part_sizes.size(); ++index) {
+      if (index > 0) parts += ',';
+      parts += "{\"part_number\":" + std::to_string(index + 1U) +
+          ",\"content_size\":" + std::to_string(operation.media_part_sizes[index]) +
+          ",\"content_sha256\":\"" + operation.media_part_digests[index] + "\"}";
+    }
+    parts += "]";
+    const std::string body = "{\"protocol_version\":\"stage03-v2\",\"client_media_id\":\"" +
+        operation.media_client_id + "\",\"content_sha256\":\"" +
+        operation.media_content_digest_base64 + "\",\"content_revision\":1,\"media_type\":\"" +
+        json_escape(operation.media_type) + "\",\"captured_at\":\"" +
+        json_escape(operation.media_captured_at) + "\",\"mime_type\":\"" +
+        json_escape(operation.media_mime_type) + "\",\"resources\":[{\"resource_id\":\"" +
+        operation.media_resource_id + "\",\"resource_type\":\"ORIGINAL\",\"content_size\":" +
+        std::to_string(operation.media_source_size) + ",\"content_sha256\":\"" +
+        operation.media_content_digest_base64 + "\",\"parts\":" + parts + "}]}";
+    return issue_media_api("POST", "/api/v1/uploads", body, operation.idempotency_key,
+                           "TRANSPORT_MEDIA_UPLOAD_CREATE");
+  };
+
+  const auto issue_media_report = [&operation, &issue_media_api]() {
+    if (operation.media_part_etag.empty() || operation.media_upload_id.empty() ||
+        operation.media_part_index < 0 ||
+        operation.media_part_index >= static_cast<int64_t>(operation.media_part_sizes.size())) return false;
+    const size_t index = static_cast<size_t>(operation.media_part_index);
+    const std::string body = "{\"resource_id\":\"" + operation.media_resource_id +
+        "\",\"part_number\":" + std::to_string(index + 1U) +
+        ",\"content_size\":" + std::to_string(operation.media_part_sizes[index]) +
+        ",\"content_sha256\":\"" + operation.media_part_digests[index] +
+        "\",\"etag\":\"" + json_escape(operation.media_part_etag) + "\"}";
+    const std::string key = operation.idempotency_key + ":part:" + std::to_string(index + 1U);
+    return issue_media_api("POST", "/api/v1/uploads/" + operation.media_upload_id + "/parts",
+                           body, key, "TRANSPORT_MEDIA_UPLOAD_REPORT");
+  };
+
+  const auto issue_media_complete = [&operation, &issue_media_api]() {
+    if (operation.media_upload_id.empty()) return false;
+    return issue_media_api("POST", "/api/v1/uploads/" + operation.media_upload_id + "/complete",
+                           "{}", operation.idempotency_key + ":complete",
+                           "TRANSPORT_MEDIA_UPLOAD_COMPLETE");
+  };
+
   if (effect_status == "FAILED") {
     const std::string code = sqlite_json_text(database_, effect_result, "$.error.code");
     const bool retryable = sqlite_json_boolean(database_, effect_result, "$.error.retryable", false);
@@ -1974,25 +2022,7 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
     operation.media_content_digest_base64 = base64_encode(whole_digest.data(), whole_digest.size(), false);
     sodium_memzero(whole_digest.data(), whole_digest.size());
     sodium_memzero(buffer.data(), buffer.size());
-    std::string parts = "[";
-    for (size_t index = 0; index < operation.media_part_sizes.size(); ++index) {
-      if (index > 0) parts += ',';
-      parts += "{\"part_number\":" + std::to_string(index + 1U) +
-          ",\"content_size\":" + std::to_string(operation.media_part_sizes[index]) +
-          ",\"content_sha256\":\"" + operation.media_part_digests[index] + "\"}";
-    }
-    parts += "]";
-    const std::string body = "{\"protocol_version\":\"stage03-v2\",\"client_media_id\":\"" +
-        operation.media_client_id + "\",\"content_sha256\":\"" +
-        operation.media_content_digest_base64 + "\",\"content_revision\":1,\"media_type\":\"" +
-        json_escape(operation.media_type) + "\",\"captured_at\":\"" +
-        json_escape(operation.media_captured_at) + "\",\"mime_type\":\"" +
-        json_escape(operation.media_mime_type) + "\",\"resources\":[{\"resource_id\":\"" +
-        operation.media_resource_id + "\",\"resource_type\":\"ORIGINAL\",\"content_size\":" +
-        std::to_string(operation.media_source_size) + ",\"content_sha256\":\"" +
-        operation.media_content_digest_base64 + "\",\"parts\":" + parts + "}]}";
-    if (!issue_media_api("POST", "/api/v1/uploads", body, operation.idempotency_key,
-                         "TRANSPORT_MEDIA_UPLOAD_CREATE")) {
+    if (!issue_media_create()) {
       return cached_profile_or_error("SESSION_INVALID", false);
     }
     return account_operation_step_locked(operation, result);
@@ -2016,15 +2046,8 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
         operation.media_part_index >= static_cast<int64_t>(operation.media_part_sizes.size())) {
       return cached_profile_or_error("OBJECT_UPLOAD_RESPONSE_INVALID", false);
     }
-    const size_t index = static_cast<size_t>(operation.media_part_index);
-    const std::string body = "{\"resource_id\":\"" + operation.media_resource_id +
-        "\",\"part_number\":" + std::to_string(index + 1U) +
-        ",\"content_size\":" + std::to_string(operation.media_part_sizes[index]) +
-        ",\"content_sha256\":\"" + operation.media_part_digests[index] +
-        "\",\"etag\":\"" + json_escape(etag) + "\"}";
-    const std::string key = operation.idempotency_key + ":part:" + std::to_string(index + 1U);
-    if (!issue_media_api("POST", "/api/v1/uploads/" + operation.media_upload_id + "/parts",
-                         body, key, "TRANSPORT_MEDIA_UPLOAD_REPORT")) {
+    operation.media_part_etag = etag;
+    if (!issue_media_report()) {
       return cached_profile_or_error("SESSION_INVALID", false);
     }
     return account_operation_step_locked(operation, result);
@@ -2199,8 +2222,17 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
       operation.clear_sensitive();
       return account_operation_step_locked(operation, result);
     }
-    const mineg_error_code_t code = issue_account_request_locked(operation, continuation);
-    if (code != MINEG_OK) return cached_profile_or_error("SESSION_INVALID", false);
+    bool issued = false;
+    if (continuation == "MEDIA_UPLOAD_CREATE") {
+      issued = issue_media_create();
+    } else if (continuation == "MEDIA_UPLOAD_REPORT") {
+      issued = issue_media_report();
+    } else if (continuation == "MEDIA_UPLOAD_COMPLETE") {
+      issued = issue_media_complete();
+    } else {
+      issued = issue_account_request_locked(operation, continuation) == MINEG_OK;
+    }
+    if (!issued) return cached_profile_or_error("SESSION_INVALID", false);
     return account_operation_step_locked(operation, result);
   }
   if (operation.stage == "DELETE_SESSION") {
@@ -2566,14 +2598,13 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
     if (reported_number != operation.media_part_index + 1) {
       return cached_profile_or_error("MEDIA_UPLOAD_RESPONSE_INVALID", false, request_id);
     }
+    wipe_string(operation.media_part_etag);
     ++operation.media_part_index;
     if (operation.media_part_index < static_cast<int64_t>(operation.media_part_sizes.size())) {
       if (!issue_media_part()) return cached_profile_or_error("MEDIA_UPLOAD_RESPONSE_INVALID", false, request_id);
       return account_operation_step_locked(operation, result);
     }
-    if (!issue_media_api("POST", "/api/v1/uploads/" + operation.media_upload_id + "/complete",
-                         "{}", operation.idempotency_key + ":complete",
-                         "TRANSPORT_MEDIA_UPLOAD_COMPLETE")) {
+    if (!issue_media_complete()) {
       return cached_profile_or_error("SESSION_INVALID", false);
     }
     return account_operation_step_locked(operation, result);
