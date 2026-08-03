@@ -8,7 +8,7 @@
 
 - 注册、登录和账号审核状态。
 - 用户昵称和头像。
-- 账号准入状态；旧 key bundle 与家庭 envelope 只作为兼容迁移数据。
+- 账号准入状态；不再保存或处理 key bundle、家庭 envelope 与 key-grant 数据。
 - 媒体上传记录、账号内去重、对象完整性和权限控制。
 - 私人空间与家庭共享状态。
 - 逻辑回收站。
@@ -42,6 +42,6 @@ OpenAPI 位于 [`api/openapi.yaml`](./api/openapi.yaml)，开发、bootstrap 与
 
 ## 阶段 03 单媒体上传（stage03-v2 已实现）
 
-schema version 6 与 OpenAPI 0.5.0 已接入 `stage03-v2`：`POST/GET /api/v1/uploads`、分片上报、完成以及本人媒体列表均要求获批成员 Bearer；新请求使用 `MEDIA_ORIGINAL`、`content_size/content_sha256` 和 `.original` 对象键，不接收 Media Key、加密清单或密文副本。旧密文字段与 `MEDIA_CIPHERTEXT` 仅保留兼容。
+`stage03-v2`：`POST/GET /api/v1/uploads`、分片上报、完成以及本人媒体列表均要求获批成员 Bearer；请求使用 `MEDIA_ORIGINAL`、`content_size/content_sha256` 和 `.original` 对象键，不接收 Media Key、加密清单或密文副本。执行迁移 `00007`、`00008` 后，旧密钥与密文表会被不可逆删除。
 
-完成前服务通过 OSS `ListParts`、ETag、长度和 `HeadObject` 的 `mineg-content-sha256` 元数据复核；随后在一个数据库事务中创建媒体、资源和本人默认相册关系。新契约不写 `media_key_envelopes`；管理员 Cookie 无法访问上传、媒体或对象授权响应。真实 ECS + 私有 OSS 仍需按验收清单执行。
+完成前服务通过 OSS `ListParts`、ETag、长度和 `HeadObject` 的 `mineg-content-sha256` 元数据复核；随后在一个数据库事务中创建媒体、资源和本人默认相册关系。新契约不写 `media_key_envelopes`；管理员 Cookie 无法访问上传、媒体或对象授权响应。项目负责人已于 2026-08-02 确认真实 ECS + 私有 OSS 真机上传验收；故障演练转入阶段 09 发布加固。

@@ -147,7 +147,7 @@ func (s *OSSProfileObjects) IssueAvatarUpload(ctx context.Context, object Profil
 	if err != nil {
 		return ObjectGrant{}, fmt.Errorf("presign avatar upload: %w", err)
 	}
-	return ObjectGrant{URL: result.URL, Method: result.Method, ExpiresAt: result.Expiration, Headers: result.SignedHeaders}, nil
+	return ObjectGrant{URL: result.URL, Method: result.Method, ExpiresAt: result.Expiration, Headers: normalizedObjectGrantHeaders(result.SignedHeaders)}, nil
 }
 
 func (s *OSSProfileObjects) VerifyAvatar(ctx context.Context, expected ProfileObjectMetadata) error {
@@ -190,7 +190,7 @@ func (s *OSSProfileObjects) IssueAvatarRead(ctx context.Context, key string, lif
 	if err != nil {
 		return ObjectGrant{}, fmt.Errorf("presign avatar read: %w", err)
 	}
-	return ObjectGrant{URL: result.URL, Method: result.Method, ExpiresAt: result.Expiration, Headers: result.SignedHeaders}, nil
+	return ObjectGrant{URL: result.URL, Method: result.Method, ExpiresAt: result.Expiration, Headers: normalizedObjectGrantHeaders(result.SignedHeaders)}, nil
 }
 
 func normalizeOSSEndpoint(value string) (string, error) {

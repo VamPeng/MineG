@@ -15,52 +15,52 @@
           extend: {
             "colors": {
                     "on-primary": "#ffffff",
-                    "on-tertiary-container": "#fcffe3",
-                    "surface-container-high": "#f0e7df",
-                    "on-background": "#1f1b17",
-                    "tertiary-fixed-dim": "#c9c6c2",
-                    "secondary-fixed": "#ffdbcd",
-                    "tertiary": "#5d5c58",
-                    "surface-bright": "#fff8f4",
-                    "surface-dim": "#e1d8d2",
-                    "on-primary-container": "#f7fff2",
-                    "tertiary-container": "#767471",
-                    "inverse-primary": "#abd0a9",
-                    "tertiary-fixed": "#e5e2dd",
-                    "primary": "#436444",
+                    "on-tertiary-container": "#3a2500",
+                    "surface-container-high": "#d7e5ef",
+                    "on-background": "#1b2730",
+                    "tertiary-fixed-dim": "#f5bd72",
+                    "secondary-fixed": "#dcebd9",
+                    "tertiary": "#8a4f00",
+                    "surface-bright": "#f7fbff",
+                    "surface-dim": "#d7e5ef",
+                    "on-primary-container": "#004b73",
+                    "tertiary-container": "#ffe0b2",
+                    "inverse-primary": "#b5e4ff",
+                    "tertiary-fixed": "#ffe0b2",
+                    "primary": "#3baaff",
                     "on-error": "#ffffff",
-                    "on-tertiary-fixed-variant": "#474743",
-                    "secondary-fixed-dim": "#ffb596",
-                    "primary-container": "#5b7d5b",
-                    "outline": "#737970",
-                    "on-secondary-fixed": "#360f00",
-                    "outline-variant": "#c2c8be",
-                    "on-primary-fixed": "#012108",
-                    "primary-fixed": "#c6edc4",
-                    "on-tertiary-fixed": "#1c1c19",
-                    "primary-fixed-dim": "#abd0a9",
-                    "surface-variant": "#eae1da",
-                    "secondary": "#914b2a",
-                    "background": "#fff8f4",
-                    "on-primary-fixed-variant": "#2e4e30",
+                    "on-tertiary-fixed-variant": "#663c00",
+                    "secondary-fixed-dim": "#abd0a9",
+                    "primary-container": "#d9f0ff",
+                    "outline": "#6f7e89",
+                    "on-secondary-fixed": "#0c240d",
+                    "outline-variant": "#c7d6e0",
+                    "on-primary-fixed": "#002f4a",
+                    "primary-fixed": "#d9f0ff",
+                    "on-tertiary-fixed": "#2a1800",
+                    "primary-fixed-dim": "#b5e4ff",
+                    "surface-variant": "#cddfe9",
+                    "secondary": "#436444",
+                    "background": "#f7fbff",
+                    "on-primary-fixed-variant": "#004b73",
                     "on-secondary": "#ffffff",
-                    "on-secondary-container": "#773717",
-                    "surface-container-highest": "#eae1da",
-                    "surface-tint": "#456646",
-                    "surface-container-low": "#fbf2eb",
+                    "on-secondary-container": "#19331b",
+                    "surface-container-highest": "#cddfe9",
+                    "surface-tint": "#3baaff",
+                    "surface-container-low": "#eef6fb",
                     "on-tertiary": "#ffffff",
                     "error": "#ba1a1a",
-                    "on-surface": "#1f1b17",
-                    "inverse-surface": "#34302b",
+                    "on-surface": "#1b2730",
+                    "inverse-surface": "#26343f",
                     "error-container": "#ffdad6",
-                    "surface-container": "#f5ece5",
+                    "surface-container": "#e5f0f7",
                     "surface-container-lowest": "#ffffff",
-                    "secondary-container": "#fda27a",
+                    "secondary-container": "#dcebd9",
                     "on-error-container": "#93000a",
-                    "inverse-on-surface": "#f8efe8",
-                    "on-surface-variant": "#424841",
-                    "on-secondary-fixed-variant": "#743415",
-                    "surface": "#fff8f4"
+                    "inverse-on-surface": "#eaf6ff",
+                    "on-surface-variant": "#52616d",
+                    "on-secondary-fixed-variant": "#2e4e30",
+                    "surface": "#f7fbff"
             },
             "borderRadius": {
                     "DEFAULT": "0.25rem",
@@ -109,8 +109,7 @@
             -webkit-backdrop-filter: blur(8px);
         }
         .profile-mesh {
-            background: radial-gradient(circle at 20% 30%, #abd0a9 0%, transparent 50%),
-                        radial-gradient(circle at 80% 70%, #ffdbcd 0%, transparent 50%);
+            background: transparent;
         }
     </style>
 <style>
@@ -126,7 +125,7 @@
 <!-- Backdrop Scrim -->
 <div class="absolute inset-0 bg-on-background/20 blur-backdrop"></div>
 <!-- Confirmation Dialog -->
-<div class="relative bg-surface-container-lowest w-full max-w-sm rounded-xl shadow-xl overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300">
+<div class="relative bg-surface-container-lowest w-full max-w-sm rounded-xl overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300">
 <div class="p-lg">
 <div class="flex flex-col items-center text-center">
 <h3 class="font-headline-md text-headline-md-mobile text-on-surface mb-sm">确定退出登录？</h3>

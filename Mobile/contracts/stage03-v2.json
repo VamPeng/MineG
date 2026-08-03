@@ -1,7 +1,7 @@
 {
   "contractVersion": "stage03-v2",
   "version": "2.0.0",
-  "status": "IMPLEMENTED_PENDING_REAL_OSS",
+  "status": "FROZEN",
   "architecture": {
     "service": "PUBLIC_ECS",
     "objectStorage": "PRIVATE_ALIYUN_OSS",
@@ -11,13 +11,26 @@
   },
   "commands": {
     "BackupSingleMedia": {
-      "required": ["userId", "platformAssetRef"],
-      "result": ["uploadId", "mediaId", "deduplicated"]
+      "required": [
+        "userId",
+        "platformAssetRef"
+      ],
+      "result": [
+        "uploadId",
+        "mediaId",
+        "deduplicated"
+      ]
     }
   },
   "effects": {
-    "MediaSourceEffect": ["openMediaResource", "releaseMediaResource"],
-    "TransportEffect": ["sendApiRequest", "uploadPart"]
+    "MediaSourceEffect": [
+      "openMediaResource",
+      "releaseMediaResource"
+    ],
+    "TransportEffect": [
+      "sendApiRequest",
+      "uploadPart"
+    ]
   },
   "upload": {
     "protocolVersion": "stage03-v2",
@@ -32,9 +45,5 @@
       "ciphertext_size",
       "ciphertext_sha256"
     ]
-  },
-  "legacyCompatibility": {
-    "contract": "stage03-v1",
-    "productionEntry": false
   }
 }

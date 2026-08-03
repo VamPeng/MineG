@@ -13,7 +13,6 @@ class Stage02V2ContractTest {
   fun manifestMovesBatchCDomainOwnershipIntoCore() {
     listOf(
       "stage02-v2",
-      "CoordinateFamilyKeyGrants",
       "ProfileUpdateAvatar",
       "PrivateMediaList",
       "ListPrivateMediaSnapshot",
@@ -26,7 +25,7 @@ class Stage02V2ContractTest {
       "MediaSourceEffect",
     ).forEach { assertContains(manifest, "\"$it\"") }
     assertContains(manifest, "\"contractVersion\": \"2.1.0\"")
-    assertContains(manifest, "\"status\": \"BASELINED\"")
+    assertContains(manifest, "\"status\": \"FROZEN\"")
   }
 
   @Test
@@ -38,12 +37,13 @@ class Stage02V2ContractTest {
     assertTrue(
       methods.containsAll(
         setOf(
-          "coordinateFamilyKeyGrants", "updateAvatar", "listPrivateMedia",
+          "updateAvatar", "listPrivateMedia",
           "startForegroundLocalScan", "getLocalLibrarySummary", "getBackupSettings",
           "updateBackupSettings", "listLocalAlbums", "listLocalMedia",
         ),
       ),
     )
+    assertTrue("coordinateFamilyKeyGrants" !in methods)
   }
 
   @Test

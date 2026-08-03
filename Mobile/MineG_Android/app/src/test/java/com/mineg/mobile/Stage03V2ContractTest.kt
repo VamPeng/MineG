@@ -18,7 +18,7 @@ class Stage03V2ContractTest {
     assertEquals("PUBLIC_ECS", contract.getJSONObject("architecture").getString("service"))
     assertEquals("MEDIA_ORIGINAL", contract.getJSONObject("upload").getString("purpose"))
     assertEquals(4 * 1024 * 1024, contract.getJSONObject("upload").getInt("partSize"))
-    assertFalse(contract.getJSONObject("legacyCompatibility").getBoolean("productionEntry"))
+    assertFalse(contract.has("legacyCompatibility"))
     val forbidden = contract.getJSONObject("upload").getJSONArray("forbiddenRequestFields")
     assertTrue((0 until forbidden.length()).map(forbidden::getString).contains("encrypted_media_key"))
   }

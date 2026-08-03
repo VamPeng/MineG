@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
@@ -20,6 +21,17 @@ func CheckLocalOSSAccess(ctx context.Context, config OSSProfileConfig) error {
 	}
 	if config.CredentialsExpiration.IsZero() {
 		return errors.New("local OSS check requires temporary STS credentials")
+	}
+	// The application uses OSS IMG's x-oss-process query for photo previews.
+	// Check that the same temporary credentials can sign that exact read before
+	// starting the API, without fetching or persisting any media object.
+	preview, err := objects.IssueMediaImagePreview(ctx, "media/diagnostics/preview-check.jpg", 5*time.Minute)
+	if err != nil {
+		return fmt.Errorf("presign diagnostic image preview: %w", err)
+	}
+	previewURL, err := url.Parse(preview.URL)
+	if err != nil || preview.Method != http.MethodGet || previewURL.Query().Get("x-oss-process") != "image/resize,m_lfit,l_512" {
+		return errors.New("diagnostic image preview grant was not a signed OSS IMG GET")
 	}
 
 	key := fmt.Sprintf("media/diagnostics/permission-check-%d.bin", time.Now().UTC().UnixNano())

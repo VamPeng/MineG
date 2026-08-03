@@ -151,80 +151,6 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
-  /api/v1/me/key-bundle:
-    get:
-      deprecated: true
-      operationId: getKeyBundle
-      tags: [keys]
-      security: [{ bearerAuth: [] }]
-      responses:
-        "200":
-          description: The current member encrypted key bundle and, when ready, its family envelope.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/KeyMaterial" }
-        "401": { $ref: "#/components/responses/Problem" }
-        "404": { $ref: "#/components/responses/Problem" }
-    put:
-      deprecated: true
-      operationId: updateKeyBundle
-      tags: [keys]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/UpdateKeyBundleRequest" }
-      responses:
-        "200":
-          description: The password-wrapped bundle was replaced without changing the registered public key.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/KeyMaterial" }
-        "401": { $ref: "#/components/responses/Problem" }
-        "409": { $ref: "#/components/responses/Problem" }
-        "422": { $ref: "#/components/responses/Problem" }
-  /api/v1/key-grants/pending:
-    get:
-      deprecated: true
-      operationId: listPendingKeyGrants
-      tags: [keys]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-      responses:
-        "200":
-          description: Eligible bootstrap or member grant work. Public keys are only disclosed to the target bootstrap member or an approved family member.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PendingKeyGrantPage" }
-        "401": { $ref: "#/components/responses/Problem" }
-  /api/v1/key-grants/{grant_id}/complete:
-    post:
-      deprecated: true
-      operationId: completeKeyGrant
-      tags: [keys]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - { $ref: "#/components/parameters/GrantId" }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CompleteKeyGrantRequest" }
-      responses:
-        "200":
-          description: The envelope was committed and the target account became APPROVED, or an identical completion was replayed.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CompleteKeyGrantResult" }
-        "401": { $ref: "#/components/responses/Problem" }
-        "403": { $ref: "#/components/responses/Problem" }
-        "404": { $ref: "#/components/responses/Problem" }
-        "409": { $ref: "#/components/responses/Problem" }
-        "422": { $ref: "#/components/responses/Problem" }
   /api/v1/me/avatar/uploads:
     post:
       operationId: createAvatarUpload
@@ -384,6 +310,9 @@ paths:
         - name: limit
           in: query
           schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          schema: { type: string }
       responses:
         "200":
           description: Completed metadata owned by the authenticated member; no object URL or key envelope is returned.
@@ -392,6 +321,92 @@ paths:
               schema: { $ref: "#/components/schemas/OwnerMediaPage" }
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/private/media:
+    get:
+      operationId: listPrivateMedia
+      tags: [media]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Owner-scoped completed, non-trashed media in a stable HMAC-bound seek page; no object URL is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivateMediaPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/private/media/{media_id}:
+    get:
+      operationId: getPrivateMediaDetail
+      tags: [media]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/MediaId" }
+      responses:
+        "200":
+          description: Owner-scoped media detail and registered resource metadata; object keys and grants are omitted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivateMediaDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /api/v1/private/media/{media_id}/access:
+    post:
+      operationId: createPrivateMediaAccess
+      tags: [media]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/MediaId" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PrivateMediaAccessRequest" }
+      responses:
+        "200":
+          description: A fresh, short-lived owner-scoped GET authorization. The caller must not persist the grants.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivateMediaAccessResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /api/v1/private/media/{media_id}/trash:
+    post:
+      operationId: trashPrivateMedia
+      tags: [media]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/MediaId" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "200":
+          description: Media was logically trashed or the prior identical request was replayed. No OSS object is moved or removed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivateMediaTrashResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
   /api/v1/admin/login:
     post:
       operationId: adminSignIn
@@ -521,13 +536,13 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
-    GrantId:
-      name: grant_id
+    UploadId:
+      name: upload_id
       in: path
       required: true
       schema: { type: string, format: uuid }
-    UploadId:
-      name: upload_id
+    MediaId:
+      name: media_id
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -572,10 +587,6 @@ components:
       properties:
         phone: { type: string, minLength: 11, maxLength: 14 }
         password: { type: string, minLength: 8, maxLength: 64 }
-        public_key: { type: string, deprecated: true, description: Optional legacy unpadded base64 32-byte X25519 public key; retained only for old-client compatibility and not required by admission. }
-        encrypted_key_bundle: { type: string, deprecated: true, description: Optional legacy encrypted client key bundle; retained only for old-client compatibility and not required by admission. }
-        kdf_parameters: { type: object, deprecated: true, additionalProperties: true }
-        bundle_version: { type: integer, deprecated: true, minimum: 1 }
         device_installation_id: { type: string, minLength: 8, maxLength: 128 }
         platform: { type: string, enum: [ANDROID, IOS, HARMONYOS] }
     SignUpResult:
@@ -653,66 +664,6 @@ components:
           minLength: 2
           maxLength: 20
           pattern: "^[\\p{L}\\p{N} _-]+$"
-    KeyMaterial:
-      type: object
-      additionalProperties: false
-      required: [public_key, encrypted_key_bundle, kdf_parameters, bundle_version, updated_at]
-      properties:
-        public_key: { type: string, description: Unpadded standard base64 32-byte X25519 public key. }
-        encrypted_key_bundle: { type: string, description: Unpadded standard base64 password-wrapped user key bundle. }
-        kdf_parameters: { type: object, additionalProperties: true }
-        bundle_version: { type: integer, minimum: 1 }
-        family_envelope: { type: string, description: Unpadded standard base64 X25519 sealed box. }
-        family_envelope_algorithm: { type: string, enum: [X25519_SEALED_BOX] }
-        family_envelope_version: { type: integer, minimum: 1 }
-        updated_at: { type: string, format: date-time }
-    UpdateKeyBundleRequest:
-      type: object
-      additionalProperties: false
-      required: [public_key, encrypted_key_bundle, kdf_parameters, bundle_version]
-      properties:
-        public_key: { type: string }
-        encrypted_key_bundle: { type: string }
-        kdf_parameters: { type: object, additionalProperties: true }
-        bundle_version: { type: integer, minimum: 1 }
-    PendingKeyGrant:
-      type: object
-      additionalProperties: false
-      required: [id, user_id, family_id, kind, recipient_public_key, bundle_version, created_at]
-      properties:
-        id: { type: string, format: uuid }
-        user_id: { type: string, format: uuid }
-        family_id: { type: string, format: uuid }
-        kind: { type: string, enum: [FAMILY_BOOTSTRAP, MEMBER_GRANT] }
-        recipient_public_key: { type: string }
-        bundle_version: { type: integer, minimum: 1 }
-        created_at: { type: string, format: date-time }
-    PendingKeyGrantPage:
-      type: object
-      additionalProperties: false
-      required: [items]
-      properties:
-        items:
-          type: array
-          items: { $ref: "#/components/schemas/PendingKeyGrant" }
-    CompleteKeyGrantRequest:
-      type: object
-      additionalProperties: false
-      required: [recipient_public_key, encrypted_envelope, algorithm, envelope_version]
-      properties:
-        recipient_public_key: { type: string }
-        encrypted_envelope: { type: string, description: Unpadded standard base64 80-byte sealed family key. }
-        algorithm: { type: string, enum: [X25519_SEALED_BOX] }
-        envelope_version: { type: integer, minimum: 1 }
-    CompleteKeyGrantResult:
-      type: object
-      additionalProperties: false
-      required: [grant_id, user_id, outcome, status]
-      properties:
-        grant_id: { type: string, format: uuid }
-        user_id: { type: string, format: uuid }
-        outcome: { type: string, enum: [COMPLETED, ALREADY_COMPLETED] }
-        status: { type: string, enum: [APPROVED] }
     CreateAvatarUploadRequest:
       type: object
       additionalProperties: false
@@ -763,6 +714,7 @@ components:
       properties:
         resource_id: { type: string, format: uuid }
         resource_type: { $ref: "#/components/schemas/MediaResourceType" }
+        mime_type: { type: string, minLength: 3, maxLength: 127, description: Required per resource by stage05-v1; inherited from the top-level MIME for older protocols. }
         content_size: { type: integer, minimum: 1 }
         content_sha256: { type: string, description: Unpadded standard base64 whole original-media digest. }
         parts:
@@ -775,18 +727,37 @@ components:
       additionalProperties: false
       required: [protocol_version, client_media_id, content_sha256, content_revision, media_type, captured_at, mime_type, resources]
       properties:
-        protocol_version: { type: string, enum: [stage03-v2] }
+        protocol_version: { type: string, enum: [stage03-v2, stage04-v1, stage05-v1] }
         client_media_id: { type: string, format: uuid, description: Stable client-generated media ID. }
         content_sha256: { type: string, description: Unpadded standard base64 SHA-256 of the original media bytes. }
         content_revision: { type: integer, minimum: 1 }
         media_type: { $ref: "#/components/schemas/MediaType" }
         captured_at: { type: string, format: date-time }
         mime_type: { type: string, minLength: 3, maxLength: 127 }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        duration_ms: { type: integer, minimum: 0 }
         resources:
           type: array
           minItems: 1
           maxItems: 8
           items: { $ref: "#/components/schemas/MediaResourcePlan" }
+        device_installation_id:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: Required for stage04-v1 when client album membership is supplied.
+        client_albums:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/ClientAlbumRef" }
+    ClientAlbumRef:
+      type: object
+      additionalProperties: false
+      required: [client_album_id, name]
+      properties:
+        client_album_id: { type: string, minLength: 1, maxLength: 256 }
+        name: { type: string, minLength: 1, maxLength: 256 }
     MediaPartGrant:
       type: object
       additionalProperties: false
@@ -810,7 +781,7 @@ components:
       additionalProperties: false
       required: [purpose, scope_prefix, expires_at, resources]
       properties:
-        purpose: { type: string, enum: [MEDIA_ORIGINAL, MEDIA_CIPHERTEXT] }
+        purpose: { type: string, enum: [MEDIA_ORIGINAL] }
         scope_prefix: { type: string, pattern: "^media/" }
         expires_at: { type: string, format: date-time }
         resources:
@@ -819,26 +790,30 @@ components:
     MediaResourceStatus:
       type: object
       additionalProperties: false
-      required: [resource_id, resource_type, part_count, uploaded_parts]
+      required: [resource_id, resource_type, part_count, uploaded_parts, confirmed_part_numbers]
       properties:
         resource_id: { type: string, format: uuid }
         resource_type: { $ref: "#/components/schemas/MediaResourceType" }
         object_key: { type: string, pattern: "^media/" }
         content_size: { type: integer, minimum: 1 }
-        ciphertext_size: { type: integer, minimum: 1, deprecated: true }
         part_count: { type: integer, minimum: 1, maximum: 10000 }
         uploaded_parts: { type: integer, minimum: 0, maximum: 10000 }
+        confirmed_part_numbers:
+          type: array
+          description: Exact server-confirmed multipart part numbers for safe client recovery.
+          items: { type: integer, minimum: 1, maximum: 10000 }
     MediaUploadSession:
       type: object
       additionalProperties: false
-      required: [id, client_media_id, state, purpose, deduplicated, expires_at, resources]
+      required: [id, client_media_id, state, purpose, deduplicated, grant_generation, expires_at, resources]
       properties:
         id: { type: string, format: uuid }
         client_media_id: { type: string, format: uuid }
         state: { type: string, enum: [PENDING, VERIFYING, COMPLETED, EXPIRED, INVALID] }
-        purpose: { type: string, enum: [MEDIA_ORIGINAL, MEDIA_CIPHERTEXT] }
+        purpose: { type: string, enum: [MEDIA_ORIGINAL] }
         media_id: { type: string, format: uuid }
         deduplicated: { type: boolean }
+        grant_generation: { type: integer, minimum: 1 }
         expires_at: { type: string, format: date-time }
         grant: { $ref: "#/components/schemas/MediaUploadGrant" }
         resources:
@@ -895,6 +870,103 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/OwnerMediaSummary" }
+        next_cursor: { type: string }
+    PrivateMediaResource:
+      type: object
+      additionalProperties: false
+      required: [resource_id, resource_type, mime_type, content_size, content_sha256]
+      properties:
+        resource_id: { type: string, format: uuid }
+        resource_type: { $ref: "#/components/schemas/MediaResourceType" }
+        mime_type: { type: string, minLength: 3, maxLength: 127 }
+        content_size: { type: integer, minimum: 1 }
+        content_sha256: { type: string, description: Unpadded standard base64 SHA-256 digest. }
+    PrivateMediaSummary:
+      type: object
+      additionalProperties: false
+      required: [id, media_type, captured_at, created_at, original_total_size]
+      properties:
+        id: { type: string, format: uuid }
+        media_type: { $ref: "#/components/schemas/MediaType" }
+        captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        duration_ms: { type: integer, minimum: 0 }
+        original_total_size: { type: integer, minimum: 0 }
+        preview_resource: { $ref: "#/components/schemas/PrivateMediaResource" }
+    PrivateMediaPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PrivateMediaSummary" }
+        next_cursor: { type: string, nullable: true }
+    PrivateMediaDetail:
+      type: object
+      additionalProperties: false
+      required: [id, media_type, captured_at, created_at, original_total_size, resources]
+      properties:
+        id: { type: string, format: uuid }
+        media_type: { $ref: "#/components/schemas/MediaType" }
+        captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        duration_ms: { type: integer, minimum: 0 }
+        original_total_size: { type: integer, minimum: 0 }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/PrivateMediaResource" }
+    PrivateMediaAccessRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose]
+      properties:
+        purpose: { type: string, enum: [VIEW, STREAM, DOWNLOAD] }
+        variant: { type: string, enum: [THUMBNAIL, DETAIL] }
+    PrivateMediaAccessResource:
+      type: object
+      additionalProperties: false
+      required: [resource_id, resource_type, mime_type, content_size, content_sha256, supports_range, delivery_mode, grant]
+      properties:
+        resource_id: { type: string, format: uuid }
+        resource_type: { $ref: "#/components/schemas/MediaResourceType" }
+        mime_type: { type: string, minLength: 3, maxLength: 127 }
+        content_size: { type: integer, minimum: 1 }
+        content_sha256: { type: string }
+        supports_range: { type: boolean }
+        delivery_mode:
+          type: string
+          enum: [ORIGINAL_RESOURCE, OSS_IMAGE_THUMBNAIL]
+          description: ORIGINAL_RESOURCE returns the registered bytes. OSS_IMAGE_THUMBNAIL returns an on-the-fly OSS image transformation of the registered ORIGINAL; content_size/content_sha256 describe that source object and must not be used to validate transformed bytes.
+        maximum_output_size:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+          description: Required for OSS_IMAGE_THUMBNAIL; the transformed image byte limit enforced by the client.
+        grant: { $ref: "#/components/schemas/ObjectGrant" }
+    PrivateMediaAccessResult:
+      type: object
+      additionalProperties: false
+      required: [media_id, purpose, issued_at, expires_at, resources]
+      properties:
+        media_id: { type: string, format: uuid }
+        purpose: { type: string, enum: [VIEW, STREAM, DOWNLOAD] }
+        variant: { type: string, enum: [THUMBNAIL, DETAIL] }
+        issued_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/PrivateMediaAccessResource" }
+    PrivateMediaTrashResult:
+      type: object
+      additionalProperties: false
+      required: [media_id, outcome, trashed_at]
+      properties:
+        media_id: { type: string, format: uuid }
+        outcome: { type: string, enum: [TRASHED, ALREADY_TRASHED] }
+        trashed_at: { type: string, format: date-time }
     AdminLoginRequest:
       type: object
       additionalProperties: false

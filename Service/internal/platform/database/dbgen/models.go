@@ -28,11 +28,13 @@ type MinegAdminUser struct {
 }
 
 type MinegAlbum struct {
-	ID            pgtype.UUID        `json:"id"`
-	OwnerID       pgtype.UUID        `json:"owner_id"`
-	Kind          string             `json:"kind"`
-	ClientAlbumID pgtype.UUID        `json:"client_album_id"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ID                   pgtype.UUID        `json:"id"`
+	OwnerID              pgtype.UUID        `json:"owner_id"`
+	Kind                 string             `json:"kind"`
+	ClientAlbumID        pgtype.Text        `json:"client_album_id"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	DeviceInstallationID pgtype.Text        `json:"device_installation_id"`
+	DisplayName          pgtype.Text        `json:"display_name"`
 }
 
 type MinegApprovalRequest struct {
@@ -81,48 +83,10 @@ type MinegDevice struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
-type MinegFamily struct {
-	ID        pgtype.UUID        `json:"id"`
-	Singleton bool               `json:"singleton"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
-type MinegFamilyKeyEnvelope struct {
-	FamilyID               pgtype.UUID        `json:"family_id"`
-	UserID                 pgtype.UUID        `json:"user_id"`
-	CreatedBy              pgtype.UUID        `json:"created_by"`
-	RecipientPublicKeyHash []byte             `json:"recipient_public_key_hash"`
-	EncryptedEnvelope      []byte             `json:"encrypted_envelope"`
-	Algorithm              string             `json:"algorithm"`
-	EnvelopeVersion        int32              `json:"envelope_version"`
-	CreatedAt              pgtype.Timestamptz `json:"created_at"`
-}
-
-type MinegKeyGrantTask struct {
-	ID           pgtype.UUID        `json:"id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	State        string             `json:"state"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
-	FamilyID     pgtype.UUID        `json:"family_id"`
-	CompletedBy  pgtype.UUID        `json:"completed_by"`
-	AttemptCount int32              `json:"attempt_count"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-}
-
 type MinegMediaAlbumLink struct {
 	MediaID   pgtype.UUID        `json:"media_id"`
 	AlbumID   pgtype.UUID        `json:"album_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
-type MinegMediaKeyEnvelope struct {
-	MediaID           pgtype.UUID        `json:"media_id"`
-	OwnerID           pgtype.UUID        `json:"owner_id"`
-	EncryptedMediaKey []byte             `json:"encrypted_media_key"`
-	Algorithm         string             `json:"algorithm"`
-	EnvelopeVersion   int32              `json:"envelope_version"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 }
 
 type MinegMediaResource struct {
@@ -132,13 +96,12 @@ type MinegMediaResource struct {
 	ResourceType      string             `json:"resource_type"`
 	ObjectKey         string             `json:"object_key"`
 	MultipartUploadID string             `json:"multipart_upload_id"`
-	CiphertextSize    pgtype.Int8        `json:"ciphertext_size"`
-	CiphertextSha256  []byte             `json:"ciphertext_sha256"`
 	PartCount         int32              `json:"part_count"`
 	State             string             `json:"state"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	ContentSize       pgtype.Int8        `json:"content_size"`
+	ContentSize       int64              `json:"content_size"`
 	ContentSha256     []byte             `json:"content_sha256"`
+	MimeType          string             `json:"mime_type"`
 }
 
 type MinegMedium struct {
@@ -149,12 +112,14 @@ type MinegMedium struct {
 	DedupeFingerprint []byte             `json:"dedupe_fingerprint"`
 	ContentRevision   int32              `json:"content_revision"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	ManifestDigest    []byte             `json:"manifest_digest"`
-	EncryptedManifest []byte             `json:"encrypted_manifest"`
 	UploadStatus      string             `json:"upload_status"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	ContentSha256     []byte             `json:"content_sha256"`
-	MimeType          pgtype.Text        `json:"mime_type"`
+	MimeType          string             `json:"mime_type"`
+	Width             pgtype.Int4        `json:"width"`
+	Height            pgtype.Int4        `json:"height"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
+	AccessVersion     int64              `json:"access_version"`
 }
 
 type MinegRegistrationRequest struct {
@@ -164,6 +129,33 @@ type MinegRegistrationRequest struct {
 	UserID               pgtype.UUID        `json:"user_id"`
 	RotationFamilyID     pgtype.UUID        `json:"rotation_family_id"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+}
+
+type MinegShare struct {
+	MediaID    pgtype.UUID        `json:"media_id"`
+	OwnerID    pgtype.UUID        `json:"owner_id"`
+	State      string             `json:"state"`
+	Version    int64              `json:"version"`
+	SharedAt   pgtype.Timestamptz `json:"shared_at"`
+	UnsharedAt pgtype.Timestamptz `json:"unshared_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type MinegTrashRecord struct {
+	MediaID    pgtype.UUID        `json:"media_id"`
+	OwnerID    pgtype.UUID        `json:"owner_id"`
+	TrashedAt  pgtype.Timestamptz `json:"trashed_at"`
+	RestoredAt pgtype.Timestamptz `json:"restored_at"`
+	PurgedAt   pgtype.Timestamptz `json:"purged_at"`
+}
+
+type MinegTrashRequest struct {
+	OwnerID        pgtype.UUID        `json:"owner_id"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	MediaID        pgtype.UUID        `json:"media_id"`
+	RequestHash    []byte             `json:"request_hash"`
+	Outcome        string             `json:"outcome"`
+	TrashedAt      pgtype.Timestamptz `json:"trashed_at"`
 }
 
 type MinegUploadPart struct {
@@ -191,17 +183,22 @@ type MinegUploadSession struct {
 	ClientMediaID     pgtype.UUID        `json:"client_media_id"`
 	MediaType         string             `json:"media_type"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	ManifestDigest    []byte             `json:"manifest_digest"`
-	EncryptedManifest []byte             `json:"encrypted_manifest"`
-	EncryptedMediaKey []byte             `json:"encrypted_media_key"`
-	EnvelopeAlgorithm pgtype.Text        `json:"envelope_algorithm"`
 	MediaID           pgtype.UUID        `json:"media_id"`
 	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
 	CompletedAt       pgtype.Timestamptz `json:"completed_at"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 	ContentSha256     []byte             `json:"content_sha256"`
-	MimeType          pgtype.Text        `json:"mime_type"`
+	MimeType          string             `json:"mime_type"`
+	GrantGeneration   int32              `json:"grant_generation"`
+	Width             pgtype.Int4        `json:"width"`
+	Height            pgtype.Int4        `json:"height"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
+}
+
+type MinegUploadSessionClientAlbum struct {
+	UploadSessionID pgtype.UUID `json:"upload_session_id"`
+	AlbumID         pgtype.UUID `json:"album_id"`
 }
 
 type MinegUser struct {
@@ -226,16 +223,6 @@ type MinegUserAgreement struct {
 	PrivacyVersion       string             `json:"privacy_version"`
 	DeviceInstallationID string             `json:"device_installation_id"`
 	AcceptedAt           pgtype.Timestamptz `json:"accepted_at"`
-}
-
-type MinegUserKeyBundle struct {
-	UserID             pgtype.UUID        `json:"user_id"`
-	PublicKey          []byte             `json:"public_key"`
-	EncryptedKeyBundle []byte             `json:"encrypted_key_bundle"`
-	KdfParameters      []byte             `json:"kdf_parameters"`
-	BundleVersion      int32              `json:"bundle_version"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 type MinegUserSession struct {

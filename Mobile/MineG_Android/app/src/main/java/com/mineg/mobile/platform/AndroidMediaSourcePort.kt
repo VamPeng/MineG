@@ -6,9 +6,11 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.database.ContentObserver
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
-import android.util.Size
 import androidx.core.content.ContextCompat
 import com.mineg.mobile.contracts.LibraryPermissionState
 import com.mineg.mobile.contracts.LocalMediaAvailability
@@ -20,10 +22,6 @@ import com.mineg.mobile.contracts.PermissionSnapshot
 import com.mineg.mobile.contracts.PlatformAlbum
 import com.mineg.mobile.contracts.PlatformMedia
 import com.mineg.mobile.contracts.PlatformMediaPage
-import com.mineg.mobile.contracts.DerivedMediaResource
-import com.mineg.mobile.contracts.MediaResourceType
-import java.io.File
-import java.io.FileOutputStream
 import java.time.Instant
 
 class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
@@ -54,6 +52,15 @@ class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
 
   fun markPermissionRequested() {
     preferences.edit().putBoolean(PERMISSION_REQUESTED, true).apply()
+  }
+
+  fun observeLibraryChanges(listener: () -> Unit): AutoCloseable {
+    val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+      override fun onChange(selfChange: Boolean) = listener()
+      override fun onChange(selfChange: Boolean, uri: android.net.Uri?) = listener()
+    }
+    context.contentResolver.registerContentObserver(COLLECTION, true, observer)
+    return AutoCloseable { context.contentResolver.unregisterContentObserver(observer) }
   }
 
   override fun listAlbums(): List<PlatformAlbum> {
@@ -188,50 +195,6 @@ class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
         null,
       )?.use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else null },
       release = { ParcelFileDescriptor.adoptFd(detached).close() },
-    )
-  }
-
-  override fun createDerivedMediaResources(
-    platformAssetRef: String,
-    mediaType: LocalMediaType,
-  ): List<DerivedMediaResource> {
-    if (Build.VERSION.SDK_INT < 29 || getPermissionSnapshot().library != LibraryPermissionState.FULL) return emptyList()
-    val id = assetId(platformAssetRef)
-    if (id <= 0) return emptyList()
-    val uri = ContentUris.withAppendedId(COLLECTION, id)
-    val bitmap = runCatching { context.contentResolver.loadThumbnail(uri, Size(512, 512), null) }.getOrNull()
-      ?: return emptyList()
-    val type = if (mediaType == LocalMediaType.VIDEO) MediaResourceType.VIDEO_COVER else MediaResourceType.THUMBNAIL
-    val file = File(context.cacheDir, "derived-${id}-${type.name.lowercase()}.webp")
-    try {
-      FileOutputStream(file).use { output ->
-        val format = if (Build.VERSION.SDK_INT >= 30) {
-          android.graphics.Bitmap.CompressFormat.WEBP_LOSSY
-        } else {
-          @Suppress("DEPRECATION")
-          android.graphics.Bitmap.CompressFormat.WEBP
-        }
-        check(bitmap.compress(format, 82, output))
-      }
-    } finally {
-      bitmap.recycle()
-    }
-    val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-    val detached = descriptor.detachFd()
-    descriptor.close()
-    return listOf(
-      DerivedMediaResource(
-        type,
-        OpenedMediaResource(
-          platformAssetRef = platformAssetRef,
-          descriptor = detached,
-          byteLength = file.length(),
-          release = {
-            ParcelFileDescriptor.adoptFd(detached).close()
-            file.delete()
-          },
-        ),
-      ),
     )
   }
 

@@ -15,7 +15,10 @@ enum class PlatformEffectType(val wireName: String) {
   TRANSPORT("TransportEffect"),
   SECURE_STORE("SecureStoreEffect"),
   MEDIA_SOURCE("MediaSourceEffect"),
-  FILE("FileEffect");
+  FILE("FileEffect"),
+  CONNECTIVITY("ConnectivityEffect"),
+  MEDIA_PLAYBACK("MediaPlaybackEffect"),
+  SYSTEM_ALBUM("SystemAlbumEffect");
 
   companion object {
     fun fromWireName(value: String): PlatformEffectType =

@@ -2,6 +2,7 @@ package objectstore
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strings"
 	"testing"
@@ -89,6 +90,31 @@ func TestMediaUploadPartPresignBindsStableHTTPHeaders(t *testing.T) {
 	}
 	if grant.Headers["Content-Length"] != "1024" || grant.Headers["Content-Type"] != "application/octet-stream" {
 		t.Fatalf("multipart grant omitted signed framing headers: %#v", grant.Headers)
+	}
+}
+
+func TestMediaImagePreviewPresignBindsOSSProcessToExactRead(t *testing.T) {
+	client := oss.NewClient(oss.LoadDefaultConfig().
+		WithCredentialsProvider(osscredentials.NewStaticCredentialsProvider("temporary-id", "temporary-secret", "temporary-token")).
+		WithRegion("cn-hangzhou").
+		WithEndpoint("https://oss-cn-hangzhou.aliyuncs.com"))
+	objects := &OSSProfileObjects{bucket: "mineg-private", presignClient: client}
+
+	grant, err := objects.IssueMediaImagePreview(context.Background(), "media/owner/upload/resource.original", 5*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := url.Parse(grant.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if grant.Method != "GET" || parsed.Query().Get("x-oss-process") != "image/resize,m_lfit,l_512" ||
+		parsed.Query().Get("x-oss-signature") == "" {
+		t.Fatalf("image preview was not a signed processed GET: %#v", grant)
+	}
+	encoded, err := json.Marshal(grant)
+	if err != nil || !strings.Contains(string(encoded), `"headers":{}`) {
+		t.Fatalf("signed image preview did not serialize empty headers as an object: %s, %v", encoded, err)
 	}
 }
 

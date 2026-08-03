@@ -21,36 +21,39 @@ func mountUploadRoutes(api chi.Router, accounts *account.Service, uploads *uploa
 }
 
 type createUploadPartRequest struct {
-	PartNumber       int32  `json:"part_number"`
-	CiphertextSize   int64  `json:"ciphertext_size"`
-	CiphertextSHA256 string `json:"ciphertext_sha256"`
-	ContentSize      int64  `json:"content_size"`
-	ContentSHA256    string `json:"content_sha256"`
+	PartNumber    int32  `json:"part_number"`
+	ContentSize   int64  `json:"content_size"`
+	ContentSHA256 string `json:"content_sha256"`
 }
 
 type createUploadResourceRequest struct {
-	ResourceID       string                    `json:"resource_id"`
-	ResourceType     string                    `json:"resource_type"`
-	CiphertextSize   int64                     `json:"ciphertext_size"`
-	CiphertextSHA256 string                    `json:"ciphertext_sha256"`
-	ContentSize      int64                     `json:"content_size"`
-	ContentSHA256    string                    `json:"content_sha256"`
-	Parts            []createUploadPartRequest `json:"parts"`
+	ResourceID    string                    `json:"resource_id"`
+	ResourceType  string                    `json:"resource_type"`
+	ContentSize   int64                     `json:"content_size"`
+	ContentSHA256 string                    `json:"content_sha256"`
+	MimeType      string                    `json:"mime_type"`
+	Parts         []createUploadPartRequest `json:"parts"`
+}
+
+type createUploadClientAlbumRequest struct {
+	ClientAlbumID string `json:"client_album_id"`
+	Name          string `json:"name"`
 }
 
 type createUploadRequest struct {
-	ProtocolVersion   string                        `json:"protocol_version"`
-	ClientMediaID     string                        `json:"client_media_id"`
-	DedupeFingerprint string                        `json:"dedupe_fingerprint"`
-	ContentRevision   int32                         `json:"content_revision"`
-	MediaType         string                        `json:"media_type"`
-	CapturedAt        string                        `json:"captured_at"`
-	ManifestDigest    string                        `json:"manifest_digest"`
-	EncryptedManifest string                        `json:"encrypted_manifest"`
-	EncryptedMediaKey string                        `json:"encrypted_media_key"`
-	ContentSHA256     string                        `json:"content_sha256"`
-	MimeType          string                        `json:"mime_type"`
-	Resources         []createUploadResourceRequest `json:"resources"`
+	ProtocolVersion      string                           `json:"protocol_version"`
+	ClientMediaID        string                           `json:"client_media_id"`
+	ContentRevision      int32                            `json:"content_revision"`
+	MediaType            string                           `json:"media_type"`
+	CapturedAt           string                           `json:"captured_at"`
+	ContentSHA256        string                           `json:"content_sha256"`
+	MimeType             string                           `json:"mime_type"`
+	Width                *int32                           `json:"width"`
+	Height               *int32                           `json:"height"`
+	DurationMS           *int64                           `json:"duration_ms"`
+	Resources            []createUploadResourceRequest    `json:"resources"`
+	DeviceInstallationID string                           `json:"device_installation_id"`
+	ClientAlbums         []createUploadClientAlbumRequest `json:"client_albums"`
 }
 
 func handleCreateUpload(accounts *account.Service, uploads *upload.Service) http.HandlerFunc {
@@ -64,61 +67,39 @@ func handleCreateUpload(accounts *account.Service, uploads *upload.Service) http
 			return
 		}
 		capturedAt, timeErr := time.Parse(time.RFC3339Nano, request.CapturedAt)
-		original := request.ProtocolVersion == "stage03-v2"
-		dedupeValue := request.DedupeFingerprint
-		if original {
-			dedupeValue = request.ContentSHA256
-		}
-		dedupe, dedupeErr := decodeRawBase64(dedupeValue)
-		var contentDigest []byte
-		if original {
-			contentDigest = dedupe
-		}
-		var manifestDigest, encryptedManifest, encryptedMediaKey []byte
-		var manifestErr, encryptedManifestErr, encryptedKeyErr error
-		if !original {
-			manifestDigest, manifestErr = decodeRawBase64(request.ManifestDigest)
-			encryptedManifest, encryptedManifestErr = decodeRawBase64(request.EncryptedManifest)
-			encryptedMediaKey, encryptedKeyErr = decodeRawBase64(request.EncryptedMediaKey)
-		}
-		if timeErr != nil || dedupeErr != nil || manifestErr != nil || encryptedManifestErr != nil || encryptedKeyErr != nil {
-			writeUploadError(w, r, &upload.Error{Code: "UPLOAD_INVALID", Status: 422, Title: "Invalid media upload", Detail: "Time and binary fields must use RFC 3339 and unpadded standard base64."})
+		contentDigest, digestErr := decodeRawBase64(request.ContentSHA256)
+		if timeErr != nil || digestErr != nil {
+			writeUploadError(w, r, &upload.Error{Code: "UPLOAD_INVALID", Status: 422, Title: "Invalid media upload", Detail: "Time and content digest must use RFC 3339 and unpadded standard base64."})
 			return
 		}
 		resources := make([]upload.ResourceInput, 0, len(request.Resources))
 		for _, resource := range request.Resources {
-			digestValue := resource.CiphertextSHA256
-			if original {
-				digestValue = resource.ContentSHA256
-			}
-			digest, err := decodeRawBase64(digestValue)
+			digest, err := decodeRawBase64(resource.ContentSHA256)
 			if err != nil {
 				writeUploadError(w, r, &upload.Error{Code: "UPLOAD_RESOURCE_INVALID", Status: 422, Title: "Invalid media resource", Detail: "Resource digests must use unpadded standard base64."})
 				return
 			}
 			parts := make([]upload.PartInput, 0, len(resource.Parts))
 			for _, part := range resource.Parts {
-				partDigestValue := part.CiphertextSHA256
-				partSize := part.CiphertextSize
-				if original {
-					partDigestValue, partSize = part.ContentSHA256, part.ContentSize
-				}
-				partDigest, err := decodeRawBase64(partDigestValue)
+				partDigest, err := decodeRawBase64(part.ContentSHA256)
 				if err != nil {
 					writeUploadError(w, r, &upload.Error{Code: "UPLOAD_PART_INVALID", Status: 422, Title: "Invalid upload part", Detail: "Part digests must use unpadded standard base64."})
 					return
 				}
-				parts = append(parts, upload.PartInput{Number: part.PartNumber, Size: partSize, SHA256: partDigest})
+				parts = append(parts, upload.PartInput{Number: part.PartNumber, Size: part.ContentSize, SHA256: partDigest})
 			}
-			resources = append(resources, upload.ResourceInput{ID: resource.ResourceID, Type: resource.ResourceType, CiphertextSize: resource.CiphertextSize, ContentSize: resource.ContentSize, SHA256: digest, Parts: parts})
+			resources = append(resources, upload.ResourceInput{ID: resource.ResourceID, Type: resource.ResourceType, ContentSize: resource.ContentSize, SHA256: digest, MimeType: resource.MimeType, Parts: parts})
+		}
+		albums := make([]upload.ClientAlbumInput, 0, len(request.ClientAlbums))
+		for _, album := range request.ClientAlbums {
+			albums = append(albums, upload.ClientAlbumInput{ID: album.ClientAlbumID, Name: album.Name})
 		}
 		result, err := uploads.Create(r.Context(), actor, upload.CreateInput{
-			ProtocolVersion: request.ProtocolVersion,
-			IdempotencyKey:  r.Header.Get("Idempotency-Key"), ClientMediaID: request.ClientMediaID,
-			Dedupe: dedupe, ContentRevision: request.ContentRevision, MediaType: request.MediaType,
-			CapturedAt: capturedAt, ManifestDigest: manifestDigest, EncryptedManifest: encryptedManifest,
-			EncryptedMediaKey: encryptedMediaKey, ContentSHA256: contentDigest, MimeType: request.MimeType,
-			Resources: resources, RequestID: RequestIDFromContext(r.Context()),
+			ProtocolVersion: request.ProtocolVersion, IdempotencyKey: r.Header.Get("Idempotency-Key"),
+			ClientMediaID: request.ClientMediaID, Dedupe: contentDigest, ContentRevision: request.ContentRevision,
+			MediaType: request.MediaType, CapturedAt: capturedAt, ContentSHA256: contentDigest,
+			MimeType: request.MimeType, Width: request.Width, Height: request.Height, DurationMS: request.DurationMS, Resources: resources, DeviceInstallationID: request.DeviceInstallationID,
+			ClientAlbums: albums, RequestID: RequestIDFromContext(r.Context()),
 		})
 		if err != nil {
 			writeUploadError(w, r, err)
@@ -144,13 +125,11 @@ func handleGetUpload(accounts *account.Service, uploads *upload.Service) http.Ha
 }
 
 type reportUploadPartRequest struct {
-	ResourceID       string `json:"resource_id"`
-	PartNumber       int32  `json:"part_number"`
-	CiphertextSize   int64  `json:"ciphertext_size"`
-	CiphertextSHA256 string `json:"ciphertext_sha256"`
-	ContentSize      int64  `json:"content_size"`
-	ContentSHA256    string `json:"content_sha256"`
-	ETag             string `json:"etag"`
+	ResourceID    string `json:"resource_id"`
+	PartNumber    int32  `json:"part_number"`
+	ContentSize   int64  `json:"content_size"`
+	ContentSHA256 string `json:"content_sha256"`
+	ETag          string `json:"etag"`
 }
 
 func handleReportUploadPart(accounts *account.Service, uploads *upload.Service) http.HandlerFunc {
@@ -163,19 +142,14 @@ func handleReportUploadPart(accounts *account.Service, uploads *upload.Service) 
 		if !decodeJSON(w, r, &request) {
 			return
 		}
-		digestValue := request.ContentSHA256
-		size := request.ContentSize
-		if digestValue == "" {
-			digestValue, size = request.CiphertextSHA256, request.CiphertextSize
-		}
-		digest, err := decodeRawBase64(digestValue)
+		digest, err := decodeRawBase64(request.ContentSHA256)
 		if err != nil {
 			writeUploadError(w, r, &upload.Error{Code: "UPLOAD_PART_INVALID", Status: 422, Title: "Invalid upload part", Detail: "Part digests must use unpadded standard base64."})
 			return
 		}
 		result, err := uploads.ReportPart(r.Context(), actor, chi.URLParam(r, "uploadID"), upload.PartReportInput{
 			IdempotencyKey: r.Header.Get("Idempotency-Key"), ResourceID: request.ResourceID,
-			Number: request.PartNumber, Size: size, SHA256: digest, ETag: request.ETag,
+			Number: request.PartNumber, Size: request.ContentSize, SHA256: digest, ETag: request.ETag,
 		})
 		if err != nil {
 			writeUploadError(w, r, err)
@@ -185,31 +159,18 @@ func handleReportUploadPart(accounts *account.Service, uploads *upload.Service) 
 	}
 }
 
-type completeUploadRequest struct {
-	ManifestDigest string `json:"manifest_digest"`
-}
-
 func handleCompleteUpload(accounts *account.Service, uploads *upload.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := requireUploadActor(w, r, accounts)
 		if !ok {
 			return
 		}
-		var request completeUploadRequest
+		var request struct{}
 		if !decodeJSON(w, r, &request) {
 			return
 		}
-		var digest []byte
-		var err error
-		if request.ManifestDigest != "" {
-			digest, err = decodeRawBase64(request.ManifestDigest)
-		}
-		if err != nil {
-			writeUploadError(w, r, &upload.Error{Code: "UPLOAD_COMPLETE_INVALID", Status: 422, Title: "Invalid upload completion", Detail: "The manifest digest must use unpadded standard base64."})
-			return
-		}
 		result, err := uploads.Complete(r.Context(), actor, chi.URLParam(r, "uploadID"), upload.CompleteInput{
-			IdempotencyKey: r.Header.Get("Idempotency-Key"), ManifestDigest: digest, RequestID: RequestIDFromContext(r.Context()),
+			IdempotencyKey: r.Header.Get("Idempotency-Key"), RequestID: RequestIDFromContext(r.Context()),
 		})
 		if err != nil {
 			writeUploadError(w, r, err)
@@ -226,7 +187,7 @@ func handleListMedia(accounts *account.Service, uploads *upload.Service) http.Ha
 			return
 		}
 		limit64, _ := strconv.ParseInt(r.URL.Query().Get("limit"), 10, 32)
-		result, err := uploads.ListMedia(r.Context(), actor, int32(limit64))
+		result, err := uploads.ListMedia(r.Context(), actor, r.URL.Query().Get("cursor"), int32(limit64))
 		if err != nil {
 			writeUploadError(w, r, err)
 			return

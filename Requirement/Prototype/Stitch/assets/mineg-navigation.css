@@ -1,6 +1,6 @@
 .mineg-main-nav {
-  --mineg-nav-accent: #436444;
-  --mineg-nav-selected-background: rgba(255, 79, 112, 0.18);
+  --mineg-nav-accent: #3baaff;
+  --mineg-nav-selected-background: rgba(59, 170, 255, 0.16);
   position: fixed;
   z-index: 50;
   right: 0;
@@ -13,10 +13,9 @@
   margin: 0;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   border: 0;
-  border-top: 1px solid rgba(99, 84, 91, 0.12);
+  border-top: 1px solid rgba(111, 126, 137, 0.18);
   border-radius: 0;
-  background: rgba(255, 252, 250, 0.9);
-  box-shadow: 0 -4px 18px rgba(55, 38, 45, 0.06);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   font-family: "Noto Sans SC", "Noto Sans", system-ui, sans-serif;
@@ -42,7 +41,7 @@
   border: 0;
   border-radius: 18px;
   background: transparent;
-  color: rgba(55, 47, 51, 0.62);
+  color: #9aaab6;
   font: inherit;
   text-decoration: none;
   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
@@ -60,47 +59,29 @@
 }
 
 .mineg-nav-icon {
-  position: relative;
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: none;
-  overflow: visible;
-  place-items: center;
-  border-radius: 10px;
-}
-
-.mineg-nav-icon img {
-  position: absolute;
-  top: 50%;
-  left: 50%;
   display: block;
-  width: 52px !important;
-  max-width: none !important;
-  height: 52px !important;
-  max-height: none !important;
+  width: 28px;
+  height: 28px;
   flex: none;
   object-fit: contain;
-  filter: grayscale(0.92) saturate(0.3);
-  opacity: 0.56;
-  transform: translate(-50%, -50%);
+  filter: grayscale(1) saturate(0.2) brightness(0.78);
+  opacity: 0.72;
   transition: filter 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
-.mineg-nav-item.is-active .mineg-nav-icon img {
+.mineg-nav-item.is-active .mineg-nav-icon {
   filter: none;
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1.04);
+  transform: scale(1.04);
 }
 
 .dark .mineg-main-nav {
   border-top-color: rgba(255, 255, 255, 0.1);
-  background: rgba(35, 30, 33, 0.9);
-  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.18);
+  background: rgba(23, 34, 43, 0.94);
 }
 
 .dark .mineg-nav-item {
-  color: rgba(255, 246, 249, 0.62);
+  color: #b8cad6;
 }
 
 @media (min-width: 720px) {
@@ -117,7 +98,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mineg-nav-item,
-  .mineg-nav-icon img {
+  .mineg-nav-icon {
     transition: none;
   }
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/vampeng/mineg/service/internal/account"
+	"github.com/vampeng/mineg/service/internal/media"
 	"github.com/vampeng/mineg/service/internal/upload"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -23,6 +24,7 @@ type Dependencies struct {
 	Readiness      Readiness
 	Account        *account.Service
 	Upload         *upload.Service
+	Media          *media.Service
 	AdminOrigin    string
 	RequestTimeout time.Duration
 	Now            func() time.Time
@@ -68,6 +70,9 @@ func New(deps Dependencies) http.Handler {
 			mountAccountRoutes(api, deps.Account, deps.AdminOrigin)
 			if deps.Upload != nil {
 				mountUploadRoutes(api, deps.Account, deps.Upload)
+			}
+			if deps.Media != nil {
+				mountPrivateMediaRoutes(api, deps.Account, deps.Media)
 			}
 		}
 	})

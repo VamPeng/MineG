@@ -21,14 +21,10 @@ func (s *OSSProfileObjects) BeginMediaUpload(ctx context.Context, prefix string,
 	}
 	grant := MediaUploadGrant{Purpose: resources[0].Purpose, ScopePrefix: prefix, ExpiresAt: time.Now().UTC().Add(lifetime), Resources: make([]MediaResourceGrant, 0, len(resources))}
 	for _, resource := range resources {
-		metadataName := "mineg-content-sha256"
-		if resource.Purpose == "MEDIA_CIPHERTEXT" {
-			metadataName = "mineg-ciphertext-sha256"
-		}
 		initiated, err := s.headClient.InitiateMultipartUpload(ctx, &oss.InitiateMultipartUploadRequest{
 			Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(resource.ObjectKey), ContentType: oss.Ptr("application/octet-stream"),
 			CacheControl: oss.Ptr("private, no-store"), ForbidOverwrite: oss.Ptr("true"),
-			Metadata: map[string]string{metadataName: base64.RawStdEncoding.EncodeToString(resource.SHA256)},
+			Metadata: map[string]string{"mineg-content-sha256": base64.RawStdEncoding.EncodeToString(resource.SHA256)},
 		})
 		if err != nil || initiated.UploadId == nil {
 			_ = s.AbortMediaUpload(ctx, grant.Resources)
@@ -94,7 +90,7 @@ func (s *OSSProfileObjects) presignMediaUploadPart(ctx context.Context, objectKe
 		return ObjectGrant{}, err
 	}
 	return ObjectGrant{
-		URL: presigned.URL, Method: presigned.Method, ExpiresAt: presigned.Expiration, Headers: presigned.SignedHeaders,
+		URL: presigned.URL, Method: presigned.Method, ExpiresAt: presigned.Expiration, Headers: normalizedObjectGrantHeaders(presigned.SignedHeaders),
 	}, nil
 }
 
@@ -183,13 +179,9 @@ func (s *OSSProfileObjects) completedMediaObjectMatches(ctx context.Context, res
 	for _, part := range resource.Parts {
 		expectedSize += part.Size
 	}
-	metadataName := "mineg-content-sha256"
-	if resource.Purpose == "MEDIA_CIPHERTEXT" {
-		metadataName = "mineg-ciphertext-sha256"
-	}
 	metadataDigest := ""
 	for name, value := range head.Metadata {
-		if strings.EqualFold(name, metadataName) {
+		if strings.EqualFold(name, "mineg-content-sha256") {
 			metadataDigest = value
 		}
 	}
@@ -213,4 +205,40 @@ func (s *OSSProfileObjects) AbortMediaUpload(ctx context.Context, resources []Me
 		}
 	}
 	return first
+}
+
+func (s *OSSProfileObjects) IssueMediaRead(ctx context.Context, key string, lifetime time.Duration) (ObjectGrant, error) {
+	if !strings.HasPrefix(key, "media/") || lifetime <= 0 || lifetime > 15*time.Minute {
+		return ObjectGrant{}, errors.New("invalid media read grant")
+	}
+	if err := s.ensureCredentialLifetime(lifetime); err != nil {
+		return ObjectGrant{}, err
+	}
+	presigned, err := s.presignClient.Presign(ctx, &oss.GetObjectRequest{
+		Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(key),
+	}, oss.PresignExpires(lifetime))
+	if err != nil {
+		return ObjectGrant{}, fmt.Errorf("presign media read: %w", err)
+	}
+	return ObjectGrant{URL: presigned.URL, Method: presigned.Method, ExpiresAt: presigned.Expiration, Headers: normalizedObjectGrantHeaders(presigned.SignedHeaders)}, nil
+}
+
+// IssueMediaImagePreview uses OSS IMG for a bounded, on-the-fly grid image.
+// It does not persist a derivative object and it never reads the original body
+// through the API service. The OSS process query is included before signing.
+func (s *OSSProfileObjects) IssueMediaImagePreview(ctx context.Context, key string, lifetime time.Duration) (ObjectGrant, error) {
+	if !strings.HasPrefix(key, "media/") || lifetime <= 0 || lifetime > 15*time.Minute {
+		return ObjectGrant{}, errors.New("invalid media image preview grant")
+	}
+	if err := s.ensureCredentialLifetime(lifetime); err != nil {
+		return ObjectGrant{}, err
+	}
+	presigned, err := s.presignClient.Presign(ctx, &oss.GetObjectRequest{
+		Bucket: oss.Ptr(s.bucket), Key: oss.Ptr(key),
+		Process: oss.Ptr("image/resize,m_lfit,l_512"),
+	}, oss.PresignExpires(lifetime))
+	if err != nil {
+		return ObjectGrant{}, fmt.Errorf("presign media image preview: %w", err)
+	}
+	return ObjectGrant{URL: presigned.URL, Method: presigned.Method, ExpiresAt: presigned.Expiration, Headers: normalizedObjectGrantHeaders(presigned.SignedHeaders)}, nil
 }

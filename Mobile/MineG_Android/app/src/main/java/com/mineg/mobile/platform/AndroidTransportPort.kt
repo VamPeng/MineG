@@ -2,6 +2,8 @@ package com.mineg.mobile.platform
 
 import com.mineg.mobile.contracts.ApiRequest
 import com.mineg.mobile.contracts.ApiResponse
+import com.mineg.mobile.contracts.DownloadObjectRequest
+import com.mineg.mobile.contracts.DownloadObjectResult
 import com.mineg.mobile.contracts.TransportPort
 import com.mineg.mobile.contracts.UploadPartRequest
 import com.mineg.mobile.contracts.UploadPartResult
@@ -10,9 +12,13 @@ import com.mineg.mobile.contracts.UploadObjectResult
 import java.io.RandomAccessFile
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import java.security.MessageDigest
+import java.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -54,6 +60,10 @@ class AndroidTransportPort(
         contentType = connection.contentType.orEmpty(),
         requestId = connection.getHeaderField("X-Request-ID"),
         body = body,
+        retryAfterSeconds = connection.getHeaderField("Retry-After")
+          ?.trim()
+          ?.toLongOrNull()
+          ?.coerceIn(0L, 15 * 60L),
       )
     } finally {
       connection.disconnect()
@@ -144,6 +154,75 @@ class AndroidTransportPort(
       UploadObjectResult(status)
     } finally {
       connection.disconnect()
+    }
+  }
+
+  override suspend fun downloadObject(request: DownloadObjectRequest): DownloadObjectResult = withContext(Dispatchers.IO) {
+    require(request.method == "GET" && request.maximumSize > 0 &&
+      (request.expectedSize == null || request.expectedSize in 1..request.maximumSize)) {
+      "invalid object download request"
+    }
+    val target = URI(request.url)
+    require(target.scheme == "https" && target.userInfo == null && target.host != null) {
+      "object download URL must be credential-free HTTPS"
+    }
+    val destination = File(request.destinationPath)
+    require(destination.parentFile?.isDirectory == true && !destination.isDirectory) {
+      "object download destination is unavailable"
+    }
+    val connection = target.toURL().openConnection() as HttpURLConnection
+    var completed = false
+    try {
+      connection.requestMethod = "GET"
+      connection.connectTimeout = 15_000
+      connection.readTimeout = 60_000
+      connection.instanceFollowRedirects = false
+      request.headers.forEach { (name, value) ->
+        if (!name.equals("Host", true) && !name.equals("Content-Length", true)) {
+          connection.setRequestProperty(name, value)
+        }
+      }
+      val status = connection.responseCode
+      if (status !in 200..299) throw IOException("object download failed with status $status")
+      val announcedLength = connection.contentLengthLong
+      if (request.expectedSize != null && announcedLength >= 0 && announcedLength != request.expectedSize) {
+        throw IOException("object download size does not match manifest")
+      }
+      if (announcedLength > request.maximumSize) throw IOException("object download exceeds limit")
+      val digest = MessageDigest.getInstance("SHA-256")
+      val buffer = ByteArray(64 * 1024)
+      var bytesWritten = 0L
+      try {
+        connection.inputStream.use { input ->
+          FileOutputStream(destination, false).use { output ->
+            while (true) {
+              val count = input.read(buffer)
+              if (count < 0) break
+              if (count == 0) continue
+              bytesWritten += count
+              if (bytesWritten > request.maximumSize) throw IOException("object download exceeds limit")
+              digest.update(buffer, 0, count)
+              output.write(buffer, 0, count)
+            }
+            output.fd.sync()
+          }
+        }
+      } finally {
+        buffer.fill(0)
+      }
+      if (request.expectedSize != null && bytesWritten != request.expectedSize) {
+        throw IOException("object download is truncated")
+      }
+      completed = true
+      DownloadObjectResult(
+        status = status,
+        bytesWritten = bytesWritten,
+        sha256Base64 = Base64.getEncoder().withoutPadding().encodeToString(digest.digest()),
+        contentType = connection.contentType?.substringBefore(';')?.trim().orEmpty(),
+      )
+    } finally {
+      connection.disconnect()
+      if (!completed) destination.delete()
     }
   }
 

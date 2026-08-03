@@ -39,7 +39,8 @@ class AccountContractTest {
       .filter { Modifier.isPublic(it.modifiers) }
       .map { it.name }
       .toSet()
-    assertContains(coreMethods, "createUserKeyBundle")
+    assertFalse(coreMethods.contains("createUserKeyBundle"))
+    assertFalse(coreMethods.contains("createFamilyKeyEnvelope"))
   }
 
   @Test

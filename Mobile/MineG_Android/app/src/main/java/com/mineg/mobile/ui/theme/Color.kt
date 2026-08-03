@@ -3,34 +3,24 @@ package com.mineg.mobile.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
-/**
- * MineG color tokens from Requirement/Prototype/Stitch/THEME.md.
- *
- * Keep brand colors separate from status colors: the warm orange-red palette
- * identifies MineG, while green, amber, red, and blue communicate state.
- */
+/** Authoritative Android mapping of Requirement/Prototype/Stitch/THEME.md. */
 object MineGColorTokens {
-  val BrandGradientStart = Color(0xFFFD7106)
-  val BrandGradientMiddle = Color(0xFFFD5033)
-  val BrandGradientEnd = Color(0xFFFD374B)
-  val BrandPrimary = BrandGradientMiddle
-  val BrandPrimaryAction = Color(0xFFD63B26)
-  val BrandPrimaryPressed = Color(0xFFB92E24)
-  val BrandPrimaryContainer = Color(0xFFFFE3DE)
-  val OnBrandPrimary = Color(0xFF1F1B17)
-  val OnBrandPrimaryAction = Color.White
-  val OnBrandPrimaryContainer = Color(0xFF6B1A10)
+  val BrandPrimary = Color(0xFF3BAAFF)
+  val BrandPrimaryPressed = Color(0xFF2CA4FF)
+  val BrandPrimaryContainer = Color(0xFFD9F0FF)
+  val OnBrandPrimary = Color.White
+  val OnBrandPrimaryContainer = Color(0xFF004B73)
 
-  val Background = Color(0xFFFFF8F4)
+  val Background = Color(0xFFF7FBFF)
   val Surface = Color.White
-  val SurfaceLow = Color(0xFFFBF2EB)
-  val SurfaceContainer = Color(0xFFF5ECE5)
-  val SurfaceHigh = Color(0xFFEEE3DC)
-  val TextPrimary = Color(0xFF1F1B17)
-  val TextSecondary = Color(0xFF6B6260)
-  val IconInactive = Color(0xFFAAA4A3)
-  val Outline = Color(0xFFB9AFAA)
-  val Divider = Color(0xFFE8DDD7)
+  val SurfaceLow = Color(0xFFEEF6FB)
+  val SurfaceContainer = Color(0xFFE5F0F7)
+  val SurfaceHigh = Color(0xFFD7E5EF)
+  val TextPrimary = Color(0xFF1B2730)
+  val TextSecondary = Color(0xFF52616D)
+  val IconInactive = Color(0xFF9AAAB6)
+  val Outline = Color(0xFFB9CCD8)
+  val Divider = Color(0xFFD7E5EF)
 
   val Success = Color(0xFF436444)
   val SuccessContainer = Color(0xFFDCEBD9)
@@ -45,26 +35,21 @@ object MineGColorTokens {
   val InfoContainer = Color(0xFFD8E9FF)
   val OnInfoContainer = Color(0xFF173B60)
 
-  val DarkBackground = Color(0xFF1B1513)
-  val DarkSurface = Color(0xFF241D1A)
-  val DarkSurfaceContainer = Color(0xFF2F2622)
-  val DarkSurfaceHigh = Color(0xFF3A302B)
-  val DarkTextPrimary = Color(0xFFFFF5F0)
-  val DarkTextSecondary = Color(0xFFD8C3B9)
-  val DarkOutline = Color(0xFF8E7D75)
-  val DarkDivider = Color(0xFF51443E)
-  val DarkBrandGradientStart = Color(0xFFFF8A3D)
-  val DarkBrandGradientMiddle = Color(0xFFFF6E58)
-  val DarkBrandGradientEnd = Color(0xFFFF5B72)
+  val DarkBackground = Color(0xFF101820)
+  val DarkSurface = Color(0xFF17222B)
+  val DarkSurfaceContainer = Color(0xFF20303C)
+  val DarkSurfaceHigh = Color(0xFF2A3D4B)
+  val DarkTextPrimary = Color(0xFFEAF6FF)
+  val DarkTextSecondary = Color(0xFFB8CAD6)
+  val DarkOutline = Color(0xFF748896)
+  val DarkDivider = Color(0xFF304653)
+  val DarkBrandPrimary = Color(0xFF6BC4FF)
 }
 
 @Immutable
 data class MineGExtendedColors(
-  val brandGradient: List<Color>,
   val brandSelectionAlpha: Float,
-  val brandPrimaryAction: Color,
   val brandPrimaryPressed: Color,
-  val onBrandPrimaryAction: Color,
   val success: Color,
   val successContainer: Color,
   val onSuccessContainer: Color,

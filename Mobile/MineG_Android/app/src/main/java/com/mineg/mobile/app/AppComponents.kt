@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +29,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,27 +39,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
-import com.mineg.mobile.ui.theme.mineGBrandGradient
+import com.mineg.mobile.R
 import com.mineg.mobile.ui.theme.mineGColors
-import com.mineg.mobile.ui.theme.mineGNavigationSelectionGradient
+import com.mineg.mobile.ui.theme.mineGNavigationSelectionColor
 import coil3.compose.AsyncImage
 
 @Composable
@@ -67,41 +67,39 @@ fun MineGBottomBar(
   selectedTab: MainTab,
   onSelectTab: (MainTab) -> Unit,
 ) {
-  val inactiveIconFilter = remember {
-    ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
-  }
-  NavigationBar(
-    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
-    tonalElevation = 0.dp,
-  ) {
-    Row(
-      modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
-      horizontalArrangement = Arrangement.SpaceAround,
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      MainTab.entries.forEach { tab ->
-        val iconAsset = when (tab) {
-          MainTab.PRIVATE_SPACE -> "claude.png"
-          MainTab.BACKUP -> "nav_backup.png"
-          MainTab.PROFILE -> "nav_profile.png"
-        }
-        val selected = tab == selectedTab
-        Box(
-          modifier = Modifier
-            .size(width = 60.dp, height = 50.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .then(if (selected) Modifier.background(mineGNavigationSelectionGradient()) else Modifier)
-            .clickable { onSelectTab(tab) }
-            .semantics { contentDescription = tab.label },
-          contentAlignment = Alignment.Center,
-        ) {
-          MineGAssetImage(
-            assetPath = iconAsset,
-            contentDescription = null,
-            modifier = Modifier.size(if (selected) 38.dp else 34.dp),
-            colorFilter = if (selected) null else inactiveIconFilter,
-            alpha = if (selected) 1f else 0.56f,
-          )
+  Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)) {
+    Column {
+      HorizontalDivider(color = Color(0x2E6F7E89), thickness = 1.dp)
+      Row(
+        modifier = Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        MainTab.entries.forEach { tab ->
+          val iconRes = when (tab) {
+            MainTab.PRIVATE_SPACE -> R.drawable.cloud
+            MainTab.BACKUP -> R.drawable.local_album
+            MainTab.PROFILE -> R.drawable.profile
+          }
+          val selected = tab == selectedTab
+          Box(
+            modifier = Modifier
+              .size(width = 60.dp, height = 50.dp)
+              .clip(RoundedCornerShape(18.dp))
+              .then(if (selected) Modifier.background(mineGNavigationSelectionColor()) else Modifier)
+              .clickable { onSelectTab(tab) }
+              .semantics { contentDescription = tab.label },
+            contentAlignment = Alignment.Center,
+          ) {
+            MineGDrawableImage(
+              drawableRes = iconRes,
+              contentDescription = null,
+              modifier = Modifier.size(32.dp),
+              colorFilter = ColorFilter.tint(
+                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.mineGColors.iconInactive,
+              ),
+            )
+          }
         }
       }
     }
@@ -109,24 +107,20 @@ fun MineGBottomBar(
 }
 
 @Composable
-fun MineGAssetImage(
-  assetPath: String,
+fun MineGDrawableImage(
+  drawableRes: Int,
   contentDescription: String?,
   modifier: Modifier = Modifier,
   colorFilter: ColorFilter? = null,
   alpha: Float = 1f,
 ) {
-  val context = LocalContext.current
-  val bitmap = remember(assetPath) { PrototypeBitmapCache.load(context, assetPath) }
-  if (bitmap != null) {
-    Image(
-      bitmap = bitmap,
-      contentDescription = contentDescription,
-      modifier = modifier,
-      colorFilter = colorFilter,
-      alpha = alpha,
-    )
-  }
+  Image(
+    painter = painterResource(drawableRes),
+    contentDescription = contentDescription,
+    modifier = modifier,
+    colorFilter = colorFilter,
+    alpha = alpha,
+  )
 }
 
 @Composable
@@ -156,8 +150,9 @@ fun MineGCard(
   Card(
     modifier = modifier,
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    shape = RoundedCornerShape(18.dp),
-    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    shape = RoundedCornerShape(12.dp),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceContainerHigh),
+    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
   ) { content() }
 }
 
@@ -166,13 +161,13 @@ fun MediaPlaceholder(
   media: MediaItem,
   modifier: Modifier = Modifier,
   showOwner: Boolean = false,
+  bottomStartSyncState: LocalMediaSyncState? = null,
   onClick: (() -> Unit)? = null,
 ) {
-  val palette = mockPalette(media.colorSeed)
   Box(
     modifier = modifier
       .clip(RoundedCornerShape(8.dp))
-      .background(Brush.linearGradient(palette))
+      .background(MaterialTheme.colorScheme.surfaceContainer)
       .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
   ) {
     Text(
@@ -209,6 +204,28 @@ fun MediaPlaceholder(
         color = Color.Black.copy(alpha = 0.48f),
         shape = RoundedCornerShape(5.dp),
       ) { Text(it, color = Color.White, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)) }
+    }
+    bottomStartSyncState?.let { syncState ->
+      val color = when (syncState) {
+        LocalMediaSyncState.UNSYNCED -> Color.Black.copy(alpha = 0.46f)
+        LocalMediaSyncState.SYNCING ->
+          lerp(MaterialTheme.colorScheme.primary, Color.White, 0.16f).copy(alpha = 0.64f)
+        LocalMediaSyncState.FAILED -> Color(0xFFD32F2F)
+        LocalMediaSyncState.SYNCED -> MaterialTheme.colorScheme.primary.copy(alpha = 0.80f)
+      }
+      Surface(
+        modifier = Modifier.align(Alignment.BottomStart).padding(5.dp),
+        color = color,
+        shape = RoundedCornerShape(5.dp),
+      ) {
+        Text(
+          syncState.label,
+          color = Color.White,
+          fontSize = 10.sp,
+          fontWeight = FontWeight.Medium,
+          modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+        )
+      }
     }
     if (showOwner) {
       Surface(
@@ -283,6 +300,7 @@ fun SettingRow(
   onClick: () -> Unit,
   iconContainer: Color? = null,
   iconTint: Color? = null,
+  showIcon: Boolean = true,
   trailing: (@Composable () -> Unit)? = null,
 ) {
   val resolvedContainer = iconContainer ?: MaterialTheme.colorScheme.primaryContainer
@@ -292,30 +310,17 @@ fun SettingRow(
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(14.dp),
   ) {
-    Box(
-      Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(resolvedContainer),
-      contentAlignment = Alignment.Center,
-    ) { Icon(icon, contentDescription = null, tint = resolvedTint) }
+    if (showIcon) {
+      Box(
+        Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(resolvedContainer),
+        contentAlignment = Alignment.Center,
+      ) { Icon(icon, contentDescription = null, tint = resolvedTint) }
+    }
     Column(Modifier.weight(1f)) {
       Text(title, fontWeight = FontWeight.SemiBold)
-      Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     trailing?.invoke()
   }
   HorizontalDivider(color = MaterialTheme.mineGColors.divider)
-}
-
-private fun mockPalette(seed: Int): List<Color> {
-  val palettes = listOf(
-    listOf(Color(0xFFFFB07C), Color(0xFFFD5C55)),
-    listOf(Color(0xFF7FA6A0), Color(0xFF355C5A)),
-    listOf(Color(0xFFF0B7A4), Color(0xFF9C5B6A)),
-    listOf(Color(0xFFF4C87A), Color(0xFFB46B45)),
-    listOf(Color(0xFFB7A48B), Color(0xFF66554B)),
-    listOf(Color(0xFF9DB9D2), Color(0xFF526B86)),
-    listOf(Color(0xFFD6C5B5), Color(0xFF8A6E61)),
-    listOf(Color(0xFFB5A5C9), Color(0xFF675577)),
-    listOf(Color(0xFFD7A17B), Color(0xFF75493B)),
-  )
-  return palettes[Math.floorMod(seed, palettes.size)]
 }

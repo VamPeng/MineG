@@ -5,7 +5,7 @@
 - 文档状态：`MIGRATION_IN_PROGRESS`
 - 建立日期：2026-07-30
 - 适用基线：Android `0.3.0-m3`、C ABI 4、SQLite v4
-- 上位约束：[MineG 技术需求 v1.2](../../Requirement/technical-requirements.md)、[三端一致性契约 v1.1](../three-platform-consistency-contract.md)
+- 上位约束：[MineG 技术需求 v1.5](../../Requirement/technical-requirements.md)、[三端一致性契约 v1.2](../three-platform-consistency-contract.md)
 - 审核范围：`Mobile/MineG_Android` 与 `Mobile/core`
 - 非目标：本文件不改变已验收的产品行为、不回写 `contracts/*-v1.json`、不在迁移中顺便实现尚未存在的服务端接口
 
@@ -14,8 +14,8 @@
 - 批次 A 已完成：新增 `foundation-v2`、ABI 5、SQLite v5 可恢复 operation、Android 通用 Effect Dispatcher、四类当前生效的 Port 测试替身和默认拒绝的数据主权扫描门禁。
 - 批次 B/E1 的生产账号主链已完成：新增 `account-v3` 与 SQLite v6，注册、登录、Session 恢复/轮换/退出、审核查询和 Profile 查询/更新由 Core operation 驱动；注册不生成 key bundle，审核直接准入，Token 仅通过批量 `SecureStoreEffect` 原子写入，Android 专属 `mineg_profile_cache` 已移除。
 - 批次 C 的现行生产主链已实现：新增 `stage02-v2` 与 SQLite v7，头像创建授权/对象上传/完成确认、私人媒体列表与账号隔离缓存均由 Core operation 驱动；主页只消费 Core 返回的 Profile/PrivateMedia Snapshot。Key Grant operation 只保留旧客户端兼容，不再由生产入口调用。
-- `AndroidAccountClient` 只作为未退役旧账号 UI 与旧上传代码的编译兼容实现保留，当前 `MainActivity`/`MineGAppRuntime` 不再实例化它。批次 D 按[前台本地索引技术方案](./batch-d-local-index-settings.md)重新实现，不继承现有 Kotlin 恢复循环。不得据此将整体 M3-D 标记完成。
-- 当前迁移实现版本：C ABI 5、SQLite v7；既有 ABI 4/SQLite v4 行为继续兼容。
+- 批次 D 已于 2026-08-02 由项目负责人确认完成：`stage02-v2` 2.1.0 的前台扫描、完成代次切换和备份偏好均由 Core 驱动，Android 只执行 MediaSource Effect 并展示 Core Snapshot。旧 `AndroidAccountClient`、旧 UI 与旧上传编排已删除。
+- 当前迁移实现版本：C ABI 5、SQLite v8；既有 ABI 4/SQLite v4 行为继续兼容。
 
 本文件列出 Android 已实现但仍在 Kotlin/Compose 层拥有领域数据、接口编排、业务缓存或状态迁移的代码。迁移目标不是让 C++ 直接持有 Android 网络、权限或系统对象，而是让 C++ Core 成为业务请求、领域数据和状态机的唯一所有者，Android 只保留 UI、Bridge 与 PlatformPort。
 
@@ -122,8 +122,8 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 | AND-DATA-003 | P0 | Key grant 与头像 | 生产主链已迁移；旧路径例外保留 | 旧账号 UI 仍编译 | Core 编排；平台只执行图片预处理、SecureStore 与 Transport Effect |
 | AND-DATA-004 | P0 | 私人媒体主页列表 | 生产主链已迁移；旧路径例外保留 | 旧 Client 方法仍编译 | Core 查询、账号隔离 SQLite 快照与离线回退 |
 | AND-DATA-005 | P0 | 单媒体上传 | 已实现，当前新入口未直接调用 | 上传状态机和服务端 DTO | Core 完整状态机；TransportPort 只上传字节/分片 |
-| AND-DATA-006 | P1 | 本地扫描 | 当前生效 | 权限门禁、分页循环、generation、持久化游标 | Core 非恢复型前台扫描；MediaSourcePort 只返回批次 |
-| AND-DATA-007 | P1 | 备份设置 | UI 部分生效 | ViewModel 本地状态；旧 Client 含真实设置逻辑 | Core Settings Snapshot；不创建任务或调度 Effect |
+| AND-DATA-006 | P1 | 本地扫描 | 批次 D 已关闭 | 旧 Client 路径仅编译兼容 | Core 非恢复型前台扫描；MediaSourcePort 只返回批次 |
+| AND-DATA-007 | P1 | 备份设置 | 批次 D 已关闭 | 旧 Client 路径仅编译兼容 | Core Settings Snapshot；不创建任务或调度 Effect |
 | AND-DATA-008 | P0 | 分享/删除/恢复/下载/反馈 | 页面生效但业务为模拟 | ViewModel 直接增删列表或标记成功 | 正式实现时直接进入 Core；联调前不得宣称完成 |
 | AND-DATA-009 | P1 | 审核轮询与页面准入 | 当前生效 | 轮询、错误分流、资料准入判断 | Core 审核 operation；ViewModel 只响应领域状态 |
 | AND-DATA-010 | P1 | 业务校验 | 当前生效 | 手机号、密码、昵称规则 | Core 权威校验；平台可保留等价的即时展示预校验 |
@@ -350,15 +350,14 @@ v2 通过并切换生产入口后，v1 进入 `DEPRECATED`，至少保留一个�
 1. 新增 `account-v3`，注册不生成或提交 key bundle；
 2. 管理员审核后服务端直接写入 `APPROVED`，不创建 key-grant 任务；
 3. Android 生产账号主链不调用 `CoordinateFamilyKeyGrants`，待审核文案不再承诺家庭密钥授权；
-4. 旧 key bundle、family envelope、key-grant 表/API/C ABI 只保留兼容，不删除、不进入新流程；
+4. 旧 key bundle、family envelope、key-grant 表/API/C ABI 已删除；部署时执行不可逆数据清理迁移。
 5. 通过服务端、Core、Android 契约测试及专用数据库迁移闭环后，将 `account-v3` 从 `BASELINED` 转为 `FROZEN`。
 
 ### 批次 E2：单媒体无加密上传
 
 1. 迁移 AND-DATA-005；
 2. 删除新上传契约中的 Media Key、密文清单和密文资源要求，改为长度/SHA-256 与受控原资源传输；
-3. 用真实 ECS + 隔离私有 OSS 验证断网、授权过期、分片重试和完成响应丢失；
-4. `stage03-v2` 达标后再决定 M3 是否转为 `FROZEN`。
+3. 项目负责人已于 2026-08-02 确认真实 ECS + 私有 OSS 的 Android 单媒体上传，`stage03-v2` 已转为 `FROZEN`；断网、授权过期、分片重试和完成响应丢失的故障演练转入阶段 09 发布加固。
 
 ### 批次 F：后续领域与旧路径
 

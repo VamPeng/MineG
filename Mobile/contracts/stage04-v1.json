@@ -1,0 +1,182 @@
+{
+  "contractVersion": "stage04-v1",
+  "version": "1.0.0",
+  "status": "BASELINED",
+  "scope": "M4_PERSISTENT_BACKUP_QUEUE_AND_AUTO_BACKUP",
+  "architecture": {
+    "businessOrchestrator": "C++ Core",
+    "businessTruth": "Core SQLite",
+    "backgroundSchedulerRole": "Provide execution windows only",
+    "clientMediaEncryption": false,
+    "uploadProtocolCompatibility": "stage03-v2"
+  },
+  "commands": [
+    "ReconcileBackupQueue",
+    "RunBackupCycle",
+    "EnqueueBackupMedia",
+    "RetryBackupQueue",
+    "NotifyLibraryChanged"
+  ],
+  "queries": [
+    "GetBackupOverview",
+    "GetLocalAlbumBackupProgress",
+    "GetBackupQueueSummary"
+  ],
+  "events": [
+    "BackupOverviewChanged",
+    "BackupProgressChanged",
+    "BackupQueueChanged",
+    "BackupScheduleRequested"
+  ],
+  "taskStates": [
+    "DISCOVERED",
+    "WAITING_PERMISSION",
+    "WAITING_RESOURCE",
+    "WAITING_NETWORK",
+    "PREPARING",
+    "CREATING_SESSION",
+    "UPLOADING",
+    "SERVER_VERIFYING",
+    "RETRYABLE_FAILED",
+    "PERMANENT_FAILED",
+    "PAUSED_BY_SETTING",
+    "COMPLETED"
+  ],
+  "overviewStates": [
+    "PERMISSION_REQUIRED",
+    "AUTO_BACKUP_DISABLED",
+    "SCANNING",
+    "UPLOADING",
+    "WAITING_FOR_WIFI",
+    "OFFLINE",
+    "DEVICE_STORAGE_LOW",
+    "REMOTE_STORAGE_FULL",
+    "SERVICE_UNAVAILABLE",
+    "RETRY_REQUIRED",
+    "COMPLETED"
+  ],
+  "failureScopes": [
+    "LOCAL",
+    "NETWORK",
+    "SERVICE",
+    "OSS",
+    "AUTH"
+  ],
+  "errorCodes": [
+    "BACKUP_ACCOUNT_MISMATCH",
+    "BACKUP_LOCAL_RESOURCE_UNAVAILABLE",
+    "BACKUP_LOCAL_READ_FAILED",
+    "BACKUP_DEVICE_STORAGE_LOW",
+    "BACKUP_NETWORK_OFFLINE",
+    "BACKUP_WIFI_REQUIRED",
+    "BACKUP_SERVICE_UNAVAILABLE",
+    "BACKUP_REMOTE_STORAGE_FULL",
+    "BACKUP_UPLOAD_SESSION_EXPIRED",
+    "BACKUP_UPLOAD_PART_MISMATCH",
+    "BACKUP_SERVER_CONFIRMATION_PENDING",
+    "BACKUP_RETRY_EXHAUSTED",
+    "SESSION_INVALID"
+  ],
+  "snapshots": {
+    "BackupOverviewSnapshot": [
+      "state",
+      "autoBackupEnabled",
+      "allowCellularBackup",
+      "discoveredCount",
+      "pendingCount",
+      "completedCount",
+      "failedCount",
+      "currentMediaRef",
+      "currentMediaType",
+      "currentResourceType",
+      "confirmedBytes",
+      "transferredBytes",
+      "totalBytes",
+      "nextRetryAt",
+      "failureCode",
+      "retryable",
+      "lastScanCompletedAt",
+      "lastServerConfirmedAt"
+    ],
+    "BackupQueueSummary": [
+      "pendingCount",
+      "retryableFailedCount",
+      "permanentFailedCount",
+      "earliestNextRetryAt",
+      "runnableCount",
+      "waitingNetworkCount",
+      "manualPendingCount",
+      "manualRunnableCount",
+      "manualWaitingNetworkCount",
+      "manualEarliestNextRetryAt",
+      "reconciliationRequired",
+      "scheduleRequested"
+    ],
+    "LocalAlbumBackupProgressSnapshot": [
+      "completedCount",
+      "totalCount",
+      "mediaStates"
+    ]
+  },
+  "uiSemantics": [
+    "backup.overview",
+    "backup.overview.status",
+    "backup.overview.progress",
+    "backup.overview.refresh",
+    "backup.overview.settings",
+    "backup.overview.start",
+    "backup.overview.retry",
+    "backup.settings",
+    "backup.settings.autoBackup",
+    "backup.settings.allowCellular"
+  ],
+  "effectActions": {
+    "MediaSourceEffect": [
+      "getPermissionSnapshot",
+      "getLibraryCheckpoint",
+      "listBackupCandidates",
+      "openMediaResource",
+      "releaseMediaResource"
+    ],
+    "ConnectivityEffect": [
+      "getConnectivitySnapshot"
+    ],
+    "TransportEffect": [
+      "sendApiRequest",
+      "uploadPart",
+      "uploadParts",
+      "cancelTransfer"
+    ],
+    "BackgroundSchedulerEffect": [
+      "scheduleBackup",
+      "cancelBackup",
+      "reportExecutionWindow"
+    ],
+    "FileEffect": [
+      "getAvailableSpace",
+      "createTaskTempFile",
+      "deleteTempFile"
+    ]
+  },
+  "limits": {
+    "scanPageSizeMaximum": 500,
+    "partSizeBytes": 4194304,
+    "concurrentMediaMaximum": 2,
+    "concurrentPartsPerMediaMaximum": 2,
+    "automaticFailureLimit": 12,
+    "retryBaseSeconds": 5,
+    "retryMaximumSeconds": 900
+  },
+  "rules": [
+    "The Core owns scan cursors, task state, retry state, upload DTO parsing and completion decisions",
+    "WorkManager state is never a backup business state",
+    "Signed object URLs, cloud credentials and file descriptors are never persisted in Core SQLite",
+    "Only server-confirmed parts contribute to persisted progress",
+    "A task becomes COMPLETED only after the server returns or reports a completed media record",
+    "Disabling auto backup stops discovery and new object-byte uploads but preserves recoverable task state",
+    "ENCRYPTING and legacy ciphertext fields are forbidden in the active Stage 04 path",
+    "There is no per-task pause, cancel, ignore or reorder product operation"
+  ],
+  "jsonFieldStyle": "lowerCamelCase",
+  "apiFieldStyle": "snake_case"
+}

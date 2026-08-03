@@ -2,62 +2,46 @@
 
 状态：正式主题基线
 适用范围：Android、iOS、HarmonyOS、移动端原型及后续品牌物料
-主题来源：[mineg_logo.png](../../../mineg_logo.png)
+主题依据：微信读书公开图标中提取的近似主蓝 `#3BAAFF`；该值不是腾讯公开的品牌规范。
 
 ## 1. 主题结论
 
-MineG 的主题色不是单一珊瑚红，也不是原设计中的鼠尾草绿，而是直接取自 Logo 填充的暖橙红渐变：
+MineG 的品牌主题统一为清晰、低干扰的阅读蓝：
 
 ```text
-#FD7106 → #FD5033 → #FD374B
+#3BAAFF
 ```
 
-- 暖橙代表家庭温度、回忆和陪伴。
-- 暖红代表亲密关系、珍贵内容和品牌识别。
-- 米白色承载主要界面，避免大面积橙红造成视觉疲劳。
-- 鼠尾草绿保留为备份完成、同步成功等功能状态色，不再承担品牌主色或安全背书职责。
+- 主题蓝用于已选导航、开关、进度、焦点和小面积操作强调。
+- 页面仍以白色和浅色中性表面承载内容，避免蓝色大面积铺底。
+- 品牌视觉不使用渐变；图标与操作状态保持单一蓝色，减少干扰。
+- 鼠尾草绿保留为备份完成、同步成功等功能状态色，不承担品牌主色职责。
 
 ## 2. 品牌主题 Token
 
 | Token | 色值 | 用途 |
 |---|---|---|
-| `brand.gradient.start` | `#FD7106` | Logo 渐变起点、品牌暖橙 |
-| `brand.gradient.middle` | `#FD5033` | 渐变中点、无法使用渐变时的品牌单色 |
-| `brand.gradient.end` | `#FD374B` | Logo 渐变终点、品牌暖红 |
-| `brand.primary` | `#FD5033` | 图标强调、开关、进度和小面积品牌元素 |
-| `brand.primary.action` | `#D63B26` | 需要白色小字号文字的实体主按钮 |
-| `brand.primary.pressed` | `#B92E24` | 实体主按钮按下状态 |
-| `brand.primary.container` | `#FFE3DE` | 浅品牌容器、选中标签和提示背景 |
-| `brand.on-primary` | `#1F1B17` | Logo 原色或品牌渐变上的常规文字 |
-| `brand.on-primary-action` | `#FFFFFF` | 深色实体主按钮上的文字 |
-| `brand.on-primary-container` | `#6B1A10` | 浅品牌容器上的文字和图标 |
-
-标准品牌渐变：
-
-```css
-linear-gradient(
-  135deg,
-  #FD7106 0%,
-  #FD5033 52%,
-  #FD374B 100%
-)
-```
+| `brand.primary` | `#3BAAFF` | 所有品牌操作、选中态、开关、进度、链接和图标 |
+| `brand.primary.pressed` | `#2CA4FF` | 主按钮按下状态 |
+| `brand.primary.container` | `#D9F0FF` | 浅品牌容器、选中标签和提示背景 |
+| `brand.on-primary` | `#FFFFFF` | 实体 `brand.primary` 按钮上的文字和图标 |
+| `brand.on-primary-container` | `#004B73` | 浅品牌容器上的文字和图标 |
 
 ## 3. 浅色模式基础色
 
 | Token | 色值 | 用途 |
 |---|---|---|
-| `surface.background` | `#FFF8F4` | App 页面基础背景 |
+| `surface.background` | `#F7FBFF` | App 页面基础背景 |
 | `surface.default` | `#FFFFFF` | 卡片、弹窗、底部导航 |
-| `surface.low` | `#FBF2EB` | 次级区块和弱分组 |
-| `surface.container` | `#F5ECE5` | 输入框、列表组、设置容器 |
-| `surface.high` | `#EEE3DC` | 强分组、按压反馈 |
-| `text.primary` | `#1F1B17` | 标题、正文和重要数字 |
-| `text.secondary` | `#6B6260` | 说明、时间和辅助信息 |
-| `text.disabled` | `rgba(31, 27, 23, 0.38)` | 禁用文字和图标 |
-| `icon.inactive` | `#AAA4A3` | 未选中的底部导航 Icon |
-| `outline.default` | `#B9AFAA` | 输入框和控件边界 |
-| `divider.default` | `#E8DDD7` | 列表分隔线 |
+| `surface.low` | `#EEF6FB` | 次级区块和弱分组 |
+| `surface.container` | `#E5F0F7` | 输入框、列表组、设置容器 |
+| `surface.high` | `#D7E5EF` | 强分组、按压反馈 |
+| `text.primary` | `#1B2730` | 标题、正文和重要数字 |
+| `text.secondary` | `#52616D` | 说明、时间和辅助信息 |
+| `text.disabled` | `rgba(27, 39, 48, 0.38)` | 禁用文字和图标 |
+| `icon.inactive` | `#9AAAB6` | 未选中的底部导航 Icon |
+| `outline.default` | `#B9CCD8` | 输入框和控件边界 |
+| `divider.default` | `#D7E5EF` | 列表分隔线 |
 
 ## 4. 功能状态色
 
@@ -73,7 +57,7 @@ linear-gradient(
 规则：
 
 - 绿色只表示当前操作成功、任务完成或状态正常，不用于安全、隐私或加密背书。
-- 红色错误色只表示失败、危险或破坏性操作；品牌暖红不能代替错误色。
+- 红色错误色只表示失败、危险或破坏性操作；品牌蓝不能代替错误色。
 - 状态不能只靠颜色表达，必须配合 Icon 或文字。
 
 ## 5. 底部导航
@@ -89,22 +73,17 @@ linear-gradient(
 
 未选中状态：
 
-- Icon 使用 `icon.inactive`，或对现有渐变 PNG 做中性灰处理。
+- Icon 使用 `icon.inactive`，或对现有 PNG 做中性灰处理。
 - 不使用浅品牌色背景。
 
 选中状态：
 
-- Icon 保留 Logo 同源的原始橙红渐变，不重新填色。
-- 仅按钮背景使用 Logo 渐变的 18% 透明版本。
+- Icon 使用 `brand.primary`，不保留旧的橙红渐变。
+- 仅按钮背景使用 `brand.primary` 的 16% 透明版本。
 - 选中背景不能使用灰色、绿色或独立的粉色。
 
 ```css
-linear-gradient(
-  135deg,
-  rgba(253, 113, 6, 0.18) 0%,
-  rgba(253, 80, 51, 0.18) 52%,
-  rgba(253, 55, 75, 0.18) 100%
-)
+rgba(59, 170, 255, 0.16)
 ```
 
 建议尺寸：
@@ -118,15 +97,14 @@ linear-gradient(
 
 ### 品牌主按钮
 
-- 推荐使用完整 Logo 渐变。
-- 普通字号文字使用 `#1F1B17`；它在渐变三个主要色点上均达到可读对比度。
-- 不要直接在 `#FD5033` 上使用小号白字，其对比度不足。
+- 背景使用 `brand.primary`（`#3BAAFF`），按钮文字使用 `brand.on-primary`（`#FFFFFF`）。
+- 不使用渐变、发光或投影来增强主按钮。
 
-### 白字实体主按钮
+### 主题蓝文字与图标
 
-- 背景使用 `#D63B26`。
-- 文字使用 `#FFFFFF`。
-- 按下状态使用 `#B92E24`。
+- 白底链接、返回图标、标签和按钮背景均使用 `brand.primary`（`#3BAAFF`）。
+- 蓝色按钮文字使用 `brand.on-primary`（`#FFFFFF`）。
+- 按下状态使用 `#2CA4FF`。
 
 ### 次按钮
 
@@ -136,59 +114,56 @@ linear-gradient(
 
 ### 开关、进度与焦点
 
-- 开启状态和品牌进度使用 `brand.primary`。
+- 开启状态、品牌进度和焦点轮廓使用 `brand.primary`。
 - 备份完成状态改用成功绿 `#436444`。
-- 输入框焦点边框使用 `brand.primary.action`，保证在浅色背景上足够清晰。
+- 输入框焦点边框使用 `brand.primary`。
 
 ## 7. 页面色调比例
 
 推荐使用比例：
 
-- 70%：米白和白色表面。
+- 70%：蓝白和白色表面。
 - 20%：照片、视频和内容本身。
-- 10%：品牌渐变、状态色和强调元素。
+- 10%：品牌蓝、状态色和强调元素。
 
-大面积页面背景、长文本背景和密集列表不能使用品牌渐变。MineG 的内容主体是家庭媒体，主题色应负责识别和引导，不能与照片争夺注意力。
+大面积页面背景、长文本背景和密集列表不能使用品牌蓝。MineG 的内容主体是家庭媒体，主题色应负责识别和引导，不能与照片争夺注意力。
 
 ## 8. 深色模式
 
 | Token | 色值 |
 |---|---|
-| `dark.background` | `#1B1513` |
-| `dark.surface` | `#241D1A` |
-| `dark.surface.container` | `#2F2622` |
-| `dark.text.primary` | `#FFF5F0` |
-| `dark.text.secondary` | `#D8C3B9` |
-| `dark.outline` | `#8E7D75` |
-| `dark.brand.gradient.start` | `#FF8A3D` |
-| `dark.brand.gradient.middle` | `#FF6E58` |
-| `dark.brand.gradient.end` | `#FF5B72` |
+| `dark.background` | `#101820` |
+| `dark.surface` | `#17222B` |
+| `dark.surface.container` | `#20303C` |
+| `dark.text.primary` | `#EAF6FF` |
+| `dark.text.secondary` | `#B8CAD6` |
+| `dark.outline` | `#748896` |
+| `dark.brand.primary` | `#6BC4FF` |
 
-深色模式仍保持同一渐变方向，但提高亮度，避免暖红在深色背景上显得浑浊。选中导航背景透明度建议为 22%。
+深色模式保持同一蓝色方向，选中导航背景透明度建议为 22%。
 
 ## 9. 可读性要求
 
-- `#FD5033` 与白色对比度约为 `3.30:1`，不能用于普通字号白色正文。
-- `#FD5033` 与 `#1F1B17` 对比度约为 `5.19:1`，可用于普通字号文字。
-- `#D63B26` 与白色对比度约为 `4.65:1`，可用于白字实体主按钮。
-- 正文和重要操作以 `4.5:1` 为最低目标。
+- `#3BAAFF` 与 `#1B2730` 对比度约为 `6.07:1`，适合正文和浅色容器上的文字。
+- 实体主按钮按产品指定使用 `#3BAAFF` 配白字；按钮标签保持简短、粗体且不承载长段说明。
+- 正文与辅助信息以 `4.5:1` 为最低目标。
 - 大号粗体文字以 `3:1` 为最低目标。
 
 ## 10. 禁止用法
 
-- 不得继续把鼠尾草绿定义为 App 主主题色。
-- 不得使用与 Logo 无关的独立珊瑚红或粉色作为主题替代色。
-- 不得给选中 Icon 添加半透明灰色、绿色或品牌色蒙层。
+- 不得继续把鼠尾草绿、珊瑚红或粉色定义为 App 主主题色。
+- 不得使用渐变、发光或阴影作为品牌识别的替代手段。
+- 不得给选中 Icon 添加半透明灰色、绿色或独立粉色蒙层。
 - 不得通过放大并裁切 PNG 的方式展示导航 Icon。
-- 不得将品牌暖红当作错误提示色。
-- 不得在大面积页面背景或长文本区域使用品牌渐变。
+- 不得将品牌蓝当作错误提示色。
+- 不得在大面积页面背景或长文本区域使用品牌蓝。
 
 ## 11. 平台映射
 
 三端必须使用相同 Token 名称和色值：
 
-- Android：Compose `Color` 与 `Brush.linearGradient`。
-- iOS：SwiftUI `Color` 与 `LinearGradient`。
-- HarmonyOS：ArkUI `Color` 与 `LinearGradient`。
+- Android：Compose `Color`。
+- iOS：SwiftUI `Color`。
+- HarmonyOS：ArkUI `Color`。
 
-生产代码中不得从 PNG 截图取色。颜色与渐变应由 Token 明确定义，Logo 和导航 Icon 只作为视觉资产使用。
+生产代码中不得从 PNG 截图取色。颜色应由 Token 明确定义，Logo 和导航 Icon 只作为视觉资产使用。

@@ -12,14 +12,14 @@ import (
 func TestMemoryMediaObjectsScopesPartsAndVerifiesCiphertext(t *testing.T) {
 	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	objects := NewMemoryMediaObjects(func() time.Time { return now })
-	first := bytes.Repeat([]byte{0x4d}, MediaPartMaximum)
+	first := bytes.Repeat([]byte{0x4d}, OriginalMediaPartMaximum)
 	last := []byte("authenticated-final-block")
 	firstDigest := sha256.Sum256(first)
 	lastDigest := sha256.Sum256(last)
 	wholeDigest := sha256.Sum256(append(append([]byte(nil), first...), last...))
 	plan := MediaResourcePlan{
 		ID: "resource-1", ObjectKey: "media/owner/session/resource-1.cipher",
-		Purpose: "MEDIA_CIPHERTEXT", ContentSize: int64(len(first) + len(last)), SHA256: wholeDigest[:],
+		Purpose: "MEDIA_ORIGINAL", ContentSize: int64(len(first) + len(last)), SHA256: wholeDigest[:],
 		Parts: []MediaPartPlan{
 			{Number: 1, Size: int64(len(first)), SHA256: firstDigest[:]},
 			{Number: 2, Size: int64(len(last)), SHA256: lastDigest[:]},
@@ -29,7 +29,7 @@ func TestMemoryMediaObjectsScopesPartsAndVerifiesCiphertext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin media upload: %v", err)
 	}
-	if grant.Purpose != "MEDIA_CIPHERTEXT" || grant.ScopePrefix != "media/owner/session/" || len(grant.Resources) != 1 {
+	if grant.Purpose != "MEDIA_ORIGINAL" || grant.ScopePrefix != "media/owner/session/" || len(grant.Resources) != 1 {
 		t.Fatalf("unexpected media grant: %#v", grant)
 	}
 	for _, part := range grant.Resources[0].Parts {
@@ -77,7 +77,7 @@ func TestMediaUploadRejectsBrokenFourMiBMapping(t *testing.T) {
 	objects := NewMemoryMediaObjects(time.Now)
 	_, err := objects.BeginMediaUpload(context.Background(), "media/owner/session/", []MediaResourcePlan{{
 		ID: "resource-1", ObjectKey: "media/owner/session/resource-1.cipher",
-		Purpose: "MEDIA_CIPHERTEXT", ContentSize: 34, SHA256: digest,
+		Purpose: "MEDIA_ORIGINAL", ContentSize: 34, SHA256: digest,
 		Parts: []MediaPartPlan{{Number: 1, Size: 17, SHA256: digest}, {Number: 2, Size: 17, SHA256: digest}},
 	}}, time.Minute)
 	if err == nil {

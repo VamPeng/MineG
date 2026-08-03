@@ -3,9 +3,11 @@ package com.mineg.mobile
 import com.mineg.mobile.contracts.ApiRequest
 import com.mineg.mobile.contracts.ApiResponse
 import com.mineg.mobile.contracts.CoreOperationStatus
-import com.mineg.mobile.contracts.DerivedMediaResource
+import com.mineg.mobile.contracts.ConnectivityPort
+import com.mineg.mobile.contracts.ConnectivitySnapshot
+import com.mineg.mobile.contracts.DownloadObjectRequest
+import com.mineg.mobile.contracts.DownloadObjectResult
 import com.mineg.mobile.contracts.FilePort
-import com.mineg.mobile.contracts.LocalMediaType
 import com.mineg.mobile.contracts.MediaScanCursor
 import com.mineg.mobile.contracts.MediaSourcePort
 import com.mineg.mobile.contracts.OpenedMediaResource
@@ -85,7 +87,7 @@ class FoundationV2ContractTest {
     val secureStore = FakeSecureStorePort()
     val mediaSource = FakeMediaSourcePort()
     val files = FakeFilePort()
-    PlatformEffectDispatcher(transport, secureStore, mediaSource, files).use { dispatcher ->
+    PlatformEffectDispatcher(transport, secureStore, mediaSource, files, FakeConnectivityPort()).use { dispatcher ->
       val transportResult = dispatcher.dispatch(
         effect(
           PlatformEffectType.TRANSPORT,
@@ -133,6 +135,11 @@ class FoundationV2ContractTest {
       )
       assertEquals(4096, JSONObject(fileResult.payloadJson!!).getLong("availableBytes"))
 
+      val connectivityResult = dispatcher.dispatch(
+        effect(PlatformEffectType.CONNECTIVITY, "{\"action\":\"getConnectivitySnapshot\"}"),
+      )
+      assertTrue(JSONObject(connectivityResult.payloadJson!!).getBoolean("connected"))
+
       val rejected = dispatcher.dispatch(
         effect(PlatformEffectType.FILE, """{"action":"decideBackupSuccess"}"""),
       )
@@ -150,6 +157,7 @@ class FoundationV2ContractTest {
       FakeSecureStorePort(),
       FakeMediaSourcePort(),
       FakeFilePort(),
+      FakeConnectivityPort(),
     )
     val result = dispatcher.dispatch(
       effect(PlatformEffectType.TRANSPORT, """{"action":"sendApiRequest","method":"GET","path":"/secret"}"""),
@@ -184,6 +192,8 @@ private class FakeTransportPort(private val fail: Boolean = false) : TransportPo
 
   override suspend fun uploadPart(request: UploadPartRequest): UploadPartResult = UploadPartResult("etag-1")
   override suspend fun uploadObject(request: UploadObjectRequest): UploadObjectResult = UploadObjectResult(200)
+  override suspend fun downloadObject(request: DownloadObjectRequest): DownloadObjectResult =
+    DownloadObjectResult(200, request.expectedSize ?: 1L, "digest-1", "image/jpeg")
 }
 
 private class FakeSecureStorePort : SecureStorePort {
@@ -204,14 +214,14 @@ private class FakeMediaSourcePort : MediaSourcePort {
   override fun listMedia(cursor: MediaScanCursor?, limit: Int) = PlatformMediaPage(emptyList(), null)
   override fun openFirstMediaResource(): OpenedMediaResource? = null
   override fun openMediaResource(platformAssetRef: String): OpenedMediaResource? = null
-  override fun createDerivedMediaResources(
-    platformAssetRef: String,
-    mediaType: LocalMediaType,
-  ): List<DerivedMediaResource> = emptyList()
 }
 
 private class FakeFilePort : FilePort {
   override fun createTaskTempFile(name: String) = "/fake/$name"
   override fun getAvailableSpace() = 4096L
   override fun deleteTempFile(path: String) = true
+}
+
+private class FakeConnectivityPort : ConnectivityPort {
+  override fun getConnectivitySnapshot() = ConnectivitySnapshot(connected = true, metered = false)
 }

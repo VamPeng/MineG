@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -25,13 +24,9 @@ func mountAccountRoutes(api chi.Router, service *account.Service, adminOrigin st
 	})
 	api.Get("/me", handleProfile(service))
 	api.Patch("/me/profile", handleUpdateProfile(service))
-	api.Get("/me/key-bundle", handleGetKeyBundle(service))
-	api.Put("/me/key-bundle", handleUpdateKeyBundle(service))
 	api.Post("/me/avatar/uploads", handleCreateAvatarUpload(service))
 	api.Post("/me/avatar/uploads/{uploadID}/complete", handleCompleteAvatarUpload(service))
 	api.Get("/me/avatar", handleGetAvatar(service))
-	api.Get("/key-grants/pending", handlePendingKeyGrants(service))
-	api.Post("/key-grants/{grantID}/complete", handleCompleteKeyGrant(service))
 
 	api.Route("/admin", func(admin chi.Router) {
 		admin.Use(adminCORSMiddleware(adminOrigin))
@@ -45,14 +40,10 @@ func mountAccountRoutes(api chi.Router, service *account.Service, adminOrigin st
 }
 
 type signUpRequest struct {
-	Phone                string          `json:"phone"`
-	Password             string          `json:"password"`
-	PublicKey            string          `json:"public_key"`
-	EncryptedKeyBundle   string          `json:"encrypted_key_bundle"`
-	KDFParameters        json.RawMessage `json:"kdf_parameters"`
-	BundleVersion        int32           `json:"bundle_version"`
-	DeviceInstallationID string          `json:"device_installation_id"`
-	Platform             string          `json:"platform"`
+	Phone                string `json:"phone"`
+	Password             string `json:"password"`
+	DeviceInstallationID string `json:"device_installation_id"`
+	Platform             string `json:"platform"`
 }
 
 func handleSignUp(service *account.Service) http.HandlerFunc {
@@ -61,24 +52,11 @@ func handleSignUp(service *account.Service) http.HandlerFunc {
 		if !decodeJSON(w, r, &request) {
 			return
 		}
-		var publicKey, bundle []byte
-		var publicErr, bundleErr error
-		if request.PublicKey != "" {
-			publicKey, publicErr = base64.RawStdEncoding.DecodeString(request.PublicKey)
-		}
-		if request.EncryptedKeyBundle != "" {
-			bundle, bundleErr = base64.RawStdEncoding.DecodeString(request.EncryptedKeyBundle)
-		}
-		if publicErr != nil || bundleErr != nil {
-			writeAccountError(w, r, &account.Error{Code: "KEY_BUNDLE_INVALID", Status: 422, Title: "Invalid key bundle", Detail: "Key data must use unpadded base64."})
-			return
-		}
 		result, err := service.SignUp(r.Context(), account.SignUpInput{
-			Phone: request.Phone, Password: request.Password, PublicKey: publicKey,
-			EncryptedKeyBundle: bundle, KDFParameters: request.KDFParameters,
-			BundleVersion: request.BundleVersion, DeviceInstallationID: request.DeviceInstallationID,
-			Platform:       request.Platform,
-			IdempotencyKey: r.Header.Get("Idempotency-Key"), RequestID: RequestIDFromContext(r.Context()),
+			Phone: request.Phone, Password: request.Password,
+			DeviceInstallationID: request.DeviceInstallationID,
+			Platform:             request.Platform,
+			IdempotencyKey:       r.Header.Get("Idempotency-Key"), RequestID: RequestIDFromContext(r.Context()),
 		})
 		if err != nil {
 			writeAccountError(w, r, err)

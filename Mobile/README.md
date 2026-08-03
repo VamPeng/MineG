@@ -48,7 +48,7 @@ Android 业务入口必须遵循[启动、登录、缓存与主页流程约束](
 
 Android 历史版本实现过家庭密钥 bootstrap 与离线 key grant；这些代码和 C ABI 仅保留旧数据兼容，不再参与注册、审核、登录或媒体访问。当前阶段继续提供昵称/头像入口、六态相册权限、设备级备份设置、MediaStore 分批扫描及 SQLite 本地相册分页。
 
-本地索引已位于 C++；资料/头像、扫描循环与部分门禁按迁移技术文档进入 Stage02 v2。旧 key-grant 编排不得从兼容代码重新接回生产入口，也不得复制到后续平台。
+本地索引已位于 C++；资料、头像、前台扫描与备份偏好已按 `stage02-v2` 接入 Core，批次 D 已于 2026-08-02 由项目负责人确认并冻结。旧 key-grant 编排不得从兼容代码重新接回生产入口，也不得复制到后续平台。
 
 阶段清单位于 [`contracts/stage02-v1.json`](./contracts/stage02-v1.json)。每批最多 500 条，10 万条索引与分页、编辑/删除对账、相册改名和多相册关系均由共享核心测试覆盖；中断扫描会复用持久化 generation/cursor。隔离 OSS 与 Android 权限矩阵验收完成后，当前清单已转为 `FROZEN`。
 
@@ -58,4 +58,4 @@ Android 历史版本实现过家庭密钥 bootstrap 与离线 key grant；这些
 
 `BackupSingleMedia` 已由 C++ Core 编排原资源打开、4 MiB 分片与 SHA-256、ECS 会话、OSS PUT、ETag 上报、完成和去重；Android 只执行 MediaSource/Transport Effect。本地相册点击单条媒体可触发代表性上传，并明确显示“不加密”。
 
-Android 通过 MediaStore 文件描述符流式读取原资源，不生成加密临时文件。旧 [`contracts/stage03-v1.json`](./contracts/stage03-v1.json) 与加密向量只作兼容证据；现行契约为 [`contracts/stage03-v2.json`](./contracts/stage03-v2.json)。真实 ECS + 私有 OSS 和 Android 真机验收完成前，状态保持 `IMPLEMENTED_PENDING_REAL_OSS`。
+Android 通过 MediaStore 文件描述符流式读取原资源，不生成加密临时文件。旧 [`contracts/stage03-v1.json`](./contracts/stage03-v1.json) 与加密向量只作兼容证据；现行契约 [`contracts/stage03-v2.json`](./contracts/stage03-v2.json) 已于 2026-08-02 随项目负责人确认的真实 ECS + 私有 OSS 真机上传验收冻结。故障演练转入阶段 09 发布加固。

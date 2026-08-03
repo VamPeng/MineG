@@ -36,7 +36,10 @@
     "TransportEffect",
     "SecureStoreEffect",
     "MediaSourceEffect",
-    "FileEffect"
+    "FileEffect",
+    "ConnectivityEffect",
+    "MediaPlaybackEffect",
+    "SystemAlbumEffect"
   ],
   "platformEffectEnvelope": {
     "required": [

@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-const MediaPartMaximum = 4*1024*1024 + 16
 const OriginalMediaPartMaximum = 4 * 1024 * 1024
 
 type MediaPartPlan struct {
@@ -74,6 +73,26 @@ type MediaObjects interface {
 	ResumeMediaUpload(context.Context, string, []MediaResourceGrant, []MediaResourcePlan, time.Duration) (MediaUploadGrant, error)
 	VerifyAndCompleteMediaUpload(context.Context, []MediaResourceVerification) error
 	AbortMediaUpload(context.Context, []MediaResourceGrant) error
+}
+
+// MediaReadObjects can issue a GET grant for one already-registered media
+// object. It intentionally exposes neither bucket enumeration nor deletion.
+type MediaReadObjects interface {
+	IssueMediaRead(context.Context, string, time.Duration) (ObjectGrant, error)
+	// IssueMediaImagePreview signs one exact original-image GET together with
+	// the OSS image-processing query. The process must be part of the signed
+	// request; callers must never append it to an already-signed URL.
+	IssueMediaImagePreview(context.Context, string, time.Duration) (ObjectGrant, error)
+}
+
+type DisabledMediaReadObjects struct{}
+
+func (DisabledMediaReadObjects) IssueMediaRead(context.Context, string, time.Duration) (ObjectGrant, error) {
+	return ObjectGrant{}, ErrUnavailable
+}
+
+func (DisabledMediaReadObjects) IssueMediaImagePreview(context.Context, string, time.Duration) (ObjectGrant, error) {
+	return ObjectGrant{}, ErrUnavailable
 }
 
 type DisabledMediaObjects struct{}
@@ -176,7 +195,7 @@ func (s *MemoryMediaObjects) PutPart(uploadID string, number int32, content []by
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	upload, ok := s.uploads[uploadID]
-	if !ok || upload.complete || !s.now().Before(upload.expiresAt) || number < 1 || len(content) == 0 || len(content) > MediaPartMaximum {
+	if !ok || upload.complete || !s.now().Before(upload.expiresAt) || number < 1 || len(content) == 0 || len(content) > OriginalMediaPartMaximum {
 		return "", ErrObjectNotReady
 	}
 	digest := sha256.Sum256(content)
@@ -216,6 +235,39 @@ func (s *MemoryMediaObjects) AbortMediaUpload(_ context.Context, resources []Med
 	return nil
 }
 
+func (s *MemoryMediaObjects) IssueMediaRead(_ context.Context, key string, lifetime time.Duration) (ObjectGrant, error) {
+	if !strings.HasPrefix(key, "media/") || lifetime <= 0 || lifetime > 15*time.Minute {
+		return ObjectGrant{}, errors.New("invalid media read grant")
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, upload := range s.uploads {
+		if upload.complete && upload.key == key {
+			return ObjectGrant{
+				URL: "https://objects.invalid/read/" + key, Method: "GET", ExpiresAt: s.now().UTC().Add(lifetime), Headers: map[string]string{},
+			}, nil
+		}
+	}
+	return ObjectGrant{}, ErrObjectNotReady
+}
+
+func (s *MemoryMediaObjects) IssueMediaImagePreview(_ context.Context, key string, lifetime time.Duration) (ObjectGrant, error) {
+	if !strings.HasPrefix(key, "media/") || lifetime <= 0 || lifetime > 15*time.Minute {
+		return ObjectGrant{}, errors.New("invalid media image preview grant")
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, upload := range s.uploads {
+		if upload.complete && upload.key == key {
+			return ObjectGrant{
+				URL:    "https://objects.invalid/read/" + key + "?x-oss-process=image%2Fresize%2Cm_lfit%2Cl_512",
+				Method: "GET", ExpiresAt: s.now().UTC().Add(lifetime), Headers: map[string]string{},
+			}, nil
+		}
+	}
+	return ObjectGrant{}, ErrObjectNotReady
+}
+
 func validateMediaUpload(prefix string, resources []MediaResourcePlan, lifetime time.Duration) error {
 	if !strings.HasPrefix(prefix, "media/") || !strings.HasSuffix(prefix, "/") || strings.Contains(prefix, "..") || lifetime <= 0 || lifetime > 15*time.Minute || len(resources) < 1 || len(resources) > 8 {
 		return errors.New("invalid media upload scope")
@@ -223,7 +275,7 @@ func validateMediaUpload(prefix string, resources []MediaResourcePlan, lifetime 
 	resourceIDs := make(map[string]struct{}, len(resources))
 	objectKeys := make(map[string]struct{}, len(resources))
 	purpose := resources[0].Purpose
-	if purpose != "MEDIA_CIPHERTEXT" && purpose != "MEDIA_ORIGINAL" {
+	if purpose != "MEDIA_ORIGINAL" {
 		return errors.New("invalid media upload purpose")
 	}
 	for _, resource := range resources {
@@ -239,10 +291,7 @@ func validateMediaUpload(prefix string, resources []MediaResourcePlan, lifetime 
 		resourceIDs[resource.ID] = struct{}{}
 		objectKeys[resource.ObjectKey] = struct{}{}
 		var total int64
-		partMaximum := int64(MediaPartMaximum)
-		if purpose == "MEDIA_ORIGINAL" {
-			partMaximum = OriginalMediaPartMaximum
-		}
+		partMaximum := int64(OriginalMediaPartMaximum)
 		for index, part := range resource.Parts {
 			if part.Number != int32(index+1) || part.Size < 1 || part.Size > partMaximum || len(part.SHA256) != sha256.Size {
 				return errors.New("invalid media part plan")

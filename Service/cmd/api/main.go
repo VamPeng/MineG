@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vampeng/mineg/service/internal/account"
+	"github.com/vampeng/mineg/service/internal/media"
 	"github.com/vampeng/mineg/service/internal/platform/config"
 	"github.com/vampeng/mineg/service/internal/platform/database"
 	"github.com/vampeng/mineg/service/internal/platform/httpapi"
@@ -49,6 +50,7 @@ func main() {
 	defer pool.Close()
 	var profileObjects objectstore.ProfileObjects = objectstore.DisabledProfileObjects{}
 	var mediaObjects objectstore.MediaObjects = objectstore.DisabledMediaObjects{}
+	var mediaReadObjects objectstore.MediaReadObjects = objectstore.DisabledMediaReadObjects{}
 	if cfg.OSSRegion != "" {
 		ossObjects, objectErr := objectstore.NewOSSProfileObjects(objectstore.OSSProfileConfig{
 			Region: cfg.OSSRegion, Bucket: cfg.OSSBucket, PublicEndpoint: cfg.OSSPublicOrigin,
@@ -62,6 +64,7 @@ func main() {
 		}
 		profileObjects = ossObjects
 		mediaObjects = ossObjects
+		mediaReadObjects = ossObjects
 	}
 	accountService := account.New(pool, account.Config{CursorKey: []byte(cfg.CursorHMACKey), ProfileObjects: profileObjects})
 
@@ -69,7 +72,8 @@ func main() {
 		Logger:         logger,
 		Readiness:      pool,
 		Account:        accountService,
-		Upload:         upload.New(pool, upload.Config{Objects: mediaObjects}),
+		Upload:         upload.New(pool, upload.Config{Objects: mediaObjects, CursorKey: []byte(cfg.CursorHMACKey)}),
+		Media:          media.New(pool, media.Config{CursorKey: []byte(cfg.CursorHMACKey), Objects: mediaReadObjects}),
 		AdminOrigin:    cfg.AdminOrigin,
 		RequestTimeout: cfg.RequestTimeout,
 	})

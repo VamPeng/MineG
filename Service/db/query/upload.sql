@@ -10,51 +10,28 @@ SELECT * FROM mineg.media
 WHERE owner_id = $1 AND dedupe_fingerprint = $2 AND content_revision = $3
   AND upload_status = 'COMPLETED';
 
--- name: CreateUploadSession :one
-INSERT INTO mineg.upload_sessions(
-    id, owner_id, idempotency_key, request_hash, purpose, dedupe_fingerprint,
-    content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest,
-    encrypted_media_key, envelope_algorithm, expires_at
-) VALUES ($1, $2, $3, $4, 'MEDIA_CIPHERTEXT', $5, $6, $7, $8, $9, $10, $11, $12,
-          'XCHACHA20_POLY1305', $13)
-RETURNING *;
-
--- name: CreateDeduplicatedUploadSession :one
-INSERT INTO mineg.upload_sessions(
-    id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint,
-    content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest,
-    encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at
-) VALUES ($1, $2, $3, $4, 'MEDIA_CIPHERTEXT', 'COMPLETED', $5, $6, $7, $8, $9, $10, $11, $12,
-          'XCHACHA20_POLY1305', $13, $14, $15)
-RETURNING *;
-
 -- name: CreateOriginalUploadSession :one
 INSERT INTO mineg.upload_sessions(
     id, owner_id, idempotency_key, request_hash, purpose, dedupe_fingerprint,
-    content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type, expires_at
-) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', $5, $6, $7, $8, $9, $5, $10, $11)
+    content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type,
+    width, height, duration_ms, expires_at
+) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', $5, $6, $7, $8, $9, $5, $10, $11, $12, $13, $14)
 RETURNING *;
 
 -- name: CreateDeduplicatedOriginalUploadSession :one
 INSERT INTO mineg.upload_sessions(
     id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint,
     content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type,
-    media_id, expires_at, completed_at
+    width, height, duration_ms, media_id, expires_at, completed_at
 ) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', 'COMPLETED', $5, $6, $7, $8, $9, $5, $10,
-          $11, $12, $13)
+          $11, $12, $13, $14, $15, $16)
 RETURNING *;
-
--- name: CreateUploadResource :exec
-INSERT INTO mineg.media_resources(
-    id, upload_session_id, resource_type, object_key, multipart_upload_id,
-    ciphertext_size, ciphertext_sha256, part_count
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: CreateOriginalUploadResource :exec
 INSERT INTO mineg.media_resources(
     id, upload_session_id, resource_type, object_key, multipart_upload_id,
-    content_size, content_sha256, part_count
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+    content_size, content_sha256, mime_type, part_count
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: CreateExpectedUploadPart :exec
 INSERT INTO mineg.upload_parts(
@@ -112,19 +89,11 @@ VALUES ($1, 'LIBRARY')
 ON CONFLICT (owner_id) WHERE kind = 'LIBRARY' DO UPDATE SET owner_id = EXCLUDED.owner_id
 RETURNING *;
 
--- name: CreateCompletedMedia :one
-INSERT INTO mineg.media(
-    id, owner_id, source_upload_id, media_type, dedupe_fingerprint,
-    content_revision, captured_at, manifest_digest, encrypted_manifest, upload_status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'COMPLETED')
-ON CONFLICT (owner_id, dedupe_fingerprint, content_revision) DO NOTHING
-RETURNING *;
-
 -- name: CreateCompletedOriginalMedia :one
 INSERT INTO mineg.media(
     id, owner_id, source_upload_id, media_type, dedupe_fingerprint,
-    content_revision, captured_at, content_sha256, mime_type, upload_status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $5, $8, 'COMPLETED')
+    content_revision, captured_at, content_sha256, mime_type, width, height, duration_ms, upload_status
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $5, $8, $9, $10, $11, 'COMPLETED')
 ON CONFLICT (owner_id, dedupe_fingerprint, content_revision) DO NOTHING
 RETURNING *;
 
@@ -141,11 +110,22 @@ WHERE upload_session_id = $1 AND state = 'PENDING';
 INSERT INTO mineg.media_album_links(media_id, album_id)
 VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
--- name: CreateOwnerMediaKeyEnvelope :exec
-INSERT INTO mineg.media_key_envelopes(
-    media_id, owner_id, encrypted_media_key, algorithm, envelope_version
-) VALUES ($1, $2, $3, 'XCHACHA20_POLY1305', 1)
-ON CONFLICT (media_id, owner_id) DO NOTHING;
+-- name: EnsureClientAlbum :one
+INSERT INTO mineg.albums(owner_id, kind, client_album_id, device_installation_id, display_name)
+VALUES ($1, 'CLIENT', $2, $3, $4)
+ON CONFLICT (owner_id, device_installation_id, client_album_id) WHERE kind = 'CLIENT'
+DO UPDATE SET display_name = EXCLUDED.display_name
+RETURNING *;
+
+-- name: LinkUploadSessionToClientAlbum :exec
+INSERT INTO mineg.upload_session_client_albums(upload_session_id, album_id)
+VALUES ($1, $2) ON CONFLICT DO NOTHING;
+
+-- name: LinkUploadSessionAlbumsToMedia :exec
+INSERT INTO mineg.media_album_links(media_id, album_id)
+SELECT $2, album_id FROM mineg.upload_session_client_albums
+WHERE upload_session_id = $1
+ON CONFLICT DO NOTHING;
 
 -- name: CompleteUploadSession :execrows
 UPDATE mineg.upload_sessions
@@ -158,11 +138,26 @@ SET state = 'PENDING', updated_at = $2
 WHERE id = $1 AND state = 'VERIFYING';
 
 -- name: ListOwnerMedia :many
-SELECT id, media_type, content_revision, captured_at, manifest_digest, created_at
+SELECT id, media_type, content_revision, captured_at, created_at
 FROM mineg.media
 WHERE owner_id = $1 AND upload_status = 'COMPLETED'
 ORDER BY captured_at DESC, id DESC
 LIMIT $2;
+
+-- name: ListOwnerMediaAfter :many
+SELECT id, media_type, content_revision, captured_at, created_at
+FROM mineg.media
+WHERE owner_id = $1
+  AND upload_status = 'COMPLETED'
+  AND (captured_at < $2 OR (captured_at = $2 AND id < $3))
+ORDER BY captured_at DESC, id DESC
+LIMIT $4;
+
+-- name: BumpUploadGrantGeneration :one
+UPDATE mineg.upload_sessions
+SET grant_generation = grant_generation + 1, updated_at = $3
+WHERE id = $1 AND owner_id = $2
+RETURNING grant_generation;
 
 -- name: ExpireUploadSessions :execrows
 UPDATE mineg.upload_sessions

@@ -44,6 +44,26 @@ func (q *Queries) AttachResourcesToMedia(ctx context.Context, arg AttachResource
 	return result.RowsAffected(), nil
 }
 
+const bumpUploadGrantGeneration = `-- name: BumpUploadGrantGeneration :one
+UPDATE mineg.upload_sessions
+SET grant_generation = grant_generation + 1, updated_at = $3
+WHERE id = $1 AND owner_id = $2
+RETURNING grant_generation
+`
+
+type BumpUploadGrantGenerationParams struct {
+	ID        pgtype.UUID        `json:"id"`
+	OwnerID   pgtype.UUID        `json:"owner_id"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) BumpUploadGrantGeneration(ctx context.Context, arg BumpUploadGrantGenerationParams) (int32, error) {
+	row := q.db.QueryRow(ctx, bumpUploadGrantGeneration, arg.ID, arg.OwnerID, arg.UpdatedAt)
+	var grant_generation int32
+	err := row.Scan(&grant_generation)
+	return grant_generation, err
+}
+
 const completeUploadSession = `-- name: CompleteUploadSession :execrows
 UPDATE mineg.upload_sessions
 SET state = 'COMPLETED', media_id = $2, completed_at = $3, updated_at = $3
@@ -75,65 +95,13 @@ func (q *Queries) CountUnreportedParts(ctx context.Context, uploadSessionID pgty
 	return count, err
 }
 
-const createCompletedMedia = `-- name: CreateCompletedMedia :one
-INSERT INTO mineg.media(
-    id, owner_id, source_upload_id, media_type, dedupe_fingerprint,
-    content_revision, captured_at, manifest_digest, encrypted_manifest, upload_status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'COMPLETED')
-ON CONFLICT (owner_id, dedupe_fingerprint, content_revision) DO NOTHING
-RETURNING id, owner_id, source_upload_id, media_type, dedupe_fingerprint, content_revision, captured_at, manifest_digest, encrypted_manifest, upload_status, created_at, content_sha256, mime_type
-`
-
-type CreateCompletedMediaParams struct {
-	ID                pgtype.UUID        `json:"id"`
-	OwnerID           pgtype.UUID        `json:"owner_id"`
-	SourceUploadID    pgtype.UUID        `json:"source_upload_id"`
-	MediaType         string             `json:"media_type"`
-	DedupeFingerprint []byte             `json:"dedupe_fingerprint"`
-	ContentRevision   int32              `json:"content_revision"`
-	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	ManifestDigest    []byte             `json:"manifest_digest"`
-	EncryptedManifest []byte             `json:"encrypted_manifest"`
-}
-
-func (q *Queries) CreateCompletedMedia(ctx context.Context, arg CreateCompletedMediaParams) (MinegMedium, error) {
-	row := q.db.QueryRow(ctx, createCompletedMedia,
-		arg.ID,
-		arg.OwnerID,
-		arg.SourceUploadID,
-		arg.MediaType,
-		arg.DedupeFingerprint,
-		arg.ContentRevision,
-		arg.CapturedAt,
-		arg.ManifestDigest,
-		arg.EncryptedManifest,
-	)
-	var i MinegMedium
-	err := row.Scan(
-		&i.ID,
-		&i.OwnerID,
-		&i.SourceUploadID,
-		&i.MediaType,
-		&i.DedupeFingerprint,
-		&i.ContentRevision,
-		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.UploadStatus,
-		&i.CreatedAt,
-		&i.ContentSha256,
-		&i.MimeType,
-	)
-	return i, err
-}
-
 const createCompletedOriginalMedia = `-- name: CreateCompletedOriginalMedia :one
 INSERT INTO mineg.media(
     id, owner_id, source_upload_id, media_type, dedupe_fingerprint,
-    content_revision, captured_at, content_sha256, mime_type, upload_status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $5, $8, 'COMPLETED')
+    content_revision, captured_at, content_sha256, mime_type, width, height, duration_ms, upload_status
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $5, $8, $9, $10, $11, 'COMPLETED')
 ON CONFLICT (owner_id, dedupe_fingerprint, content_revision) DO NOTHING
-RETURNING id, owner_id, source_upload_id, media_type, dedupe_fingerprint, content_revision, captured_at, manifest_digest, encrypted_manifest, upload_status, created_at, content_sha256, mime_type
+RETURNING id, owner_id, source_upload_id, media_type, dedupe_fingerprint, content_revision, captured_at, upload_status, created_at, content_sha256, mime_type, width, height, duration_ms, access_version
 `
 
 type CreateCompletedOriginalMediaParams struct {
@@ -144,7 +112,10 @@ type CreateCompletedOriginalMediaParams struct {
 	DedupeFingerprint []byte             `json:"dedupe_fingerprint"`
 	ContentRevision   int32              `json:"content_revision"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	MimeType          pgtype.Text        `json:"mime_type"`
+	MimeType          string             `json:"mime_type"`
+	Width             pgtype.Int4        `json:"width"`
+	Height            pgtype.Int4        `json:"height"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
 }
 
 func (q *Queries) CreateCompletedOriginalMedia(ctx context.Context, arg CreateCompletedOriginalMediaParams) (MinegMedium, error) {
@@ -157,6 +128,9 @@ func (q *Queries) CreateCompletedOriginalMedia(ctx context.Context, arg CreateCo
 		arg.ContentRevision,
 		arg.CapturedAt,
 		arg.MimeType,
+		arg.Width,
+		arg.Height,
+		arg.DurationMs,
 	)
 	var i MinegMedium
 	err := row.Scan(
@@ -167,12 +141,14 @@ func (q *Queries) CreateCompletedOriginalMedia(ctx context.Context, arg CreateCo
 		&i.DedupeFingerprint,
 		&i.ContentRevision,
 		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
 		&i.UploadStatus,
 		&i.CreatedAt,
 		&i.ContentSha256,
 		&i.MimeType,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
+		&i.AccessVersion,
 	)
 	return i, err
 }
@@ -181,10 +157,10 @@ const createDeduplicatedOriginalUploadSession = `-- name: CreateDeduplicatedOrig
 INSERT INTO mineg.upload_sessions(
     id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint,
     content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type,
-    media_id, expires_at, completed_at
+    width, height, duration_ms, media_id, expires_at, completed_at
 ) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', 'COMPLETED', $5, $6, $7, $8, $9, $5, $10,
-          $11, $12, $13)
-RETURNING id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type
+          $11, $12, $13, $14, $15, $16)
+RETURNING id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type, grant_generation, width, height, duration_ms
 `
 
 type CreateDeduplicatedOriginalUploadSessionParams struct {
@@ -197,7 +173,10 @@ type CreateDeduplicatedOriginalUploadSessionParams struct {
 	ClientMediaID     pgtype.UUID        `json:"client_media_id"`
 	MediaType         string             `json:"media_type"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	MimeType          pgtype.Text        `json:"mime_type"`
+	MimeType          string             `json:"mime_type"`
+	Width             pgtype.Int4        `json:"width"`
+	Height            pgtype.Int4        `json:"height"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
 	MediaID           pgtype.UUID        `json:"media_id"`
 	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
 	CompletedAt       pgtype.Timestamptz `json:"completed_at"`
@@ -215,6 +194,9 @@ func (q *Queries) CreateDeduplicatedOriginalUploadSession(ctx context.Context, a
 		arg.MediaType,
 		arg.CapturedAt,
 		arg.MimeType,
+		arg.Width,
+		arg.Height,
+		arg.DurationMs,
 		arg.MediaID,
 		arg.ExpiresAt,
 		arg.CompletedAt,
@@ -232,10 +214,6 @@ func (q *Queries) CreateDeduplicatedOriginalUploadSession(ctx context.Context, a
 		&i.ClientMediaID,
 		&i.MediaType,
 		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.EncryptedMediaKey,
-		&i.EnvelopeAlgorithm,
 		&i.MediaID,
 		&i.ExpiresAt,
 		&i.CompletedAt,
@@ -243,80 +221,10 @@ func (q *Queries) CreateDeduplicatedOriginalUploadSession(ctx context.Context, a
 		&i.UpdatedAt,
 		&i.ContentSha256,
 		&i.MimeType,
-	)
-	return i, err
-}
-
-const createDeduplicatedUploadSession = `-- name: CreateDeduplicatedUploadSession :one
-INSERT INTO mineg.upload_sessions(
-    id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint,
-    content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest,
-    encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at
-) VALUES ($1, $2, $3, $4, 'MEDIA_CIPHERTEXT', 'COMPLETED', $5, $6, $7, $8, $9, $10, $11, $12,
-          'XCHACHA20_POLY1305', $13, $14, $15)
-RETURNING id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type
-`
-
-type CreateDeduplicatedUploadSessionParams struct {
-	ID                pgtype.UUID        `json:"id"`
-	OwnerID           pgtype.UUID        `json:"owner_id"`
-	IdempotencyKey    string             `json:"idempotency_key"`
-	RequestHash       []byte             `json:"request_hash"`
-	DedupeFingerprint []byte             `json:"dedupe_fingerprint"`
-	ContentRevision   int32              `json:"content_revision"`
-	ClientMediaID     pgtype.UUID        `json:"client_media_id"`
-	MediaType         string             `json:"media_type"`
-	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	ManifestDigest    []byte             `json:"manifest_digest"`
-	EncryptedManifest []byte             `json:"encrypted_manifest"`
-	EncryptedMediaKey []byte             `json:"encrypted_media_key"`
-	MediaID           pgtype.UUID        `json:"media_id"`
-	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
-	CompletedAt       pgtype.Timestamptz `json:"completed_at"`
-}
-
-func (q *Queries) CreateDeduplicatedUploadSession(ctx context.Context, arg CreateDeduplicatedUploadSessionParams) (MinegUploadSession, error) {
-	row := q.db.QueryRow(ctx, createDeduplicatedUploadSession,
-		arg.ID,
-		arg.OwnerID,
-		arg.IdempotencyKey,
-		arg.RequestHash,
-		arg.DedupeFingerprint,
-		arg.ContentRevision,
-		arg.ClientMediaID,
-		arg.MediaType,
-		arg.CapturedAt,
-		arg.ManifestDigest,
-		arg.EncryptedManifest,
-		arg.EncryptedMediaKey,
-		arg.MediaID,
-		arg.ExpiresAt,
-		arg.CompletedAt,
-	)
-	var i MinegUploadSession
-	err := row.Scan(
-		&i.ID,
-		&i.OwnerID,
-		&i.IdempotencyKey,
-		&i.RequestHash,
-		&i.Purpose,
-		&i.State,
-		&i.DedupeFingerprint,
-		&i.ContentRevision,
-		&i.ClientMediaID,
-		&i.MediaType,
-		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.EncryptedMediaKey,
-		&i.EnvelopeAlgorithm,
-		&i.MediaID,
-		&i.ExpiresAt,
-		&i.CompletedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ContentSha256,
-		&i.MimeType,
+		&i.GrantGeneration,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
 	)
 	return i, err
 }
@@ -349,8 +257,8 @@ func (q *Queries) CreateExpectedUploadPart(ctx context.Context, arg CreateExpect
 const createOriginalUploadResource = `-- name: CreateOriginalUploadResource :exec
 INSERT INTO mineg.media_resources(
     id, upload_session_id, resource_type, object_key, multipart_upload_id,
-    content_size, content_sha256, part_count
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    content_size, content_sha256, mime_type, part_count
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateOriginalUploadResourceParams struct {
@@ -359,8 +267,9 @@ type CreateOriginalUploadResourceParams struct {
 	ResourceType      string      `json:"resource_type"`
 	ObjectKey         string      `json:"object_key"`
 	MultipartUploadID string      `json:"multipart_upload_id"`
-	ContentSize       pgtype.Int8 `json:"content_size"`
+	ContentSize       int64       `json:"content_size"`
 	ContentSha256     []byte      `json:"content_sha256"`
+	MimeType          string      `json:"mime_type"`
 	PartCount         int32       `json:"part_count"`
 }
 
@@ -373,6 +282,7 @@ func (q *Queries) CreateOriginalUploadResource(ctx context.Context, arg CreateOr
 		arg.MultipartUploadID,
 		arg.ContentSize,
 		arg.ContentSha256,
+		arg.MimeType,
 		arg.PartCount,
 	)
 	return err
@@ -381,9 +291,10 @@ func (q *Queries) CreateOriginalUploadResource(ctx context.Context, arg CreateOr
 const createOriginalUploadSession = `-- name: CreateOriginalUploadSession :one
 INSERT INTO mineg.upload_sessions(
     id, owner_id, idempotency_key, request_hash, purpose, dedupe_fingerprint,
-    content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type, expires_at
-) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', $5, $6, $7, $8, $9, $5, $10, $11)
-RETURNING id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type
+    content_revision, client_media_id, media_type, captured_at, content_sha256, mime_type,
+    width, height, duration_ms, expires_at
+) VALUES ($1, $2, $3, $4, 'MEDIA_ORIGINAL', $5, $6, $7, $8, $9, $5, $10, $11, $12, $13, $14)
+RETURNING id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type, grant_generation, width, height, duration_ms
 `
 
 type CreateOriginalUploadSessionParams struct {
@@ -396,7 +307,10 @@ type CreateOriginalUploadSessionParams struct {
 	ClientMediaID     pgtype.UUID        `json:"client_media_id"`
 	MediaType         string             `json:"media_type"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	MimeType          pgtype.Text        `json:"mime_type"`
+	MimeType          string             `json:"mime_type"`
+	Width             pgtype.Int4        `json:"width"`
+	Height            pgtype.Int4        `json:"height"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
 	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
 }
 
@@ -412,6 +326,9 @@ func (q *Queries) CreateOriginalUploadSession(ctx context.Context, arg CreateOri
 		arg.MediaType,
 		arg.CapturedAt,
 		arg.MimeType,
+		arg.Width,
+		arg.Height,
+		arg.DurationMs,
 		arg.ExpiresAt,
 	)
 	var i MinegUploadSession
@@ -427,10 +344,6 @@ func (q *Queries) CreateOriginalUploadSession(ctx context.Context, arg CreateOri
 		&i.ClientMediaID,
 		&i.MediaType,
 		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.EncryptedMediaKey,
-		&i.EnvelopeAlgorithm,
 		&i.MediaID,
 		&i.ExpiresAt,
 		&i.CompletedAt,
@@ -438,126 +351,45 @@ func (q *Queries) CreateOriginalUploadSession(ctx context.Context, arg CreateOri
 		&i.UpdatedAt,
 		&i.ContentSha256,
 		&i.MimeType,
+		&i.GrantGeneration,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
 	)
 	return i, err
 }
 
-const createOwnerMediaKeyEnvelope = `-- name: CreateOwnerMediaKeyEnvelope :exec
-INSERT INTO mineg.media_key_envelopes(
-    media_id, owner_id, encrypted_media_key, algorithm, envelope_version
-) VALUES ($1, $2, $3, 'XCHACHA20_POLY1305', 1)
-ON CONFLICT (media_id, owner_id) DO NOTHING
+const ensureClientAlbum = `-- name: EnsureClientAlbum :one
+INSERT INTO mineg.albums(owner_id, kind, client_album_id, device_installation_id, display_name)
+VALUES ($1, 'CLIENT', $2, $3, $4)
+ON CONFLICT (owner_id, device_installation_id, client_album_id) WHERE kind = 'CLIENT'
+DO UPDATE SET display_name = EXCLUDED.display_name
+RETURNING id, owner_id, kind, client_album_id, created_at, device_installation_id, display_name
 `
 
-type CreateOwnerMediaKeyEnvelopeParams struct {
-	MediaID           pgtype.UUID `json:"media_id"`
-	OwnerID           pgtype.UUID `json:"owner_id"`
-	EncryptedMediaKey []byte      `json:"encrypted_media_key"`
+type EnsureClientAlbumParams struct {
+	OwnerID              pgtype.UUID `json:"owner_id"`
+	ClientAlbumID        pgtype.Text `json:"client_album_id"`
+	DeviceInstallationID pgtype.Text `json:"device_installation_id"`
+	DisplayName          pgtype.Text `json:"display_name"`
 }
 
-func (q *Queries) CreateOwnerMediaKeyEnvelope(ctx context.Context, arg CreateOwnerMediaKeyEnvelopeParams) error {
-	_, err := q.db.Exec(ctx, createOwnerMediaKeyEnvelope, arg.MediaID, arg.OwnerID, arg.EncryptedMediaKey)
-	return err
-}
-
-const createUploadResource = `-- name: CreateUploadResource :exec
-INSERT INTO mineg.media_resources(
-    id, upload_session_id, resource_type, object_key, multipart_upload_id,
-    ciphertext_size, ciphertext_sha256, part_count
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-`
-
-type CreateUploadResourceParams struct {
-	ID                pgtype.UUID `json:"id"`
-	UploadSessionID   pgtype.UUID `json:"upload_session_id"`
-	ResourceType      string      `json:"resource_type"`
-	ObjectKey         string      `json:"object_key"`
-	MultipartUploadID string      `json:"multipart_upload_id"`
-	CiphertextSize    pgtype.Int8 `json:"ciphertext_size"`
-	CiphertextSha256  []byte      `json:"ciphertext_sha256"`
-	PartCount         int32       `json:"part_count"`
-}
-
-func (q *Queries) CreateUploadResource(ctx context.Context, arg CreateUploadResourceParams) error {
-	_, err := q.db.Exec(ctx, createUploadResource,
-		arg.ID,
-		arg.UploadSessionID,
-		arg.ResourceType,
-		arg.ObjectKey,
-		arg.MultipartUploadID,
-		arg.CiphertextSize,
-		arg.CiphertextSha256,
-		arg.PartCount,
-	)
-	return err
-}
-
-const createUploadSession = `-- name: CreateUploadSession :one
-INSERT INTO mineg.upload_sessions(
-    id, owner_id, idempotency_key, request_hash, purpose, dedupe_fingerprint,
-    content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest,
-    encrypted_media_key, envelope_algorithm, expires_at
-) VALUES ($1, $2, $3, $4, 'MEDIA_CIPHERTEXT', $5, $6, $7, $8, $9, $10, $11, $12,
-          'XCHACHA20_POLY1305', $13)
-RETURNING id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type
-`
-
-type CreateUploadSessionParams struct {
-	ID                pgtype.UUID        `json:"id"`
-	OwnerID           pgtype.UUID        `json:"owner_id"`
-	IdempotencyKey    string             `json:"idempotency_key"`
-	RequestHash       []byte             `json:"request_hash"`
-	DedupeFingerprint []byte             `json:"dedupe_fingerprint"`
-	ContentRevision   int32              `json:"content_revision"`
-	ClientMediaID     pgtype.UUID        `json:"client_media_id"`
-	MediaType         string             `json:"media_type"`
-	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
-	ManifestDigest    []byte             `json:"manifest_digest"`
-	EncryptedManifest []byte             `json:"encrypted_manifest"`
-	EncryptedMediaKey []byte             `json:"encrypted_media_key"`
-	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
-}
-
-func (q *Queries) CreateUploadSession(ctx context.Context, arg CreateUploadSessionParams) (MinegUploadSession, error) {
-	row := q.db.QueryRow(ctx, createUploadSession,
-		arg.ID,
+func (q *Queries) EnsureClientAlbum(ctx context.Context, arg EnsureClientAlbumParams) (MinegAlbum, error) {
+	row := q.db.QueryRow(ctx, ensureClientAlbum,
 		arg.OwnerID,
-		arg.IdempotencyKey,
-		arg.RequestHash,
-		arg.DedupeFingerprint,
-		arg.ContentRevision,
-		arg.ClientMediaID,
-		arg.MediaType,
-		arg.CapturedAt,
-		arg.ManifestDigest,
-		arg.EncryptedManifest,
-		arg.EncryptedMediaKey,
-		arg.ExpiresAt,
+		arg.ClientAlbumID,
+		arg.DeviceInstallationID,
+		arg.DisplayName,
 	)
-	var i MinegUploadSession
+	var i MinegAlbum
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
-		&i.IdempotencyKey,
-		&i.RequestHash,
-		&i.Purpose,
-		&i.State,
-		&i.DedupeFingerprint,
-		&i.ContentRevision,
-		&i.ClientMediaID,
-		&i.MediaType,
-		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.EncryptedMediaKey,
-		&i.EnvelopeAlgorithm,
-		&i.MediaID,
-		&i.ExpiresAt,
-		&i.CompletedAt,
+		&i.Kind,
+		&i.ClientAlbumID,
 		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ContentSha256,
-		&i.MimeType,
+		&i.DeviceInstallationID,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -566,7 +398,7 @@ const ensureLibraryAlbum = `-- name: EnsureLibraryAlbum :one
 INSERT INTO mineg.albums(owner_id, kind)
 VALUES ($1, 'LIBRARY')
 ON CONFLICT (owner_id) WHERE kind = 'LIBRARY' DO UPDATE SET owner_id = EXCLUDED.owner_id
-RETURNING id, owner_id, kind, client_album_id, created_at
+RETURNING id, owner_id, kind, client_album_id, created_at, device_installation_id, display_name
 `
 
 func (q *Queries) EnsureLibraryAlbum(ctx context.Context, ownerID pgtype.UUID) (MinegAlbum, error) {
@@ -578,6 +410,8 @@ func (q *Queries) EnsureLibraryAlbum(ctx context.Context, ownerID pgtype.UUID) (
 		&i.Kind,
 		&i.ClientAlbumID,
 		&i.CreatedAt,
+		&i.DeviceInstallationID,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -617,7 +451,7 @@ func (q *Queries) ExpireUploadSessions(ctx context.Context, updatedAt pgtype.Tim
 }
 
 const findCompletedMediaByFingerprint = `-- name: FindCompletedMediaByFingerprint :one
-SELECT id, owner_id, source_upload_id, media_type, dedupe_fingerprint, content_revision, captured_at, manifest_digest, encrypted_manifest, upload_status, created_at, content_sha256, mime_type FROM mineg.media
+SELECT id, owner_id, source_upload_id, media_type, dedupe_fingerprint, content_revision, captured_at, upload_status, created_at, content_sha256, mime_type, width, height, duration_ms, access_version FROM mineg.media
 WHERE owner_id = $1 AND dedupe_fingerprint = $2 AND content_revision = $3
   AND upload_status = 'COMPLETED'
 `
@@ -639,18 +473,20 @@ func (q *Queries) FindCompletedMediaByFingerprint(ctx context.Context, arg FindC
 		&i.DedupeFingerprint,
 		&i.ContentRevision,
 		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
 		&i.UploadStatus,
 		&i.CreatedAt,
 		&i.ContentSha256,
 		&i.MimeType,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
+		&i.AccessVersion,
 	)
 	return i, err
 }
 
 const findUploadByIdempotency = `-- name: FindUploadByIdempotency :one
-SELECT id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type FROM mineg.upload_sessions
+SELECT id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type, grant_generation, width, height, duration_ms FROM mineg.upload_sessions
 WHERE owner_id = $1 AND idempotency_key = $2
 `
 
@@ -674,10 +510,6 @@ func (q *Queries) FindUploadByIdempotency(ctx context.Context, arg FindUploadByI
 		&i.ClientMediaID,
 		&i.MediaType,
 		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.EncryptedMediaKey,
-		&i.EnvelopeAlgorithm,
 		&i.MediaID,
 		&i.ExpiresAt,
 		&i.CompletedAt,
@@ -685,12 +517,16 @@ func (q *Queries) FindUploadByIdempotency(ctx context.Context, arg FindUploadByI
 		&i.UpdatedAt,
 		&i.ContentSha256,
 		&i.MimeType,
+		&i.GrantGeneration,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
 	)
 	return i, err
 }
 
 const findUploadForOwner = `-- name: FindUploadForOwner :one
-SELECT id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type FROM mineg.upload_sessions WHERE id = $1 AND owner_id = $2
+SELECT id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type, grant_generation, width, height, duration_ms FROM mineg.upload_sessions WHERE id = $1 AND owner_id = $2
 `
 
 type FindUploadForOwnerParams struct {
@@ -713,10 +549,6 @@ func (q *Queries) FindUploadForOwner(ctx context.Context, arg FindUploadForOwner
 		&i.ClientMediaID,
 		&i.MediaType,
 		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.EncryptedMediaKey,
-		&i.EnvelopeAlgorithm,
 		&i.MediaID,
 		&i.ExpiresAt,
 		&i.CompletedAt,
@@ -724,6 +556,10 @@ func (q *Queries) FindUploadForOwner(ctx context.Context, arg FindUploadForOwner
 		&i.UpdatedAt,
 		&i.ContentSha256,
 		&i.MimeType,
+		&i.GrantGeneration,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
 	)
 	return i, err
 }
@@ -794,8 +630,40 @@ func (q *Queries) LinkMediaToAlbum(ctx context.Context, arg LinkMediaToAlbumPara
 	return err
 }
 
+const linkUploadSessionAlbumsToMedia = `-- name: LinkUploadSessionAlbumsToMedia :exec
+INSERT INTO mineg.media_album_links(media_id, album_id)
+SELECT $2, album_id FROM mineg.upload_session_client_albums
+WHERE upload_session_id = $1
+ON CONFLICT DO NOTHING
+`
+
+type LinkUploadSessionAlbumsToMediaParams struct {
+	UploadSessionID pgtype.UUID `json:"upload_session_id"`
+	MediaID         pgtype.UUID `json:"media_id"`
+}
+
+func (q *Queries) LinkUploadSessionAlbumsToMedia(ctx context.Context, arg LinkUploadSessionAlbumsToMediaParams) error {
+	_, err := q.db.Exec(ctx, linkUploadSessionAlbumsToMedia, arg.UploadSessionID, arg.MediaID)
+	return err
+}
+
+const linkUploadSessionToClientAlbum = `-- name: LinkUploadSessionToClientAlbum :exec
+INSERT INTO mineg.upload_session_client_albums(upload_session_id, album_id)
+VALUES ($1, $2) ON CONFLICT DO NOTHING
+`
+
+type LinkUploadSessionToClientAlbumParams struct {
+	UploadSessionID pgtype.UUID `json:"upload_session_id"`
+	AlbumID         pgtype.UUID `json:"album_id"`
+}
+
+func (q *Queries) LinkUploadSessionToClientAlbum(ctx context.Context, arg LinkUploadSessionToClientAlbumParams) error {
+	_, err := q.db.Exec(ctx, linkUploadSessionToClientAlbum, arg.UploadSessionID, arg.AlbumID)
+	return err
+}
+
 const listOwnerMedia = `-- name: ListOwnerMedia :many
-SELECT id, media_type, content_revision, captured_at, manifest_digest, created_at
+SELECT id, media_type, content_revision, captured_at, created_at
 FROM mineg.media
 WHERE owner_id = $1 AND upload_status = 'COMPLETED'
 ORDER BY captured_at DESC, id DESC
@@ -812,7 +680,6 @@ type ListOwnerMediaRow struct {
 	MediaType       string             `json:"media_type"`
 	ContentRevision int32              `json:"content_revision"`
 	CapturedAt      pgtype.Timestamptz `json:"captured_at"`
-	ManifestDigest  []byte             `json:"manifest_digest"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -830,7 +697,62 @@ func (q *Queries) ListOwnerMedia(ctx context.Context, arg ListOwnerMediaParams) 
 			&i.MediaType,
 			&i.ContentRevision,
 			&i.CapturedAt,
-			&i.ManifestDigest,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOwnerMediaAfter = `-- name: ListOwnerMediaAfter :many
+SELECT id, media_type, content_revision, captured_at, created_at
+FROM mineg.media
+WHERE owner_id = $1
+  AND upload_status = 'COMPLETED'
+  AND (captured_at < $2 OR (captured_at = $2 AND id < $3))
+ORDER BY captured_at DESC, id DESC
+LIMIT $4
+`
+
+type ListOwnerMediaAfterParams struct {
+	OwnerID    pgtype.UUID        `json:"owner_id"`
+	CapturedAt pgtype.Timestamptz `json:"captured_at"`
+	ID         pgtype.UUID        `json:"id"`
+	Limit      int32              `json:"limit"`
+}
+
+type ListOwnerMediaAfterRow struct {
+	ID              pgtype.UUID        `json:"id"`
+	MediaType       string             `json:"media_type"`
+	ContentRevision int32              `json:"content_revision"`
+	CapturedAt      pgtype.Timestamptz `json:"captured_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListOwnerMediaAfter(ctx context.Context, arg ListOwnerMediaAfterParams) ([]ListOwnerMediaAfterRow, error) {
+	rows, err := q.db.Query(ctx, listOwnerMediaAfter,
+		arg.OwnerID,
+		arg.CapturedAt,
+		arg.ID,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOwnerMediaAfterRow
+	for rows.Next() {
+		var i ListOwnerMediaAfterRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaType,
+			&i.ContentRevision,
+			&i.CapturedAt,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -879,7 +801,7 @@ func (q *Queries) ListUploadParts(ctx context.Context, uploadSessionID pgtype.UU
 }
 
 const listUploadResources = `-- name: ListUploadResources :many
-SELECT id, upload_session_id, media_id, resource_type, object_key, multipart_upload_id, ciphertext_size, ciphertext_sha256, part_count, state, created_at, content_size, content_sha256 FROM mineg.media_resources WHERE upload_session_id = $1 ORDER BY resource_type, id
+SELECT id, upload_session_id, media_id, resource_type, object_key, multipart_upload_id, part_count, state, created_at, content_size, content_sha256, mime_type FROM mineg.media_resources WHERE upload_session_id = $1 ORDER BY resource_type, id
 `
 
 func (q *Queries) ListUploadResources(ctx context.Context, uploadSessionID pgtype.UUID) ([]MinegMediaResource, error) {
@@ -898,13 +820,12 @@ func (q *Queries) ListUploadResources(ctx context.Context, uploadSessionID pgtyp
 			&i.ResourceType,
 			&i.ObjectKey,
 			&i.MultipartUploadID,
-			&i.CiphertextSize,
-			&i.CiphertextSha256,
 			&i.PartCount,
 			&i.State,
 			&i.CreatedAt,
 			&i.ContentSize,
 			&i.ContentSha256,
+			&i.MimeType,
 		); err != nil {
 			return nil, err
 		}
@@ -917,7 +838,7 @@ func (q *Queries) ListUploadResources(ctx context.Context, uploadSessionID pgtyp
 }
 
 const lockUploadForCompletion = `-- name: LockUploadForCompletion :one
-SELECT id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, manifest_digest, encrypted_manifest, encrypted_media_key, envelope_algorithm, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type FROM mineg.upload_sessions
+SELECT id, owner_id, idempotency_key, request_hash, purpose, state, dedupe_fingerprint, content_revision, client_media_id, media_type, captured_at, media_id, expires_at, completed_at, created_at, updated_at, content_sha256, mime_type, grant_generation, width, height, duration_ms FROM mineg.upload_sessions
 WHERE id = $1 AND owner_id = $2
 FOR UPDATE
 `
@@ -942,10 +863,6 @@ func (q *Queries) LockUploadForCompletion(ctx context.Context, arg LockUploadFor
 		&i.ClientMediaID,
 		&i.MediaType,
 		&i.CapturedAt,
-		&i.ManifestDigest,
-		&i.EncryptedManifest,
-		&i.EncryptedMediaKey,
-		&i.EnvelopeAlgorithm,
 		&i.MediaID,
 		&i.ExpiresAt,
 		&i.CompletedAt,
@@ -953,6 +870,10 @@ func (q *Queries) LockUploadForCompletion(ctx context.Context, arg LockUploadFor
 		&i.UpdatedAt,
 		&i.ContentSha256,
 		&i.MimeType,
+		&i.GrantGeneration,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
 	)
 	return i, err
 }

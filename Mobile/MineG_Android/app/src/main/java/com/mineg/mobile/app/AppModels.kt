@@ -55,6 +55,13 @@ enum class BackupStatus {
   PAUSED,
 }
 
+enum class LocalMediaSyncState(val label: String) {
+  UNSYNCED("未同步"),
+  SYNCING("同步中"),
+  FAILED("同步失败"),
+  SYNCED("✓"),
+}
+
 enum class MediaActionState {
   IDLE,
   DOWNLOADING,
@@ -91,6 +98,9 @@ data class MediaItem(
   val isShared: Boolean = false,
   val colorSeed: Int,
   val imageUrl: String? = null,
+  val detailImageUrl: String? = null,
+  /** True when Core can request a remote preview, including an OSS dynamic photo/GIF thumbnail. */
+  val canLoadRemotePreview: Boolean = false,
 )
 
 data class LocalAlbum(
@@ -121,6 +131,11 @@ data class AuthUiState(
 data class PrivateSpaceUiState(
   val loadState: PageLoadState = PageLoadState.CONTENT,
   val items: List<MediaItem> = emptyList(),
+  val fullyLoaded: Boolean = true,
+  val loadingMore: Boolean = false,
+  val previewLoadingIds: Set<String> = emptySet(),
+  val previewUnavailableIds: Set<String> = emptySet(),
+  val previewViewHandles: Map<String, String> = emptyMap(),
   val errorMessage: String? = null,
 )
 
@@ -140,6 +155,9 @@ data class BackupUiState(
   val allowCellularBackup: Boolean = false,
   val currentMediaTitle: String = "",
   val uploadMessage: String? = null,
+  val albumCompletedCount: Int? = null,
+  val albumTotalCount: Int? = null,
+  val localMediaSyncStates: Map<String, LocalMediaSyncState> = emptyMap(),
   val albums: List<LocalAlbum> = emptyList(),
   val localMedia: List<MediaItem> = emptyList(),
 )

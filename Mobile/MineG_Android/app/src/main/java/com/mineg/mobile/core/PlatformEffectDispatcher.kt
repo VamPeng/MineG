@@ -1,8 +1,10 @@
 package com.mineg.mobile.core
-
 import com.mineg.mobile.contracts.ApiRequest
 import com.mineg.mobile.contracts.CoreOperationStatus
+import com.mineg.mobile.contracts.ConnectivityPort
+import com.mineg.mobile.contracts.DownloadObjectRequest
 import com.mineg.mobile.contracts.FilePort
+import com.mineg.mobile.contracts.MediaPlaybackPort
 import com.mineg.mobile.contracts.MediaScanCursor
 import com.mineg.mobile.contracts.MediaSourcePort
 import com.mineg.mobile.contracts.OpenedMediaResource
@@ -12,13 +14,19 @@ import com.mineg.mobile.contracts.PlatformEffectResult
 import com.mineg.mobile.contracts.PlatformEffectResultStatus
 import com.mineg.mobile.contracts.PlatformEffectType
 import com.mineg.mobile.contracts.SecureStorePort
+import com.mineg.mobile.contracts.SystemAlbumWriteRequest
+import com.mineg.mobile.contracts.SystemAlbumWriterPort
 import com.mineg.mobile.contracts.TransportPort
 import com.mineg.mobile.contracts.UploadPartRequest
 import com.mineg.mobile.contracts.UploadObjectRequest
+import com.mineg.mobile.contracts.VerifiedMediaOpenRequest
 import java.io.IOException
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -27,8 +35,12 @@ class PlatformEffectDispatcher(
   private val secureStore: SecureStorePort,
   private val mediaSource: MediaSourcePort,
   private val files: FilePort,
+  private val connectivity: ConnectivityPort,
+  private val systemAlbum: SystemAlbumWriterPort? = null,
+  private val mediaPlayback: MediaPlaybackPort? = null,
 ) : AutoCloseable {
   private val openedMediaResources = ConcurrentHashMap<String, OpenedMediaResource>()
+  private val openedVerifiedMedia = ConcurrentHashMap.newKeySet<String>()
 
   suspend fun dispatch(effect: PlatformEffect): PlatformEffectResult = try {
     val payload = JSONObject(effect.payloadJson)
@@ -37,6 +49,9 @@ class PlatformEffectDispatcher(
       PlatformEffectType.SECURE_STORE -> dispatchSecureStore(payload)
       PlatformEffectType.MEDIA_SOURCE -> dispatchMediaSource(effect, payload)
       PlatformEffectType.FILE -> dispatchFile(payload)
+      PlatformEffectType.CONNECTIVITY -> dispatchConnectivity(payload)
+      PlatformEffectType.MEDIA_PLAYBACK -> dispatchMediaPlayback(payload)
+      PlatformEffectType.SYSTEM_ALBUM -> dispatchSystemAlbum(payload)
     }
     PlatformEffectResult(
       operationId = effect.operationId,
@@ -84,6 +99,7 @@ class PlatformEffectDispatcher(
         .put("status", response.status)
         .put("contentType", response.contentType)
         .put("requestId", response.requestId ?: JSONObject.NULL)
+        .put("retryAfterSeconds", response.retryAfterSeconds ?: JSONObject.NULL)
         .put("bodyBase64", Base64.getEncoder().encodeToString(response.body))
     }
     "uploadPart" -> {
@@ -92,14 +108,35 @@ class PlatformEffectDispatcher(
           url = payload.getString("url"),
           method = payload.getString("method"),
           headers = payload.stringMap("headers"),
-          sourcePath = payload.optString("sourcePath").takeIf { payload.has("sourcePath") }
-            ?: payload.optString("ciphertextPath").takeIf { payload.has("ciphertextPath") },
+          sourcePath = payload.optString("sourcePath").takeIf { payload.has("sourcePath") },
           offset = payload.getLong("offset"),
           size = payload.getLong("size"),
           sourceDescriptor = payload.optInt("sourceDescriptor").takeIf { payload.has("sourceDescriptor") },
         ),
       )
       JSONObject().put("etag", response.etag)
+    }
+    "uploadParts" -> coroutineScope {
+      val parts = payload.getJSONArray("parts")
+      require(parts.length() in 1..2)
+      val uploads = List(parts.length()) { index ->
+        val part = parts.getJSONObject(index)
+        async {
+          val response = transport.uploadPart(
+            UploadPartRequest(
+              url = part.getString("url"),
+              method = part.getString("method"),
+              headers = part.stringMap("headers"),
+              sourcePath = part.optString("sourcePath").takeIf { part.has("sourcePath") },
+              offset = part.getLong("offset"),
+              size = part.getLong("size"),
+              sourceDescriptor = part.optInt("sourceDescriptor").takeIf { part.has("sourceDescriptor") },
+            ),
+          )
+          JSONObject().put("partNumber", part.getLong("partNumber")).put("etag", response.etag)
+        }
+      }.awaitAll()
+      JSONObject().put("parts", JSONArray(uploads))
     }
     "uploadObject" -> {
       val body = Base64.getDecoder().decode(payload.getString("bodyBase64"))
@@ -116,6 +153,23 @@ class PlatformEffectDispatcher(
       } finally {
         body.fill(0)
       }
+    }
+    "downloadObject" -> {
+      val response = transport.downloadObject(
+        DownloadObjectRequest(
+          url = payload.getString("url"),
+          method = payload.getString("method"),
+          headers = payload.stringMap("headers"),
+          destinationPath = payload.getString("destinationPath"),
+          expectedSize = payload.optLong("expectedSize").takeIf { payload.has("expectedSize") },
+          maximumSize = payload.getLong("maximumSize"),
+        ),
+      )
+      JSONObject()
+        .put("status", response.status)
+        .put("bytesWritten", response.bytesWritten)
+        .put("sha256Base64", response.sha256Base64)
+        .put("contentType", response.contentType)
     }
     else -> unsupportedAction(payload)
   }
@@ -259,9 +313,64 @@ class PlatformEffectDispatcher(
     else -> unsupportedAction(payload)
   }
 
+  private fun dispatchConnectivity(payload: JSONObject): JSONObject = when (payload.requireAction()) {
+    "getConnectivitySnapshot" -> connectivity.getConnectivitySnapshot().let { snapshot ->
+      JSONObject().put("connected", snapshot.connected).put("metered", snapshot.metered)
+    }
+    else -> unsupportedAction(payload)
+  }
+
+  private fun dispatchMediaPlayback(payload: JSONObject): JSONObject = when (payload.requireAction()) {
+    "openVerifiedMedia" -> {
+      val response = requireNotNull(mediaPlayback) { "Media playback port is not configured" }.openVerifiedMedia(
+        VerifiedMediaOpenRequest(
+          verifiedFilePath = payload.getString("verifiedFilePath"),
+          mimeType = payload.getString("mimeType"),
+        ),
+      )
+      openedVerifiedMedia += response.viewHandle
+      JSONObject().put("viewHandle", response.viewHandle).put("sourceUri", response.sourceUri)
+    }
+    "closeVerifiedMedia" -> {
+      val handle = payload.getString("viewHandle")
+      val closed = requireNotNull(mediaPlayback) { "Media playback port is not configured" }
+        .closeVerifiedMedia(handle)
+      openedVerifiedMedia.remove(handle)
+      JSONObject().put("closed", closed)
+    }
+    else -> unsupportedAction(payload)
+  }
+
+  private fun dispatchSystemAlbum(payload: JSONObject): JSONObject = when (payload.requireAction()) {
+    "writeVerifiedMedia" -> {
+      val response = requireNotNull(systemAlbum) { "System album port is not configured" }.writeVerifiedMedia(
+        SystemAlbumWriteRequest(
+          verifiedFilePath = payload.getString("verifiedFilePath"),
+          displayName = payload.getString("displayName"),
+          mimeType = payload.getString("mimeType"),
+          capturedAt = payload.optString("capturedAt").takeIf { payload.has("capturedAt") },
+        ),
+      )
+      JSONObject().put("platformAssetRef", response.platformAssetRef)
+    }
+    "isSystemAlbumEntryPresent" -> JSONObject().put(
+      "present",
+      requireNotNull(systemAlbum) { "System album port is not configured" }
+        .isSystemAlbumEntryPresent(payload.getString("platformAssetRef")),
+    )
+    "deleteSystemAlbumEntry" -> JSONObject().put(
+      "deleted",
+      requireNotNull(systemAlbum) { "System album port is not configured" }
+        .deleteSystemAlbumEntry(payload.getString("platformAssetRef")),
+    )
+    else -> unsupportedAction(payload)
+  }
+
   override fun close() {
     openedMediaResources.values.forEach(OpenedMediaResource::close)
     openedMediaResources.clear()
+    openedVerifiedMedia.forEach { handle -> mediaPlayback?.closeVerifiedMedia(handle) }
+    openedVerifiedMedia.clear()
   }
 
   private fun JSONObject.requireAction(): String = getString("action").also { require(it.isNotBlank()) }

@@ -83,10 +83,6 @@ func New(pool *database.Pool, config Config) *Service {
 type SignUpInput struct {
 	Phone                string
 	Password             string
-	PublicKey            []byte
-	EncryptedKeyBundle   []byte
-	KDFParameters        json.RawMessage
-	BundleVersion        int32
 	DeviceInstallationID string
 	Platform             string
 	IdempotencyKey       string
@@ -105,13 +101,6 @@ func (s *Service) SignUp(ctx context.Context, input SignUpInput) (SignUpResult, 
 	}
 	if err := ValidatePassword(input.Password); err != nil {
 		return SignUpResult{}, validationError("PASSWORD_INVALID", "Invalid password", err.Error())
-	}
-	legacyKeyBundle := len(input.PublicKey) > 0 || len(input.EncryptedKeyBundle) > 0 ||
-		len(input.KDFParameters) > 0 || input.BundleVersion > 0
-	if legacyKeyBundle && (len(input.PublicKey) != 32 || len(input.EncryptedKeyBundle) < 48 ||
-		len(input.EncryptedKeyBundle) > 1024*1024 || !validJSONObject(input.KDFParameters) ||
-		input.BundleVersion <= 0) {
-		return SignUpResult{}, validationError("KEY_BUNDLE_INVALID", "Invalid key bundle", "Legacy key bundle fields must be complete and valid when provided.")
 	}
 	if len(input.DeviceInstallationID) < 8 || len(input.DeviceInstallationID) > 128 {
 		return SignUpResult{}, validationError("DEVICE_INVALID", "Invalid device", "The device installation identifier is invalid.")
@@ -180,14 +169,6 @@ func (s *Service) SignUp(ctx context.Context, input SignUpInput) (SignUpResult, 
 		}
 		if createErr != nil {
 			return createErr
-		}
-		if legacyKeyBundle {
-			if err := queries.CreateUserKeyBundle(ctx, dbgen.CreateUserKeyBundleParams{
-				UserID: user.ID, PublicKey: input.PublicKey, EncryptedKeyBundle: input.EncryptedKeyBundle,
-				KdfParameters: input.KDFParameters, BundleVersion: input.BundleVersion,
-			}); err != nil {
-				return err
-			}
 		}
 		device, err := queries.UpsertDevice(ctx, dbgen.UpsertDeviceParams{UserID: user.ID, InstallationID: input.DeviceInstallationID, Platform: strings.ToUpper(input.Platform)})
 		if err != nil {
@@ -786,9 +767,8 @@ func (s *Service) encodeCursor(payload cursorPayload) string {
 func (s *Service) registrationFingerprint(phone string, input SignUpInput) []byte {
 	mac := hmac.New(sha256.New, s.config.CursorKey)
 	for _, value := range [][]byte{
-		[]byte(phone), []byte(input.Password), input.PublicKey, input.EncryptedKeyBundle,
-		input.KDFParameters, []byte(fmt.Sprintf("%d", input.BundleVersion)),
-		[]byte(strings.ToUpper(input.Platform)), []byte(input.DeviceInstallationID),
+		[]byte(phone), []byte(input.Password), []byte(strings.ToUpper(input.Platform)),
+		[]byte(input.DeviceInstallationID),
 	} {
 		_, _ = mac.Write([]byte{0})
 		_, _ = mac.Write(value)

@@ -46,35 +46,6 @@ val extractLibsodium by tasks.registering(Sync::class) {
 }
 
 val mineGRepositoryRoot = rootProject.layout.projectDirectory.dir("../..")
-val mineGIconSource = mineGRepositoryRoot.dir("Requirement/Prototype/Stitch/assets/icons")
-val syncMineGBrandAssets by tasks.registering(Sync::class) {
-  from(mineGRepositoryRoot.file("mineg_logo.png"))
-  from(mineGIconSource) {
-    include(
-      "private.png",
-      "family.png",
-      "local-album.png",
-      "profile.png",
-    )
-    eachFile {
-      name = when (name) {
-        "private.png" -> "claude.png"
-        "family.png" -> "nav_family.png"
-        "local-album.png" -> "nav_backup.png"
-        "profile.png" -> "nav_profile.png"
-        else -> name
-      }
-    }
-  }
-  includeEmptyDirs = false
-  into(layout.buildDirectory.dir("generated/mineg-brand-assets"))
-}
-
-val syncMineGBrandResources by tasks.registering(Sync::class) {
-  from(mineGRepositoryRoot.file("mineg_logo.png"))
-  into(layout.buildDirectory.dir("generated/mineg-brand-res/drawable-nodpi"))
-}
-
 val checkAndroidDataSovereignty by tasks.registering(Exec::class) {
   group = "verification"
   description = "Rejects unregistered Android production domain-data ownership"
@@ -97,8 +68,8 @@ android {
     applicationId = "com.mineg.mobile"
     minSdk = 29
     targetSdk = 36
-    versionCode = 4
-    versionName = "0.3.0-m3"
+    versionCode = 5
+    versionName = "0.4.0-m4"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     externalNativeBuild {
@@ -165,8 +136,6 @@ android {
   sourceSets {
     getByName("main").jniLibs.srcDir(sodiumOutput.map { it.dir("jni") })
     getByName("main").assets.srcDir("../../../Requirement/Prototype/Stitch/pages")
-    getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/mineg-brand-assets"))
-    getByName("main").res.srcDir(layout.buildDirectory.dir("generated/mineg-brand-res"))
     getByName("test").resources.srcDir("../../contracts")
     getByName("test").resources.srcDir("../../core/migrations")
   }
@@ -185,9 +154,6 @@ kotlin {
 }
 
 tasks.configureEach {
-  if (name != syncMineGBrandAssets.name && name != syncMineGBrandResources.name) {
-    dependsOn(syncMineGBrandAssets, syncMineGBrandResources)
-  }
   if (name.contains("CMake") || name.contains("JniLibFolders") ||
     (name.startsWith("merge") && name.endsWith("NativeLibs"))
   ) {
@@ -218,6 +184,7 @@ dependencies {
   implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
   implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
   implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+  implementation("androidx.work:work-runtime-ktx:2.10.2")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
   implementation("io.coil-kt.coil3:coil-compose:3.5.0")
   implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")

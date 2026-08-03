@@ -14,6 +14,7 @@ data class ApiResponse(
   val contentType: String,
   val requestId: String?,
   val body: ByteArray,
+  val retryAfterSeconds: Long? = null,
 )
 
 data class UploadPartRequest(
@@ -36,6 +37,26 @@ data class UploadObjectRequest(
 )
 
 data class UploadObjectResult(val status: Int)
+
+/** A short-lived object-store read is streamed into a Core-created task file. */
+data class DownloadObjectRequest(
+  val url: String,
+  val method: String,
+  val headers: Map<String, String>,
+  val destinationPath: String,
+  /** Required for registered source objects; omitted for OSS on-the-fly previews. */
+  val expectedSize: Long?,
+  /** Mandatory hard ceiling for every object download, including dynamic previews. */
+  val maximumSize: Long,
+)
+
+/** The digest is unpadded standard Base64, matching the service resource manifest. */
+data class DownloadObjectResult(
+  val status: Int,
+  val bytesWritten: Long,
+  val sha256Base64: String,
+  val contentType: String,
+)
 
 enum class LibraryPermissionState { NOT_DETERMINED, FULL, LIMITED, RESTRICTED, DENIED, SYSTEM_RESTRICTED }
 
@@ -92,6 +113,7 @@ interface TransportPort {
   suspend fun sendApiRequest(request: ApiRequest): ApiResponse
   suspend fun uploadPart(request: UploadPartRequest): UploadPartResult
   suspend fun uploadObject(request: UploadObjectRequest): UploadObjectResult
+  suspend fun downloadObject(request: DownloadObjectRequest): DownloadObjectResult
 }
 
 interface MediaSourcePort {
@@ -101,7 +123,6 @@ interface MediaSourcePort {
   fun listMedia(cursor: MediaScanCursor?, limit: Int): PlatformMediaPage
   fun openFirstMediaResource(): OpenedMediaResource?
   fun openMediaResource(platformAssetRef: String): OpenedMediaResource?
-  fun createDerivedMediaResources(platformAssetRef: String, mediaType: LocalMediaType): List<DerivedMediaResource>
 }
 
 interface BackgroundSchedulerPort {
@@ -121,5 +142,37 @@ interface FilePort {
   fun deleteTempFile(path: String): Boolean
 }
 
-interface MediaPlaybackPort
-interface SystemAlbumWriterPort
+/** A display-only handle for a Core-verified temporary media file. */
+data class VerifiedMediaOpenRequest(
+  val verifiedFilePath: String,
+  val mimeType: String,
+)
+
+data class VerifiedMediaOpenResult(
+  val viewHandle: String,
+  val sourceUri: String,
+)
+
+interface MediaPlaybackPort {
+  fun openVerifiedMedia(request: VerifiedMediaOpenRequest): VerifiedMediaOpenResult
+  fun closeVerifiedMedia(viewHandle: String): Boolean
+}
+
+data class SystemAlbumWriteRequest(
+  val verifiedFilePath: String,
+  val displayName: String,
+  val mimeType: String,
+  val capturedAt: String?,
+)
+
+data class SystemAlbumWriteResult(val platformAssetRef: String)
+
+/**
+ * This port is deliberately limited to consuming a verified task file. It neither requests
+ * object grants nor makes domain decisions; Core retains the durable save receipt.
+ */
+interface SystemAlbumWriterPort {
+  fun writeVerifiedMedia(request: SystemAlbumWriteRequest): SystemAlbumWriteResult
+  fun isSystemAlbumEntryPresent(platformAssetRef: String): Boolean
+  fun deleteSystemAlbumEntry(platformAssetRef: String): Boolean
+}

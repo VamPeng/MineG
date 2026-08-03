@@ -18,27 +18,38 @@ object MockMineGRepository {
   ).mapIndexed { index, media -> media.copy(imageUrl = MockVisualAssets.media[index % MockVisualAssets.media.size]) }
 
   val familyMedia = listOf(
-    privateMedia[0],
-    privateMedia[1],
-    MediaItem("family-01", "第一次露营", MediaKind.PHOTO, "2026年7月27日 07:12", "今天", sizeLabel = "6.7 MB", owner = father, colorSeed = 9),
-    MediaItem("family-02", "花园里的风", MediaKind.LIVE_PHOTO, "2026年7月27日 06:50", "今天", sizeLabel = "8.4 MB", owner = mother, colorSeed = 10),
-    MediaItem("family-03", "晚餐时间", MediaKind.GIF, "2026年7月27日 05:30", "今天", sizeLabel = "11.8 MB", owner = mother, colorSeed = 11),
-    MediaItem("family-04", "回家的路", MediaKind.VIDEO, "2026年7月27日 04:26", "今天", "1:02", "63.5 MB", father, colorSeed = 12),
-    privateMedia[2].copy(id = "family-05", dateGroup = "昨天", owner = mother, sharedByMe = false),
-    privateMedia[3].copy(id = "family-06", dateGroup = "昨天", owner = father, sharedByMe = false),
-    privateMedia[4].copy(id = "family-07", dateGroup = "昨天", owner = mother, sharedByMe = false),
-  ).mapIndexed { index, media ->
-    if (media.imageUrl != null) media else media.copy(imageUrl = MockVisualAssets.media[(index + 3) % MockVisualAssets.media.size])
-  }
-
-  val albums = listOf(
-    LocalAlbum("album-camera", "最近项目", 1_286, privateMedia.take(6).map(MediaItem::id), MockVisualAssets.media.take(6)),
-    LocalAlbum("album-family", "家庭时光", 238, privateMedia.drop(2).map(MediaItem::id), MockVisualAssets.media.drop(2).take(6)),
-    LocalAlbum("album-screenshots", "旅行", 96, privateMedia.takeLast(4).map(MediaItem::id), MockVisualAssets.media.reversed().take(6)),
+    MediaItem("family-01", "积木时光", MediaKind.PHOTO, "2024年10月20日", "今天", sizeLabel = "5.8 MB", owner = me, sharedByMe = true, colorSeed = 0, imageUrl = MockVisualAssets.familyTimelineMedia[0], detailImageUrl = MockVisualAssets.familyDetailMedia),
+    MediaItem("family-02", "草莓蛋糕", MediaKind.LIVE_PHOTO, "2024年10月20日", "今天", sizeLabel = "8.4 MB", owner = mother, colorSeed = 1, imageUrl = MockVisualAssets.familyTimelineMedia[1]),
+    MediaItem("family-03", "公园野餐", MediaKind.PHOTO, "2024年10月20日", "今天", sizeLabel = "6.7 MB", owner = me, sharedByMe = true, colorSeed = 2, imageUrl = MockVisualAssets.familyTimelineMedia[2]),
+    MediaItem("family-04", "落叶小狗", MediaKind.GIF, "2024年10月20日", "今天", sizeLabel = "11.8 MB", owner = mother, colorSeed = 3, imageUrl = MockVisualAssets.familyTimelineMedia[3]),
+    MediaItem("family-05", "家的角落", MediaKind.PHOTO, "2024年10月20日", "今天", sizeLabel = "4.9 MB", owner = mother, colorSeed = 4, imageUrl = MockVisualAssets.familyTimelineMedia[4]),
+    MediaItem("family-06", "傍晚笑声", MediaKind.VIDEO, "2024年10月20日", "今天", "1:02", "63.5 MB", me, sharedByMe = true, colorSeed = 5, imageUrl = MockVisualAssets.familyTimelineMedia[5]),
+    MediaItem("family-07", "晨光湖畔", MediaKind.PHOTO, "2024年10月19日", "昨天", sizeLabel = "6.3 MB", owner = father, colorSeed = 6, imageUrl = MockVisualAssets.familyTimelineMedia[6]),
+    MediaItem("family-08", "小小鞋子", MediaKind.PHOTO, "2024年10月19日", "昨天", sizeLabel = "5.1 MB", owner = me, sharedByMe = true, colorSeed = 7, imageUrl = MockVisualAssets.familyTimelineMedia[7]),
+    MediaItem("family-09", "窗边共读", MediaKind.LIVE_PHOTO, "2024年10月19日", "昨天", sizeLabel = "9.2 MB", owner = mother, colorSeed = 8, imageUrl = MockVisualAssets.familyTimelineMedia[8]),
   )
 
-  val deletedMedia = privateMedia.takeLast(4).mapIndexed { index, media ->
-    DeletedMedia(media, listOf("3天前", "5天前", "12天前", "21天前")[index])
+  val albums = listOf(
+    LocalAlbum("album-camera", "最近项目", 1_286, privateMedia.take(6).map(MediaItem::id), MockVisualAssets.backupMedia.take(6)),
+    LocalAlbum("album-family", "家庭时光", 238, privateMedia.drop(2).map(MediaItem::id), listOf(
+      MockVisualAssets.backupMedia[6], MockVisualAssets.backupMedia[7], MockVisualAssets.backupMedia[0],
+      MockVisualAssets.backupMedia[2], MockVisualAssets.backupMedia[5], MockVisualAssets.backupMedia[1],
+    )),
+    LocalAlbum("album-screenshots", "旅行", 96, privateMedia.takeLast(4).map(MediaItem::id), listOf(
+      MockVisualAssets.backupMedia[4], MockVisualAssets.backupMedia[3], MockVisualAssets.backupMedia[5],
+      MockVisualAssets.backupMedia[1], MockVisualAssets.backupMedia[0], MockVisualAssets.backupMedia[7],
+    )),
+  )
+
+  val deletedMedia = MockVisualAssets.recycleMedia.mapIndexed { index, imageUrl ->
+    DeletedMedia(
+      media = privateMedia[index % privateMedia.size].copy(
+        id = "recycle-${index + 1}",
+        imageUrl = imageUrl,
+        detailImageUrl = MockVisualAssets.recycleRestoreMedia,
+      ),
+      deletedAgo = listOf("3天前", "5天前", "12天前", "15天前", "21天前", "28天前")[index],
+    )
   }
 
   fun initialState(): MineGAppState = MineGAppState(

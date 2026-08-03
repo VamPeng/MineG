@@ -3,9 +3,8 @@
   const requestedActive = script?.dataset.minegNav;
   const path = window.location.pathname;
 
-  const active = requestedActive
-    || (path.includes("/03-private-space/") ? "private"
-      : path.includes("/05-family-album/") ? "private"
+  const active = (requestedActive === "family" ? "private" : requestedActive)
+    || (path.includes("/03-private-space/") || path.includes("/05-family-album/") ? "private"
         : path.includes("/06-backup/") || path.includes("/02-permissions-dep/") ? "backup"
           : path.includes("/08-profile/") || path.includes("/07-recycle-bin/") ? "profile"
             : "");
@@ -20,7 +19,7 @@
     document.head.appendChild(link);
   }
 
-  const expectedLabels = ["私人空间", "家庭相册", "备份", "我的"];
+  const expectedLabels = ["私人空间", "备份", "我的"];
   const candidates = [...document.querySelectorAll("nav")].filter((nav) => {
     const copy = nav.textContent || "";
     const labelMatches = expectedLabels.filter((label) => copy.includes(label)).length;
@@ -53,10 +52,10 @@
         ? textPrimary
         : isVisibleColor(backgroundPrimary)
           ? backgroundPrimary
-          : "#436444";
+          : "#3BAAFF";
 
   const iconUrls = {
-    private: new URL("icons/private.png", script.src).href,
+    private: new URL("icons/cloud.png", script.src).href,
     backup: new URL("icons/local-album.png", script.src).href,
     profile: new URL("icons/profile.png", script.src).href,
   };
@@ -81,9 +80,7 @@
     return `
       <a class="mineg-nav-item${selected ? " is-active" : ""}"
          href="${destinations[key]}" aria-label="${label}"${selected ? " aria-current=\"page\"" : ""}>
-        <span class="mineg-nav-icon" aria-hidden="true">
-          <img src="${iconUrls[key]}" alt="" />
-        </span>
+        <img class="mineg-nav-icon" src="${iconUrls[key]}" alt="" aria-hidden="true" />
       </a>`;
   }).join("");
 })();

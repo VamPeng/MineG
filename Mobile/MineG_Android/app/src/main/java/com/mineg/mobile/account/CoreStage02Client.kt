@@ -27,15 +27,6 @@ class CoreStage02Client(
 ) {
   private val operationIds = AtomicLong(2_000_000_000L)
 
-  suspend fun coordinateFamilyKeyGrants(password: ByteArray?): Int {
-    val command = JSONObject()
-      .put("contractVersion", STAGE02_V2)
-      .put("type", "CoordinateFamilyKeyGrants")
-    password?.let { command.put("password", it.toString(Charsets.UTF_8)) }
-    val result = runCommand(command) ?: return 0
-    return result.getInt("completedCount")
-  }
-
   suspend fun listPrivateMedia(limit: Int = 100, allowCached: Boolean = true): List<OwnerMediaSummary> {
     val result = runCommand(
       JSONObject()

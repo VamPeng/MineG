@@ -27,25 +27,6 @@ func (q *Queries) AcquireRegistrationLock(ctx context.Context, arg AcquireRegist
 	return err
 }
 
-const approveEnvelopeReadyUser = `-- name: ApproveEnvelopeReadyUser :execrows
-UPDATE mineg.users
-SET status = 'APPROVED', updated_at = $2
-WHERE id = $1 AND status = 'PENDING'
-`
-
-type ApproveEnvelopeReadyUserParams struct {
-	ID        pgtype.UUID        `json:"id"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
-func (q *Queries) ApproveEnvelopeReadyUser(ctx context.Context, arg ApproveEnvelopeReadyUserParams) (int64, error) {
-	result, err := q.db.Exec(ctx, approveEnvelopeReadyUser, arg.ID, arg.UpdatedAt)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const approveUserAfterReview = `-- name: ApproveUserAfterReview :execrows
 UPDATE mineg.users
 SET reviewed_at = COALESCE(reviewed_at, $2),
@@ -89,67 +70,12 @@ func (q *Queries) CompleteAvatarUpload(ctx context.Context, arg CompleteAvatarUp
 	return result.RowsAffected(), nil
 }
 
-const completeKeyGrantTask = `-- name: CompleteKeyGrantTask :execrows
-UPDATE mineg.key_grant_tasks
-SET state = 'READY', completed_by = $2, completed_at = $3,
-    attempt_count = attempt_count + 1, updated_at = $3
-WHERE id = $1 AND state = 'PENDING'
-`
-
-type CompleteKeyGrantTaskParams struct {
-	ID          pgtype.UUID        `json:"id"`
-	CompletedBy pgtype.UUID        `json:"completed_by"`
-	CompletedAt pgtype.Timestamptz `json:"completed_at"`
-}
-
-func (q *Queries) CompleteKeyGrantTask(ctx context.Context, arg CompleteKeyGrantTaskParams) (int64, error) {
-	result, err := q.db.Exec(ctx, completeKeyGrantTask, arg.ID, arg.CompletedBy, arg.CompletedAt)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const countAdminUsers = `-- name: CountAdminUsers :one
 SELECT count(*) FROM mineg.admin_users
 `
 
 func (q *Queries) CountAdminUsers(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countAdminUsers)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countEligiblePendingKeyGrants = `-- name: CountEligiblePendingKeyGrants :one
-SELECT count(*)
-FROM mineg.key_grant_tasks task
-JOIN mineg.users target ON target.id = task.user_id
-WHERE task.state = 'PENDING'
-  AND target.reviewed_at IS NOT NULL
-  AND (
-      (task.user_id = $1 AND NOT EXISTS (SELECT 1 FROM mineg.family_key_envelopes))
-      OR
-      (task.user_id <> $1 AND EXISTS (
-          SELECT 1 FROM mineg.family_key_envelopes actor_envelope
-          WHERE actor_envelope.user_id = $1
-      ))
-  )
-`
-
-func (q *Queries) CountEligiblePendingKeyGrants(ctx context.Context, userID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countEligiblePendingKeyGrants, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countFamilyKeyEnvelopes = `-- name: CountFamilyKeyEnvelopes :one
-SELECT count(*) FROM mineg.family_key_envelopes
-`
-
-func (q *Queries) CountFamilyKeyEnvelopes(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countFamilyKeyEnvelopes)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -296,62 +222,6 @@ func (q *Queries) CreateAvatarUpload(ctx context.Context, arg CreateAvatarUpload
 	return i, err
 }
 
-const createFamilyKeyEnvelope = `-- name: CreateFamilyKeyEnvelope :exec
-INSERT INTO mineg.family_key_envelopes(
-    family_id, user_id, created_by, recipient_public_key_hash,
-    encrypted_envelope, algorithm, envelope_version
-) VALUES ($1, $2, $3, $4, $5, 'X25519_SEALED_BOX', $6)
-`
-
-type CreateFamilyKeyEnvelopeParams struct {
-	FamilyID               pgtype.UUID `json:"family_id"`
-	UserID                 pgtype.UUID `json:"user_id"`
-	CreatedBy              pgtype.UUID `json:"created_by"`
-	RecipientPublicKeyHash []byte      `json:"recipient_public_key_hash"`
-	EncryptedEnvelope      []byte      `json:"encrypted_envelope"`
-	EnvelopeVersion        int32       `json:"envelope_version"`
-}
-
-func (q *Queries) CreateFamilyKeyEnvelope(ctx context.Context, arg CreateFamilyKeyEnvelopeParams) error {
-	_, err := q.db.Exec(ctx, createFamilyKeyEnvelope,
-		arg.FamilyID,
-		arg.UserID,
-		arg.CreatedBy,
-		arg.RecipientPublicKeyHash,
-		arg.EncryptedEnvelope,
-		arg.EnvelopeVersion,
-	)
-	return err
-}
-
-const createKeyGrantTask = `-- name: CreateKeyGrantTask :one
-INSERT INTO mineg.key_grant_tasks (user_id)
-VALUES ($1)
-ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
-RETURNING id, user_id, state, created_at, completed_at
-`
-
-type CreateKeyGrantTaskRow struct {
-	ID          pgtype.UUID        `json:"id"`
-	UserID      pgtype.UUID        `json:"user_id"`
-	State       string             `json:"state"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	CompletedAt pgtype.Timestamptz `json:"completed_at"`
-}
-
-func (q *Queries) CreateKeyGrantTask(ctx context.Context, userID pgtype.UUID) (CreateKeyGrantTaskRow, error) {
-	row := q.db.QueryRow(ctx, createKeyGrantTask, userID)
-	var i CreateKeyGrantTaskRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.State,
-		&i.CreatedAt,
-		&i.CompletedAt,
-	)
-	return i, err
-}
-
 const createRegistrationRequest = `-- name: CreateRegistrationRequest :exec
 INSERT INTO mineg.registration_requests (
     device_installation_id, idempotency_key, request_hash, user_id, rotation_family_id
@@ -419,31 +289,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const createUserKeyBundle = `-- name: CreateUserKeyBundle :exec
-INSERT INTO mineg.user_key_bundles (
-    user_id, public_key, encrypted_key_bundle, kdf_parameters, bundle_version
-) VALUES ($1, $2, $3, $4, $5)
-`
-
-type CreateUserKeyBundleParams struct {
-	UserID             pgtype.UUID `json:"user_id"`
-	PublicKey          []byte      `json:"public_key"`
-	EncryptedKeyBundle []byte      `json:"encrypted_key_bundle"`
-	KdfParameters      []byte      `json:"kdf_parameters"`
-	BundleVersion      int32       `json:"bundle_version"`
-}
-
-func (q *Queries) CreateUserKeyBundle(ctx context.Context, arg CreateUserKeyBundleParams) error {
-	_, err := q.db.Exec(ctx, createUserKeyBundle,
-		arg.UserID,
-		arg.PublicKey,
-		arg.EncryptedKeyBundle,
-		arg.KdfParameters,
-		arg.BundleVersion,
-	)
-	return err
 }
 
 const createUserSession = `-- name: CreateUserSession :one
@@ -645,77 +490,6 @@ func (q *Queries) FindAvatarUploadForUpdate(ctx context.Context, arg FindAvatarU
 	return i, err
 }
 
-const findFamilyKeyEnvelope = `-- name: FindFamilyKeyEnvelope :one
-SELECT family_id, user_id, created_by, recipient_public_key_hash,
-       encrypted_envelope, algorithm, envelope_version, created_at
-FROM mineg.family_key_envelopes
-WHERE user_id = $1
-`
-
-func (q *Queries) FindFamilyKeyEnvelope(ctx context.Context, userID pgtype.UUID) (MinegFamilyKeyEnvelope, error) {
-	row := q.db.QueryRow(ctx, findFamilyKeyEnvelope, userID)
-	var i MinegFamilyKeyEnvelope
-	err := row.Scan(
-		&i.FamilyID,
-		&i.UserID,
-		&i.CreatedBy,
-		&i.RecipientPublicKeyHash,
-		&i.EncryptedEnvelope,
-		&i.Algorithm,
-		&i.EnvelopeVersion,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const findKeyGrantForUpdate = `-- name: FindKeyGrantForUpdate :one
-SELECT task.id, task.user_id, task.family_id, task.state, task.completed_by,
-       task.created_at, task.completed_at, task.attempt_count, task.updated_at,
-       target.reviewed_at, target.status, bundle.public_key, bundle.bundle_version
-FROM mineg.key_grant_tasks task
-JOIN mineg.users target ON target.id = task.user_id
-JOIN mineg.user_key_bundles bundle ON bundle.user_id = task.user_id
-WHERE task.id = $1
-FOR UPDATE OF task, target
-`
-
-type FindKeyGrantForUpdateRow struct {
-	ID            pgtype.UUID        `json:"id"`
-	UserID        pgtype.UUID        `json:"user_id"`
-	FamilyID      pgtype.UUID        `json:"family_id"`
-	State         string             `json:"state"`
-	CompletedBy   pgtype.UUID        `json:"completed_by"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	CompletedAt   pgtype.Timestamptz `json:"completed_at"`
-	AttemptCount  int32              `json:"attempt_count"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	ReviewedAt    pgtype.Timestamptz `json:"reviewed_at"`
-	Status        string             `json:"status"`
-	PublicKey     []byte             `json:"public_key"`
-	BundleVersion int32              `json:"bundle_version"`
-}
-
-func (q *Queries) FindKeyGrantForUpdate(ctx context.Context, id pgtype.UUID) (FindKeyGrantForUpdateRow, error) {
-	row := q.db.QueryRow(ctx, findKeyGrantForUpdate, id)
-	var i FindKeyGrantForUpdateRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.FamilyID,
-		&i.State,
-		&i.CompletedBy,
-		&i.CreatedAt,
-		&i.CompletedAt,
-		&i.AttemptCount,
-		&i.UpdatedAt,
-		&i.ReviewedAt,
-		&i.Status,
-		&i.PublicKey,
-		&i.BundleVersion,
-	)
-	return i, err
-}
-
 const findRegistrationRequest = `-- name: FindRegistrationRequest :one
 SELECT device_installation_id, idempotency_key, request_hash, user_id, rotation_family_id, created_at
 FROM mineg.registration_requests
@@ -891,19 +665,6 @@ func (q *Queries) FindUserSessionByRefreshForUpdate(ctx context.Context, refresh
 	return i, err
 }
 
-const getFixedFamily = `-- name: GetFixedFamily :one
-SELECT id, singleton, created_at
-FROM mineg.families
-WHERE singleton = true
-`
-
-func (q *Queries) GetFixedFamily(ctx context.Context) (MinegFamily, error) {
-	row := q.db.QueryRow(ctx, getFixedFamily)
-	var i MinegFamily
-	err := row.Scan(&i.ID, &i.Singleton, &i.CreatedAt)
-	return i, err
-}
-
 const getReadyAvatar = `-- name: GetReadyAvatar :one
 SELECT upload.id, upload.user_id, upload.object_key, upload.content_type,
        upload.display_size, upload.content_sha256, upload.completed_at
@@ -933,46 +694,6 @@ func (q *Queries) GetReadyAvatar(ctx context.Context, id pgtype.UUID) (GetReadyA
 		&i.DisplaySize,
 		&i.ContentSha256,
 		&i.CompletedAt,
-	)
-	return i, err
-}
-
-const getUserKeyMaterial = `-- name: GetUserKeyMaterial :one
-SELECT bundle.user_id, bundle.public_key, bundle.encrypted_key_bundle,
-       bundle.kdf_parameters, bundle.bundle_version, bundle.updated_at,
-       envelope.encrypted_envelope AS family_envelope,
-       envelope.algorithm AS family_envelope_algorithm,
-       envelope.envelope_version AS family_envelope_version
-FROM mineg.user_key_bundles bundle
-LEFT JOIN mineg.family_key_envelopes envelope ON envelope.user_id = bundle.user_id
-WHERE bundle.user_id = $1
-`
-
-type GetUserKeyMaterialRow struct {
-	UserID                  pgtype.UUID        `json:"user_id"`
-	PublicKey               []byte             `json:"public_key"`
-	EncryptedKeyBundle      []byte             `json:"encrypted_key_bundle"`
-	KdfParameters           []byte             `json:"kdf_parameters"`
-	BundleVersion           int32              `json:"bundle_version"`
-	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
-	FamilyEnvelope          []byte             `json:"family_envelope"`
-	FamilyEnvelopeAlgorithm pgtype.Text        `json:"family_envelope_algorithm"`
-	FamilyEnvelopeVersion   pgtype.Int4        `json:"family_envelope_version"`
-}
-
-func (q *Queries) GetUserKeyMaterial(ctx context.Context, userID pgtype.UUID) (GetUserKeyMaterialRow, error) {
-	row := q.db.QueryRow(ctx, getUserKeyMaterial, userID)
-	var i GetUserKeyMaterialRow
-	err := row.Scan(
-		&i.UserID,
-		&i.PublicKey,
-		&i.EncryptedKeyBundle,
-		&i.KdfParameters,
-		&i.BundleVersion,
-		&i.UpdatedAt,
-		&i.FamilyEnvelope,
-		&i.FamilyEnvelopeAlgorithm,
-		&i.FamilyEnvelopeVersion,
 	)
 	return i, err
 }
@@ -1016,86 +737,6 @@ func (q *Queries) ListPendingApprovals(ctx context.Context, arg ListPendingAppro
 		return nil, err
 	}
 	return items, nil
-}
-
-const listPendingKeyGrants = `-- name: ListPendingKeyGrants :many
-SELECT task.id, task.user_id, task.family_id, task.state, task.created_at,
-       bundle.public_key, bundle.bundle_version,
-       NOT EXISTS (SELECT 1 FROM mineg.family_key_envelopes any_envelope) AS bootstrap
-FROM mineg.key_grant_tasks task
-JOIN mineg.users target ON target.id = task.user_id
-JOIN mineg.user_key_bundles bundle ON bundle.user_id = task.user_id
-WHERE task.state = 'PENDING'
-  AND target.reviewed_at IS NOT NULL
-  AND (
-      (task.user_id = $1 AND NOT EXISTS (SELECT 1 FROM mineg.family_key_envelopes))
-      OR
-      (task.user_id <> $1 AND EXISTS (
-          SELECT 1 FROM mineg.family_key_envelopes actor_envelope
-          WHERE actor_envelope.user_id = $1
-      ))
-  )
-ORDER BY task.created_at, task.id
-LIMIT $2
-`
-
-type ListPendingKeyGrantsParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Limit  int32       `json:"limit"`
-}
-
-type ListPendingKeyGrantsRow struct {
-	ID            pgtype.UUID        `json:"id"`
-	UserID        pgtype.UUID        `json:"user_id"`
-	FamilyID      pgtype.UUID        `json:"family_id"`
-	State         string             `json:"state"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	PublicKey     []byte             `json:"public_key"`
-	BundleVersion int32              `json:"bundle_version"`
-	Bootstrap     bool               `json:"bootstrap"`
-}
-
-func (q *Queries) ListPendingKeyGrants(ctx context.Context, arg ListPendingKeyGrantsParams) ([]ListPendingKeyGrantsRow, error) {
-	rows, err := q.db.Query(ctx, listPendingKeyGrants, arg.UserID, arg.Limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListPendingKeyGrantsRow
-	for rows.Next() {
-		var i ListPendingKeyGrantsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.FamilyID,
-			&i.State,
-			&i.CreatedAt,
-			&i.PublicKey,
-			&i.BundleVersion,
-			&i.Bootstrap,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const lockFixedFamily = `-- name: LockFixedFamily :one
-SELECT id
-FROM mineg.families
-WHERE singleton = true
-FOR UPDATE
-`
-
-func (q *Queries) LockFixedFamily(ctx context.Context) (pgtype.UUID, error) {
-	row := q.db.QueryRow(ctx, lockFixedFamily)
-	var id pgtype.UUID
-	err := row.Scan(&id)
-	return id, err
 }
 
 const markUserReviewed = `-- name: MarkUserReviewed :execrows
@@ -1295,37 +936,6 @@ type UpdateRegistrationFamilyParams struct {
 func (q *Queries) UpdateRegistrationFamily(ctx context.Context, arg UpdateRegistrationFamilyParams) error {
 	_, err := q.db.Exec(ctx, updateRegistrationFamily, arg.DeviceInstallationID, arg.IdempotencyKey, arg.RotationFamilyID)
 	return err
-}
-
-const updateUserKeyBundle = `-- name: UpdateUserKeyBundle :execrows
-UPDATE mineg.user_key_bundles
-SET encrypted_key_bundle = $2, kdf_parameters = $3,
-    bundle_version = $4, updated_at = $5
-WHERE user_id = $1 AND public_key = $6 AND bundle_version < $4
-`
-
-type UpdateUserKeyBundleParams struct {
-	UserID             pgtype.UUID        `json:"user_id"`
-	EncryptedKeyBundle []byte             `json:"encrypted_key_bundle"`
-	KdfParameters      []byte             `json:"kdf_parameters"`
-	BundleVersion      int32              `json:"bundle_version"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
-	PublicKey          []byte             `json:"public_key"`
-}
-
-func (q *Queries) UpdateUserKeyBundle(ctx context.Context, arg UpdateUserKeyBundleParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateUserKeyBundle,
-		arg.UserID,
-		arg.EncryptedKeyBundle,
-		arg.KdfParameters,
-		arg.BundleVersion,
-		arg.UpdatedAt,
-		arg.PublicKey,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }
 
 const updateUserNickname = `-- name: UpdateUserNickname :one

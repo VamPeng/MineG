@@ -1,43 +1,46 @@
 package com.mineg.mobile.app
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Restore
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.view.WindowCompat
 import com.mineg.mobile.BuildConfig
 
 @Composable
 fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   val route = state.currentRoute
+
+  MineGSystemStatusBar(route)
 
   BackHandler(enabled = state.dialog != null || state.backStack.isNotEmpty()) {
     viewModel.back()
@@ -50,10 +53,8 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
       state = state.auth,
       onPhoneChange = viewModel::updatePhone,
       onPasswordChange = viewModel::updatePassword,
-      onAgreementChange = viewModel::updateAgreement,
       onLogin = viewModel::submitLogin,
       onSignUp = viewModel::openSignUp,
-      onLegal = { viewModel.navigate(AppRoute.Legal(it)) },
     )
     AppRoute.SignUp -> SignUpPage(
       state = state.auth,
@@ -82,6 +83,9 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
       onSelectLibraryTab = viewModel::selectLibraryTab,
       onSelectTab = viewModel::selectTab,
       onOpenPrivateMedia = viewModel::openPrivateMedia,
+      onRefreshPrivateMedia = viewModel::refreshPrivateMedia,
+      onLoadMorePrivateMedia = viewModel::loadMorePrivateMedia,
+      onLoadPrivateMediaPreview = viewModel::loadPrivateMediaPreview,
       onOpenSharedMedia = viewModel::openFamilyMedia,
     )
     AppRoute.Backup -> BackupPage(
@@ -89,9 +93,9 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
       state.selectedTab,
       viewModel::selectTab,
       onSettings = { viewModel.navigate(AppRoute.BackupSettings) },
+      onRefresh = viewModel::refreshLocalLibrary,
       onOpenAlbum = viewModel::openLocalAlbum,
       onStartBackup = viewModel::startBackup,
-      onRefresh = viewModel::refreshLocalLibrary,
     )
     AppRoute.Profile -> state.profile?.let { profile -> ProfilePage(
       profile,
@@ -107,11 +111,13 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
     is AppRoute.PrivateMediaDetail -> PrivateMediaDetailPage(
       media = viewModel.mediaById(route.mediaId),
       actionState = state.selectedMediaAction,
+      showDeleteConfirmation = state.dialog is AppDialog.DeleteMedia,
+      onLoadPreview = { viewModel.loadPrivateMediaPreview(route.mediaId) },
       onBack = viewModel::back,
       onDownload = viewModel::downloadSelectedMedia,
-      onFinishDownload = viewModel::finishMockDownload,
-      onShare = { viewModel.toggleShare(route.mediaId) },
       onDelete = { viewModel.requestDelete(route.mediaId) },
+      onRetrySave = viewModel::downloadSelectedMedia,
+      onDismissAction = viewModel::dismissSelectedMediaAction,
     )
     is AppRoute.FamilyMediaDetail -> FamilyMediaDetailPage(viewModel.mediaById(route.mediaId), viewModel::back)
     AppRoute.SharedByMe -> SharedByMePage(state.familyAlbum, viewModel::back, viewModel::openFamilyMedia)
@@ -165,87 +171,77 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
   }
 
   state.dialog?.let { dialog ->
-    val title: String
-    val message: String
-    val confirmLabel: String
-    val destructive: Boolean
     when (dialog) {
-      is AppDialog.DeleteMedia -> {
-        title = "移入回收站？"
-        message = "媒体将从私人空间和家庭相册隐藏，但不会删除设备本地媒体。"
-        confirmLabel = "移入回收站"
-        destructive = true
-      }
-      is AppDialog.RestoreMedia -> {
-        title = "恢复这项媒体？"
-        message = "恢复后将回到私人空间并保持未共享。"
-        confirmLabel = "恢复"
-        destructive = false
-      }
-      AppDialog.Logout -> {
-        title = "确定退出登录？"
-        message = "退出后将停止当前账号未完成的任务，并清理本机凭据与内存密钥。"
-        confirmLabel = "退出登录"
-        destructive = true
-      }
+      is AppDialog.DeleteMedia -> PrivateMediaDeleteDialog(viewModel::confirmDialog, viewModel::dismissDialog)
+      is AppDialog.RestoreMedia -> RecycleRestoreDialog(
+        media = state.recycleBin.items.firstOrNull { it.media.id == dialog.mediaId }?.media,
+        onConfirm = viewModel::confirmDialog,
+        onDismiss = viewModel::dismissDialog,
+      )
+      AppDialog.Logout -> ProfileLogoutDialog(viewModel::confirmDialog, viewModel::dismissDialog)
     }
-    MineGConfirmDialog(
-      title = title,
-      message = message,
-      confirmLabel = confirmLabel,
-      destructive = destructive,
-      icon = when (dialog) {
-        is AppDialog.DeleteMedia -> Icons.Outlined.DeleteOutline
-        is AppDialog.RestoreMedia -> Icons.Outlined.Restore
-        AppDialog.Logout -> Icons.AutoMirrored.Outlined.Logout
-      },
-      onConfirm = viewModel::confirmDialog,
-      onDismiss = viewModel::dismissDialog,
-    )
   }
 }
 
 @Composable
-private fun MineGConfirmDialog(
-  title: String,
-  message: String,
-  confirmLabel: String,
-  destructive: Boolean,
-  icon: ImageVector,
-  onConfirm: () -> Unit,
-  onDismiss: () -> Unit,
-) {
-  Dialog(onDismissRequest = onDismiss) {
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 12.dp) {
-      Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Column(
-          Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp),
-          horizontalAlignment = Alignment.CenterHorizontally,
-          verticalArrangement = Arrangement.spacedBy(12.dp),
+private fun MineGSystemStatusBar(route: AppRoute) {
+  val view = LocalView.current
+  val isDarkTheme = isSystemInDarkTheme()
+  val statusBarColor = when {
+    isDarkTheme -> MaterialTheme.colorScheme.background
+    route is AppRoute.FamilyMediaDetail -> Color(0xFFF5F2ED)
+    else -> MaterialTheme.colorScheme.background
+  }
+
+  SideEffect {
+    val window = view.context.findActivity()?.window ?: return@SideEffect
+    window.statusBarColor = statusBarColor.toArgb()
+    WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDarkTheme
+  }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+  is Activity -> this
+  is ContextWrapper -> baseContext.findActivity()
+  else -> null
+}
+
+@Composable
+private fun PrivateMediaDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+  Dialog(
+    onDismissRequest = onDismiss,
+    properties = DialogProperties(usePlatformDefaultWidth = false),
+  ) {
+    Surface(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).testTag("private-media.delete.confirm"),
+      shape = RoundedCornerShape(12.dp),
+      color = MaterialTheme.colorScheme.surface,
+      shadowElevation = 0.dp,
+    ) {
+      Column(Modifier.padding(24.dp)) {
+        Text("移入回收站？", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+          "移入后媒体将在私人空间和家庭相册中隐藏，可从回收站恢复。",
+          modifier = Modifier.padding(top = 16.dp),
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          style = MaterialTheme.typography.bodyMedium,
+        )
+        Button(
+          onClick = onConfirm,
+          modifier = Modifier.fillMaxWidth().padding(top = 24.dp).height(48.dp),
+          shape = RoundedCornerShape(8.dp),
+          colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+          ),
+        ) { Text("移入回收站", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold) }
+        androidx.compose.material3.OutlinedButton(
+          onClick = onDismiss,
+          modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(48.dp),
+          shape = RoundedCornerShape(8.dp),
+          border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC7D6E0)),
         ) {
-          Box(
-            Modifier.size(56.dp).background(
-              if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-              CircleShape,
-            ),
-            contentAlignment = Alignment.Center,
-          ) {
-            Icon(
-              icon,
-              null,
-              tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-            )
-          }
-          Text(title, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-          Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        TextButton(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) {
-          Text(confirmLabel, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-          Text("取消", color = MaterialTheme.colorScheme.onSurface)
+          Text("取消", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
         }
       }
     }

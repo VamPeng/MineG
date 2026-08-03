@@ -80,36 +80,30 @@
     };
 
     const albums = [
-        { name: "最近项目", imageIndexes: [0, 1, 2, 3, 4, 5], videoIndexes: [2] },
-        { name: "家庭时光", imageIndexes: [6, 7, 0, 2, 5, 1], videoIndexes: [1, 4] },
-        { name: "旅行", imageIndexes: [4, 3, 5, 1, 0, 7], videoIndexes: [] }
+        { name: "最近项目", coverImageIndex: 0 },
+        { name: "家庭时光", coverImageIndex: 6 },
+        { name: "旅行", coverImageIndex: 4 }
     ];
 
-    function mediaTile(imageIndex, isVideo, index) {
+    function albumSection(album) {
         return `
-            <button class="media-tile" aria-label="打开本地媒体 ${index + 1}">
-                <img alt="本地相册媒体缩略图" src="${images[imageIndex]}" />
-                ${isVideo ? `
-                    <span class="media-badge" aria-label="视频">
-                        <span aria-hidden="true">▶</span>
-                    </span>
-                ` : ""}
+            <button class="album-card" aria-label="打开相册 ${album.name}">
+                <img class="album-cover" alt="" src="${images[album.coverImageIndex]}" />
+                <span class="album-name">${album.name}</span>
             </button>
         `;
     }
 
-    function albumSection(album) {
+    function statusActions() {
         return `
-            <section class="album-section">
-                <div class="album-heading">
-                    <h2>${album.name}</h2>
-                </div>
-                <div class="media-grid">
-                    ${album.imageIndexes.map((imageIndex, index) =>
-                        mediaTile(imageIndex, album.videoIndexes.includes(index), index)
-                    ).join("")}
-                </div>
-            </section>
+            <div class="sync-actions">
+                <button class="sync-action" type="button" data-action="refresh-albums" aria-label="刷新本地相册">
+                    <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+                </button>
+                <a class="sync-action" href="../01-auto-backup-default-on-decision-a/index.html" aria-label="打开备份设置">
+                    <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+                </a>
+            </div>
         `;
     }
 
@@ -118,6 +112,7 @@
             return `
                 <section class="sync-panel">
                     <div class="sync-card complete-card">
+                        ${statusActions()}
                         <div>
                             <h2>备份完成</h2>
                             <p>已完成当前备份</p>
@@ -132,6 +127,7 @@
                 <div class="sync-card" style="--progress: ${state.progress}">
                     <img class="sync-photo" alt="当前正在同步的本地媒体" src="${state.image}" />
                     <div class="sync-shade"></div>
+                    ${statusActions()}
                     <div class="sync-copy">
                         <div class="sync-title-row">
                             <h2 class="sync-title">${state.title}</h2>
@@ -151,6 +147,7 @@
         return `
             <section class="sync-panel paused">
                 <div class="sync-card complete-card">
+                    ${statusActions()}
                     <div>
                         <h2>自动备份已关闭</h2>
                         <p>开启后才会上传新照片和视频</p>
@@ -165,12 +162,6 @@
     document.body.classList.toggle("auto-backup-off", !autoBackupEnabled);
     document.body.innerHTML = `
         <div class="app-shell">
-            <header class="top-bar">
-                <h1>本地相册</h1>
-                <a class="icon-button" href="../01-auto-backup-default-on-decision-a/index.html" aria-label="打开备份设置">
-                    <span>设置</span>
-                </a>
-            </header>
             <main class="content">
                 <div id="sync-status">
                     ${autoBackupEnabled ? statusPanel(selectedState) : disabledStatusPanel()}
@@ -187,6 +178,10 @@
     `;
 
     const startButton = document.getElementById("start-backup");
+    document.body.addEventListener("click", event => {
+        if (!event.target.closest('[data-action="refresh-albums"]')) return;
+        document.getElementById("sync-status").innerHTML = statusPanel(states.scanning);
+    });
     startButton.addEventListener("click", () => {
         localStorage.setItem(storageKey, "1");
         document.body.classList.remove("auto-backup-off");

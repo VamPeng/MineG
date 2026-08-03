@@ -1,0 +1,122 @@
+{
+  "contractVersion": "stage05-v1",
+  "version": "1.0.0",
+  "status": "BASELINED",
+  "scope": "M5_PRIVATE_MEDIA_BROWSING_ORIGINAL_SAVE_AND_LOGICAL_DELETE",
+  "architecture": {
+    "businessOrchestrator": "C++ Core",
+    "businessTruth": "Core SQLite",
+    "androidRole": "platform effects and Compose rendering only",
+    "clientMediaEncryption": false,
+    "objectAuthorization": "short_lived_private_oss_get"
+  },
+  "commands": [
+    "RefreshPrivateMedia",
+    "LoadMorePrivateMedia",
+    "GetPrivateMediaDetail",
+    "OpenPrivateMedia",
+    "ClosePrivateMedia",
+    "SavePrivateMediaToSystemAlbum",
+    "CancelPrivateMediaSave",
+    "RetryPrivateMediaSave",
+    "TrashPrivateMedia"
+  ],
+  "queries": [
+    "GetPrivateMediaPage",
+    "GetPrivateMediaDetail",
+    "GetPrivateMediaSaveOperation"
+  ],
+  "events": [
+    "PrivateMediaPageChanged",
+    "PrivateMediaDetailChanged",
+    "PrivateMediaSaveChanged",
+    "PrivateMediaTrashed"
+  ],
+  "api": {
+    "basePath": "/api/v1/private/media",
+    "operations": [
+      "listPrivateMedia",
+      "getPrivateMediaDetail",
+      "createPrivateMediaAccess",
+      "trashPrivateMedia"
+    ],
+    "cursor": {
+      "sort": "captured_at DESC, id DESC",
+      "boundFields": ["owner_id", "filter", "sort_version", "last_item"],
+      "defaultLimit": 50,
+      "maximumLimit": 100
+    }
+  },
+  "resources": {
+    "types": [
+      "ORIGINAL",
+      "THUMBNAIL",
+      "VIDEO_COVER",
+      "PREVIEW",
+      "LIVE_PHOTO_VIDEO",
+      "DYNAMIC_PREVIEW"
+    ],
+    "originalTypes": ["ORIGINAL", "LIVE_PHOTO_VIDEO"],
+    "previewTypes": ["THUMBNAIL", "VIDEO_COVER", "PREVIEW", "DYNAMIC_PREVIEW"],
+    "requiredMetadata": ["resource_id", "resource_type", "mime_type", "content_size", "content_sha256"],
+    "forbiddenPersistedFields": ["object_key", "signed_url", "grant_headers", "bucket", "long_lived_credential"]
+  },
+  "access": {
+    "purposes": ["VIEW", "STREAM", "DOWNLOAD"],
+    "viewVariants": ["THUMBNAIL", "DETAIL"],
+    "maxGrantLifetimeSeconds": 300,
+    "rules": [
+      "VIEW THUMBNAIL selects an available THUMBNAIL or VIDEO_COVER; PHOTO/GIF without one may select ORIGINAL only with delivery_mode OSS_IMAGE_THUMBNAIL, whose OSS x-oss-process parameter is signed with the exact GET",
+      "STREAM selects only PREVIEW or DYNAMIC_PREVIEW",
+      "DOWNLOAD returns the complete ORIGINAL and LIVE_PHOTO_VIDEO resource set",
+      "ORIGINAL_RESOURCE downloads are checked for final byte length and SHA-256 before use",
+      "OSS_IMAGE_THUMBNAIL is a non-persisted transformed response: Core verifies the short-lived signed HTTPS grant, image MIME type and maximum_output_size (5 MiB); its bytes are not compared with the source object SHA-256"
+    ]
+  },
+  "saveOperationStates": [
+    "IDLE",
+    "REQUESTING_ACCESS",
+    "DOWNLOADING",
+    "VERIFYING",
+    "WRITING_SYSTEM_ALBUM",
+    "COMPLETED",
+    "CANCELLED",
+    "RETRYABLE_FAILED",
+    "PERMANENT_FAILED"
+  ],
+  "errorCodes": [
+    "PRIVATE_MEDIA_ACCOUNT_MISMATCH",
+    "PRIVATE_MEDIA_NOT_FOUND",
+    "PRIVATE_MEDIA_ACCESS_DENIED",
+    "PRIVATE_MEDIA_ACCESS_EXPIRED",
+    "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE",
+    "PRIVATE_MEDIA_DOWNLOAD_INTEGRITY_FAILED",
+    "PRIVATE_MEDIA_DEVICE_STORAGE_LOW",
+    "PRIVATE_MEDIA_SYSTEM_ALBUM_WRITE_FAILED",
+    "PRIVATE_MEDIA_ALREADY_SAVED",
+    "PRIVATE_MEDIA_TRASH_CONFLICT",
+    "SESSION_INVALID"
+  ],
+  "effectActions": {
+    "TransportEffect": ["sendApiRequest", "downloadObject", "cancelTransfer"],
+    "FileEffect": ["getAvailableSpace", "createTaskTempFile", "deleteTempFile", "getFileDigest"],
+    "MediaPlaybackEffect": ["openVerifiedMedia", "closeVerifiedMedia"],
+    "SystemAlbumEffect": ["findDownloadReceipt", "writeVerifiedMedia", "deleteSystemAlbumEntry"]
+  },
+  "semanticIds": [
+    "private-media.grid",
+    "private-media.grid.refresh",
+    "private-media.grid.load-more",
+    "private-media.detail",
+    "private-media.detail.save",
+    "private-media.detail.delete",
+    "private-media.save.progress",
+    "private-media.delete.confirm"
+  ],
+  "delete": {
+    "kind": "logical_only",
+    "idempotencyRequired": true,
+    "effects": ["write_trash_record", "close_active_share", "write_audit_event", "invalidate_owner_cache"],
+    "nonEffects": ["delete_oss_object", "move_oss_object", "persist_object_grant"]
+  }
+}

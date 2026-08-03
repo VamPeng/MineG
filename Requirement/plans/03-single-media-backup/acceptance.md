@@ -1,7 +1,7 @@
 # 阶段 03 验收记录：单媒体原始内容备份
 
-- 更新日期：2026-07-31
-- 当前结论：`stage03-v2` 代码纵向闭环已实现，本地自动化与真实 PostgreSQL 通过；真实 ECS + 私有 OSS 和 Android 真机验收尚未执行，因此状态为 `IMPLEMENTED_PENDING_REAL_OSS`。
+- 更新日期：2026-08-02
+- 当前结论：项目负责人已确认真实 ECS + 私有 OSS 的 Android 单媒体上传完成，`stage03-v2` 转为 `FROZEN`，阶段 03 关闭。
 - 旧 `stage03-v1` 加密实现仅作为兼容证据，不代表当前产品行为。
 
 ## 当前交付
@@ -21,14 +21,12 @@
 - 新媒体对象使用 `.original`，资源只写 `content_size/content_sha256`，且 `media_key_envelopes` 计数为 0。
 - C++ Core 和 Android 均可编译；Android 单元测试通过。Core 读取 MediaStore 文件描述符计算摘要，Android 仅执行 Effect。
 - 上传完成后重新查询私人媒体；去重命中不重复上传对象。
+- 项目负责人确认 Android 真机已完成真实 ECS + 私有 OSS 的单媒体上传验收。
 
-## 手动验收剩余项
+## 验收决定与后续风险覆盖
 
-1. 在目标 ECS 配置私有 OSS 与 RAM Role，确认 App 获得的仅为单对象、单 part、短期 PUT 授权。
-2. Android 真机选择一张照片，确认页面显示“不加密”上传状态，OSS 出现 `.original` 对象，App 私人空间出现新媒体。
-3. 核对数据库：上传用途为 `MEDIA_ORIGINAL`，加密列为 `NULL`，`media_key_envelopes` 无新增记录。
-4. 验证对象键越权、授权过期、对象缺失、长度/SHA-256 不符均失败关闭。
-5. 验证日志、审计和错误响应不包含 Bearer、OSS 签名 URL 或媒体正文。
+- 本阶段按项目负责人决定关闭；真实上传正常路径已接受。
+- 授权过期、对象缺失、摘要错配和完成响应丢失的故障演练未作为本次关闭的独立证据，转入阶段 09 发布加固记录，不得反向改变已冻结的 `stage03-v2` 契约。
 
 ## 下一阶段输入
 

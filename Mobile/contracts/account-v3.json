@@ -3,7 +3,6 @@
   "wireVersion": "account-v3",
   "status": "BASELINED",
   "scope": "E1_ACCOUNT_ADMISSION_WITHOUT_MEDIA_KEYS",
-  "compatibleWith": "account-v2@2.0.0",
   "commands": [
     "AccountSignUp",
     "AccountSignIn",
@@ -13,24 +12,35 @@
     "ProfileGetCurrent",
     "ProfileUpdateCurrent"
   ],
-  "queries": ["GetAccountRouteSnapshot", "GetCurrentProfileSnapshot"],
-  "events": ["AccountRouteChanged", "CurrentProfileChanged"],
+  "queries": [
+    "GetAccountRouteSnapshot",
+    "GetCurrentProfileSnapshot"
+  ],
+  "events": [
+    "AccountRouteChanged",
+    "CurrentProfileChanged"
+  ],
   "effectActions": {
-    "TransportEffect": ["sendApiRequest"],
-    "SecureStoreEffect": ["readSecrets", "writeSecrets", "deleteSecrets"]
+    "TransportEffect": [
+      "sendApiRequest"
+    ],
+    "SecureStoreEffect": [
+      "readSecrets",
+      "writeSecrets",
+      "deleteSecrets"
+    ]
   },
-  "registrationFields": ["phone", "password", "device_installation_id", "platform"],
+  "registrationFields": [
+    "phone",
+    "password",
+    "device_installation_id",
+    "platform"
+  ],
   "rules": [
     "Registration does not create or submit a user key bundle",
     "Administrator approval transitions the account directly to APPROVED",
     "Admission never depends on another member device, key grant, or family envelope",
-    "Legacy account-v2 key fields remain optional server compatibility input only",
     "Passwords and tokens are never persisted in Core SQLite or operation recovery records"
-  ],
-  "deprecatedActiveFlow": [
-    "mineg_core_create_user_key_bundle",
-    "CoordinateFamilyKeyGrants",
-    "KEY_GRANT_PENDING"
   ],
   "jsonFieldStyle": "lowerCamelCase",
   "apiFieldStyle": "snake_case"

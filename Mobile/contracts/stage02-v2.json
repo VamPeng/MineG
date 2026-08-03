@@ -1,11 +1,9 @@
 {
   "contractVersion": "2.1.0",
   "wireVersion": "stage02-v2",
-  "status": "BASELINED",
-  "scope": "M3_D_PROFILE_AVATAR_KEY_GRANT_PRIVATE_MEDIA_LOCAL_INDEX_SETTINGS",
-  "compatibleWith": "stage02-v1@1.0.0",
+  "status": "FROZEN",
+  "scope": "M3_D_PROFILE_AVATAR_PRIVATE_MEDIA_LOCAL_INDEX_SETTINGS",
   "commands": [
-    "CoordinateFamilyKeyGrants",
     "ProfileUpdateAvatar",
     "PrivateMediaList",
     "StartForegroundLocalScan",
@@ -26,28 +24,60 @@
     "LocalScanProgressChanged"
   ],
   "bridgeSnapshots": {
-    "KeyGrantCoordinationResult": ["completed", "completedCount", "keysAvailable"],
-    "CurrentProfileSnapshot": ["id", "nickname", "maskedPhone", "avatarUrl", "version", "updatedAt"],
-    "PrivateMediaSnapshot": ["items", "refreshedAt"],
-    "OwnerMediaSummary": ["id", "mediaType", "contentRevision", "capturedAt", "createdAt"],
-    "BackupSettingsSnapshot": ["autoBackupEnabled", "allowCellularBackup", "updatedAt"],
-    "LocalLibrarySummary": ["generationId", "indexedCount", "completedAt"],
-    "LocalAlbumPage": ["items", "nextCursor"],
-    "LocalMediaPage": ["items", "nextCursor"]
+    "CurrentProfileSnapshot": [
+      "id",
+      "nickname",
+      "maskedPhone",
+      "avatarUrl",
+      "version",
+      "updatedAt"
+    ],
+    "PrivateMediaSnapshot": [
+      "items",
+      "refreshedAt"
+    ],
+    "OwnerMediaSummary": [
+      "id",
+      "mediaType",
+      "contentRevision",
+      "capturedAt",
+      "createdAt"
+    ],
+    "BackupSettingsSnapshot": [
+      "autoBackupEnabled",
+      "allowCellularBackup",
+      "updatedAt"
+    ],
+    "LocalLibrarySummary": [
+      "generationId",
+      "indexedCount",
+      "completedAt"
+    ],
+    "LocalAlbumPage": [
+      "items",
+      "nextCursor"
+    ],
+    "LocalMediaPage": [
+      "items",
+      "nextCursor"
+    ]
   },
-  "secureStoreNames": [
-    "keys.deviceWrapKey",
-    "keys.userPublicKey",
-    "keys.deviceUnlockBlob"
-  ],
   "effectActions": {
-    "TransportEffect": ["sendApiRequest", "uploadObject"],
-    "SecureStoreEffect": ["readSecrets", "writeSecrets"],
-    "MediaSourceEffect": ["getPermissionSnapshot", "listAlbums", "listMedia"]
+    "TransportEffect": [
+      "sendApiRequest",
+      "uploadObject"
+    ],
+    "SecureStoreEffect": [
+      "readSecrets",
+      "writeSecrets"
+    ],
+    "MediaSourceEffect": [
+      "getPermissionSnapshot",
+      "listAlbums",
+      "listMedia"
+    ]
   },
   "rules": [
-    "Key bundle and pending grant responses are parsed only by Core",
-    "Decrypted user and family keys remain only in Core controlled memory",
     "Avatar object transfer is performed only by TransportEffect",
     "Private media snapshots are account isolated in Core SQLite",
     "Android maps immutable snapshots to UI and never merges domain list state",

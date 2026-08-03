@@ -1,22 +1,25 @@
 package com.mineg.mobile.app
-
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.mineg.mobile.account.AccountValidation
+import com.mineg.mobile.account.BackupOverview
+import com.mineg.mobile.account.LocalAlbumBackupProgress
 import com.mineg.mobile.contracts.AccountNextStep
 import com.mineg.mobile.contracts.AccountProblem
 import com.mineg.mobile.contracts.AccountRouteSnapshot
 import com.mineg.mobile.contracts.ApprovalStatus
-import com.mineg.mobile.contracts.OwnerMediaSummary
+import com.mineg.mobile.contracts.PrivateMediaDetail
+import com.mineg.mobile.contracts.PrivateMediaSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -31,6 +34,7 @@ class MineGAppViewModel internal constructor(
   val state: StateFlow<MineGAppState> = mutableState.asStateFlow()
   private var currentUserId: String? = null
   private var reviewPollingJob: Job? = null
+  private var backupOverviewJob: Job? = null
 
   init {
     if (autoRestore) restoreAuthentication()
@@ -146,6 +150,7 @@ class MineGAppViewModel internal constructor(
         debugPanelVisible = false,
       )
     }
+    if (tab == MainTab.BACKUP) refreshBackupOverview()
   }
 
   fun back(): Boolean {
@@ -174,7 +179,6 @@ class MineGAppViewModel internal constructor(
     val errors = buildMap {
       if (AccountValidation.normalizePhone(auth.phone) == null) put("phone", "请输入有效的中国大陆手机号")
       if (auth.password.isBlank()) put("password", "请输入密码")
-      if (!auth.agreementAccepted) put("agreement", "请先阅读并同意服务协议与隐私政策")
     }
     if (errors.isNotEmpty()) {
       updateAuth { copy(fieldErrors = errors) }
@@ -184,7 +188,7 @@ class MineGAppViewModel internal constructor(
     viewModelScope.launch {
       updateAuth { copy(loading = true, fieldErrors = emptyMap(), message = null, messageIsError = false) }
       try {
-        routeSession(runtime.signIn(auth.phone, auth.password, auth.agreementAccepted), allowCachedProfile = true)
+        routeSession(runtime.signIn(auth.phone, auth.password, true), allowCachedProfile = true)
       } catch (problem: AccountProblem) {
         showProblem(problem)
       } catch (_: Throwable) {
@@ -193,7 +197,10 @@ class MineGAppViewModel internal constructor(
     }
   }
 
-  fun openSignUp() = navigate(AppRoute.SignUp)
+  fun openSignUp() {
+    updateAuth { AuthUiState() }
+    navigate(AppRoute.SignUp)
+  }
 
   fun submitSignUp() {
     val auth = mutableState.value.auth
@@ -323,16 +330,177 @@ class MineGAppViewModel internal constructor(
     }
   }
 
-  fun openPrivateMedia(mediaId: String) = navigate(AppRoute.PrivateMediaDetail(mediaId))
+  fun openPrivateMedia(mediaId: String) {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    navigate(AppRoute.PrivateMediaDetail(mediaId))
+    viewModelScope.launch {
+      try {
+        val detail = runtime.getPrivateMediaDetail(mediaId)
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else state.copy(
+            privateSpace = state.privateSpace.copy(
+              items = state.privateSpace.items.map { item ->
+                if (item.id == mediaId) detail.toMediaItem(item.owner).copy(imageUrl = item.imageUrl) else item
+              },
+            ),
+          )
+        }
+      } catch (problem: AccountProblem) {
+        if (problem.code in SESSION_ERRORS) performLogout("登录状态已失效，请重新登录。")
+      }
+    }
+  }
   fun openFamilyMedia(mediaId: String) = navigate(AppRoute.FamilyMediaDetail(mediaId))
+
+  fun loadMorePrivateMedia() {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    val profile = mutableState.value.profile ?: return
+    val privateSpace = mutableState.value.privateSpace
+    if (privateSpace.loadingMore || privateSpace.fullyLoaded || privateSpace.loadState != PageLoadState.CONTENT) return
+    mutableState.update { state -> state.copy(privateSpace = state.privateSpace.copy(loadingMore = true, errorMessage = null)) }
+    viewModelScope.launch {
+      try {
+        val page = runtime.loadMorePrivateMedia()
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else {
+            val existingIds = state.privateSpace.items.mapTo(mutableSetOf(), MediaItem::id)
+            val additional = page.items
+              .filter { existingIds.add(it.id) }
+              .map { it.toMediaItem(profile) }
+            state.copy(privateSpace = state.privateSpace.copy(
+              items = state.privateSpace.items + additional,
+              fullyLoaded = page.fullyLoaded,
+              loadingMore = false,
+              errorMessage = null,
+            ))
+          }
+        }
+      } catch (problem: AccountProblem) {
+        if (problem.code in SESSION_ERRORS) {
+          performLogout("登录状态已失效，请重新登录。")
+        } else {
+          mutableState.update { state ->
+            if (state.profile?.id != userId) state else state.copy(
+              privateSpace = state.privateSpace.copy(loadingMore = false, errorMessage = messageFor(problem)),
+            )
+          }
+        }
+      } catch (_: Throwable) {
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else state.copy(
+            privateSpace = state.privateSpace.copy(loadingMore = false, errorMessage = "加载更多失败，请稍后重试。"),
+          )
+        }
+      }
+    }
+  }
+
+  fun refreshPrivateMedia() {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    val profile = mutableState.value.profile ?: return
+    if (mutableState.value.privateSpace.loadState == PageLoadState.LOADING) return
+    val previewHandles = mutableState.value.privateSpace.previewViewHandles.values
+    mutableState.update { state -> state.copy(
+      privateSpace = state.privateSpace.copy(loadState = PageLoadState.LOADING, errorMessage = null),
+    ) }
+    viewModelScope.launch {
+      try {
+        val page = runtime.refreshPrivateMedia()
+        previewHandles.forEach { handle -> runCatching { runtime.closePrivateMedia(handle) } }
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else state.copy(
+            privateSpace = PrivateSpaceUiState(
+              loadState = if (page.items.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
+              items = page.items.map { it.toMediaItem(profile) },
+              fullyLoaded = page.fullyLoaded,
+            ),
+          )
+        }
+      } catch (problem: AccountProblem) {
+        if (problem.code in SESSION_ERRORS) {
+          performLogout("登录状态已失效，请重新登录。")
+        } else {
+          mutableState.update { state ->
+            if (state.profile?.id != userId) state else state.copy(
+              privateSpace = state.privateSpace.copy(
+                loadState = PageLoadState.ERROR,
+                errorMessage = messageFor(problem),
+              ),
+            )
+          }
+        }
+      } catch (_: Throwable) {
+        mutableState.update { state ->
+          if (state.profile?.id != userId) state else state.copy(
+            privateSpace = state.privateSpace.copy(
+              loadState = PageLoadState.ERROR,
+              errorMessage = "私人空间加载失败，请稍后重试。",
+            ),
+          )
+        }
+      }
+    }
+  }
+
+  fun loadPrivateMediaPreview(mediaId: String) {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    val privateSpace = mutableState.value.privateSpace
+    val item = privateSpace.items.firstOrNull { it.id == mediaId } ?: return
+    if (item.imageUrl != null || mediaId in privateSpace.previewLoadingIds ||
+        mediaId in privateSpace.previewUnavailableIds) return
+    mutableState.update { state -> state.copy(
+      privateSpace = state.privateSpace.copy(previewLoadingIds = state.privateSpace.previewLoadingIds + mediaId),
+    ) }
+    viewModelScope.launch {
+      try {
+        val view = runtime.openPrivateMedia(mediaId)
+        var closeHandle: String? = null
+        mutableState.update { state ->
+          if (state.profile?.id != userId || state.privateSpace.items.none { it.id == mediaId }) {
+            closeHandle = view.viewHandle
+            state
+          } else {
+            state.copy(privateSpace = state.privateSpace.copy(
+              items = state.privateSpace.items.map { current ->
+                if (current.id == mediaId) current.copy(imageUrl = view.sourceUri) else current
+              },
+              previewLoadingIds = state.privateSpace.previewLoadingIds - mediaId,
+              previewViewHandles = state.privateSpace.previewViewHandles + (mediaId to view.viewHandle),
+            ))
+          }
+        }
+        closeHandle?.let { runtime.closePrivateMedia(it) }
+      } catch (problem: AccountProblem) {
+        if (problem.code in SESSION_ERRORS) {
+          performLogout("登录状态已失效，请重新登录。")
+        } else {
+          markPrivateMediaPreviewUnavailable(userId, mediaId)
+        }
+      } catch (failure: Throwable) {
+        markPrivateMediaPreviewUnavailable(userId, mediaId)
+      }
+    }
+  }
+
   fun openLocalAlbum(albumId: String) {
     val userId = currentUserId ?: mutableState.value.profile?.id ?: return
     val owner = mutableState.value.profile ?: return
     navigate(AppRoute.LocalAlbum(albumId))
-    mutableState.update { it.copy(backup = it.backup.copy(localMedia = emptyList())) }
+    mutableState.update {
+      it.copy(backup = it.backup.copy(
+        localMedia = emptyList(),
+        albumCompletedCount = null,
+        albumTotalCount = null,
+        localMediaSyncStates = emptyMap(),
+      ))
+    }
     viewModelScope.launch {
       try {
-        val media = runtime.listLocalMedia(userId, albumId).map { item ->
+        val localMedia = runtime.listLocalMedia(userId, albumId)
+        val backupProgress = runCatching {
+          runtime.getLocalAlbumBackupProgress(userId, albumId)
+        }.getOrNull()
+        val media = localMedia.map { item ->
           val instant = runCatching { Instant.parse(item.capturedAt) }.getOrElse { Instant.EPOCH }
           val dateTime = instant.atZone(ZoneId.systemDefault())
           MediaItem(
@@ -359,19 +527,56 @@ class MineGAppViewModel internal constructor(
         }
         mutableState.update { state ->
           if (state.profile?.id != userId || state.currentRoute != AppRoute.LocalAlbum(albumId)) state
-          else state.copy(backup = state.backup.copy(localMedia = media))
+          else state.copy(backup = state.backup.copy(
+            localMedia = media,
+            albumCompletedCount = backupProgress?.completedCount,
+            albumTotalCount = backupProgress?.totalCount,
+            localMediaSyncStates = backupProgress.toLocalMediaSyncStates(),
+          ))
         }
       } catch (_: Throwable) {
         mutableState.update { state ->
           if (state.profile?.id != userId) state
-          else state.copy(backup = state.backup.copy(localMedia = emptyList()))
+          else state.copy(backup = state.backup.copy(
+            localMedia = emptyList(),
+            localMediaSyncStates = emptyMap(),
+          ))
         }
       }
     }
   }
 
   fun downloadSelectedMedia() {
-    mutableState.update { it.copy(selectedMediaAction = MediaActionState.DOWNLOADING) }
+    val mediaId = (mutableState.value.currentRoute as? AppRoute.PrivateMediaDetail)?.mediaId ?: return
+    viewModelScope.launch {
+      mutableState.update { it.copy(selectedMediaAction = MediaActionState.DOWNLOADING) }
+      try {
+        val result = runtime.savePrivateMediaToSystemAlbum(mediaId)
+        mutableState.update { state ->
+          if (state.currentRoute == AppRoute.PrivateMediaDetail(mediaId)) {
+            state.copy(selectedMediaAction = if (result.state == "COMPLETED") {
+              MediaActionState.SAVED
+            } else {
+              MediaActionState.SAVE_FAILED
+            })
+          } else {
+            state
+          }
+        }
+      } catch (_: Throwable) {
+        mutableState.update { state ->
+          if (state.currentRoute == AppRoute.PrivateMediaDetail(mediaId)) {
+            state.copy(selectedMediaAction = MediaActionState.SAVE_FAILED)
+          } else {
+            state
+          }
+        }
+      }
+    }
+  }
+
+  fun dismissSelectedMediaAction() {
+    mutableState.update { it.copy(selectedMediaAction = MediaActionState.IDLE) }
   }
 
   fun finishMockDownload(success: Boolean) {
@@ -422,20 +627,51 @@ class MineGAppViewModel internal constructor(
     val current = mutableState.value
     when (val dialog = current.dialog) {
       is AppDialog.DeleteMedia -> {
-        val media = current.privateSpace.items.firstOrNull { it.id == dialog.mediaId } ?: return dismissDialog()
-        mutableState.value = current.copy(
-          currentRoute = AppRoute.PrivateSpace,
-          backStack = emptyList(),
-          selectedTab = MainTab.PRIVATE_SPACE,
-          selectedLibraryTab = LibraryTab.PRIVATE,
-          privateSpace = current.privateSpace.copy(items = current.privateSpace.items.filterNot { it.id == dialog.mediaId }),
-          familyAlbum = current.familyAlbum.copy(items = current.familyAlbum.items.filterNot { it.id == dialog.mediaId }),
-          recycleBin = current.recycleBin.copy(
-            loadState = PageLoadState.CONTENT,
-            items = listOf(DeletedMedia(media.copy(isShared = false), "刚刚")) + current.recycleBin.items,
-          ),
-          dialog = null,
-        )
+        if (current.privateSpace.items.none { it.id == dialog.mediaId }) return dismissDialog()
+        mutableState.update { it.copy(dialog = null) }
+        viewModelScope.launch {
+          try {
+            runtime.trashPrivateMedia(dialog.mediaId)
+            mutableState.value.privateSpace.previewViewHandles[dialog.mediaId]?.let { handle ->
+              runtime.closePrivateMedia(handle)
+            }
+            val page = runtime.getPrivateMediaPage() ?: runtime.refreshPrivateMedia()
+            mutableState.update { state ->
+              val owner = state.profile ?: return@update state
+              val retainedIds = page.items.mapTo(mutableSetOf()) { it.id }
+              val existingItems = state.privateSpace.items.associateBy(MediaItem::id)
+              state.copy(
+                currentRoute = AppRoute.PrivateSpace,
+                backStack = emptyList(),
+                selectedTab = MainTab.PRIVATE_SPACE,
+                selectedLibraryTab = LibraryTab.PRIVATE,
+                privateSpace = state.privateSpace.copy(
+                  loadState = if (page.items.isEmpty()) {
+                    PageLoadState.EMPTY
+                  } else {
+                    PageLoadState.CONTENT
+                  },
+                  items = page.items.map { summary ->
+                    summary.toMediaItem(owner).copy(imageUrl = existingItems[summary.id]?.imageUrl)
+                  },
+                  fullyLoaded = page.fullyLoaded,
+                  previewLoadingIds = state.privateSpace.previewLoadingIds.intersect(retainedIds),
+                  previewUnavailableIds = state.privateSpace.previewUnavailableIds.intersect(retainedIds),
+                  previewViewHandles = state.privateSpace.previewViewHandles.filterKeys(retainedIds::contains),
+                  errorMessage = null,
+                ),
+              )
+            }
+          } catch (problem: AccountProblem) {
+            mutableState.update { state -> state.copy(
+              privateSpace = state.privateSpace.copy(errorMessage = messageFor(problem)),
+            ) }
+          } catch (_: Throwable) {
+            mutableState.update { state -> state.copy(
+              privateSpace = state.privateSpace.copy(errorMessage = "删除失败，请稍后重试。"),
+            ) }
+          }
+        }
       }
       is AppDialog.RestoreMedia -> {
         val deleted = current.recycleBin.items.firstOrNull { it.media.id == dialog.mediaId } ?: return dismissDialog()
@@ -466,31 +702,30 @@ class MineGAppViewModel internal constructor(
 
   fun backupSingleMedia(platformAssetRef: String) {
     val userId = currentUserId ?: mutableState.value.profile?.id ?: return
-    val profile = mutableState.value.profile ?: return
     val item = mutableState.value.backup.localMedia.firstOrNull { it.id == platformAssetRef } ?: return
-    if (mutableState.value.backup.status == BackupStatus.UPLOADING) return
     viewModelScope.launch {
       mutableState.update { state ->
         state.copy(backup = state.backup.copy(
           status = BackupStatus.UPLOADING,
           progress = 0f,
           currentMediaTitle = item.title,
-          uploadMessage = "正在上传原始媒体（不加密）…",
+          uploadMessage = null,
+          localMediaSyncStates = state.backup.localMediaSyncStates +
+            (platformAssetRef to LocalMediaSyncState.SYNCING),
         ))
       }
+      startBackupOverviewPolling(userId)
       try {
-        val result = runtime.backupSingleMedia(userId, platformAssetRef)
-        val media = runtime.listOwnerMedia().map { it.toMediaItem(profile) }
+        runtime.enqueueBackupMedia(userId, platformAssetRef)
+        val overview = runtime.getBackupOverview(userId)
         mutableState.update { state ->
           if (state.profile?.id != userId) state else state.copy(
             backup = state.backup.copy(
-              status = BackupStatus.COMPLETE,
-              progress = 1f,
-              uploadMessage = if (result.deduplicated) "媒体已存在，无需重复上传" else "上传完成",
-            ),
-            privateSpace = PrivateSpaceUiState(
-              loadState = if (media.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
-              items = media,
+              status = overview.toUiStatus().takeUnless { it == BackupStatus.PAUSED } ?: BackupStatus.UPLOADING,
+              progress = 0f,
+              uploadMessage = null,
+              localMediaSyncStates = state.backup.localMediaSyncStates +
+                (platformAssetRef to LocalMediaSyncState.SYNCING),
             ),
           )
         }
@@ -498,14 +733,18 @@ class MineGAppViewModel internal constructor(
         mutableState.update { state ->
           state.copy(backup = state.backup.copy(
             status = if (problem.retryable) BackupStatus.SERVICE_UNAVAILABLE else BackupStatus.PAUSED,
-            uploadMessage = messageFor(problem),
+            uploadMessage = null,
+            localMediaSyncStates = state.backup.localMediaSyncStates +
+              (platformAssetRef to LocalMediaSyncState.FAILED),
           ))
         }
       } catch (_: Throwable) {
         mutableState.update { state ->
           state.copy(backup = state.backup.copy(
             status = BackupStatus.SERVICE_UNAVAILABLE,
-            uploadMessage = "媒体上传失败，请稍后重试。",
+            uploadMessage = null,
+            localMediaSyncStates = state.backup.localMediaSyncStates +
+              (platformAssetRef to LocalMediaSyncState.FAILED),
           ))
         }
       }
@@ -515,6 +754,7 @@ class MineGAppViewModel internal constructor(
   fun refreshLocalLibrary() {
     val userId = currentUserId ?: mutableState.value.profile?.id ?: return
     if (mutableState.value.libraryAccess != LibraryAccess.FULL) return
+    if (mutableState.value.backup.status == BackupStatus.SCANNING) return
     viewModelScope.launch {
       mutableState.update {
         it.copy(backup = it.backup.copy(loadState = PageLoadState.LOADING, status = BackupStatus.SCANNING))
@@ -529,12 +769,13 @@ class MineGAppViewModel internal constructor(
       try {
         val current = runtime.getBackupSettings(userId)
         val confirmed = runtime.updateBackupSettings(userId, current.update())
+        val overview = runtime.getBackupOverview(userId)
         mutableState.update { state ->
           if (state.profile?.id != userId) state else state.copy(
             backup = state.backup.copy(
-              autoBackupEnabled = confirmed.autoBackupEnabled,
-              allowCellularBackup = confirmed.allowCellularBackup,
-              status = if (state.backup.albums.isEmpty()) state.backup.status else BackupStatus.INDEXED,
+              autoBackupEnabled = overview.autoBackupEnabled,
+              allowCellularBackup = overview.allowCellularBackup,
+              status = overview.toUiStatus(),
             ),
           )
         }
@@ -722,12 +963,14 @@ class MineGAppViewModel internal constructor(
 
   private suspend fun loadHomeModels(userId: String, profile: UserProfile, access: LibraryAccess) {
     try {
-      val media = runtime.listOwnerMedia().map { it.toMediaItem(profile) }
+      val page = runtime.refreshPrivateMedia()
+      val media = page.items.map { it.toMediaItem(profile) }
       mutableState.update { state ->
         if (state.profile?.id != userId) state else state.copy(
           privateSpace = PrivateSpaceUiState(
             loadState = if (media.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
             items = media,
+            fullyLoaded = page.fullyLoaded,
           ),
         )
       }
@@ -760,6 +1003,8 @@ class MineGAppViewModel internal constructor(
     try {
       val settings = runtime.getBackupSettings(userId)
       val local = runtime.loadLocalLibrary(userId, forceRefresh)
+      runtime.startBackupChangeObservation(userId)
+      val overview = runtime.getBackupOverview(userId)
       val albums = local.albums.map { album ->
         LocalAlbum(
           id = album.platformAlbumRef,
@@ -773,15 +1018,18 @@ class MineGAppViewModel internal constructor(
         if (state.profile?.id != userId) state else state.copy(
           backup = state.backup.copy(
             loadState = if (albums.isEmpty()) PageLoadState.EMPTY else PageLoadState.CONTENT,
-            status = BackupStatus.INDEXED,
-            progress = 1f,
+            status = overview.toUiStatus(),
+            progress = if (overview.state == "COMPLETED") 1f else 0f,
             indexedCount = local.summary.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             totalCount = local.summary.indexedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            autoBackupEnabled = settings.autoBackupEnabled,
-            allowCellularBackup = settings.allowCellularBackup,
+            autoBackupEnabled = overview.autoBackupEnabled,
+            allowCellularBackup = overview.allowCellularBackup,
             albums = albums,
           ),
         )
+      }
+      if (overview.state == "SCANNING" || overview.state == "UPLOADING") {
+        startBackupOverviewPolling(userId)
       }
     } catch (_: Throwable) {
       mutableState.update { state ->
@@ -792,7 +1040,112 @@ class MineGAppViewModel internal constructor(
     }
   }
 
-  private fun OwnerMediaSummary.toMediaItem(owner: UserProfile): MediaItem {
+  private fun refreshBackupOverview() {
+    val userId = currentUserId ?: mutableState.value.profile?.id ?: return
+    viewModelScope.launch {
+      runCatching { runtime.getBackupOverview(userId) }.getOrNull()?.let { applyBackupOverview(userId, it) }
+    }
+  }
+
+  private fun startBackupOverviewPolling(userId: String) {
+    if (backupOverviewJob?.isActive == true) return
+    backupOverviewJob = viewModelScope.launch {
+      while (isActive && currentUserId == userId) {
+        val overview = runCatching { runtime.getBackupOverview(userId) }.getOrNull()
+        if (overview != null) {
+          applyBackupOverview(userId, overview)
+          val albumId = (mutableState.value.currentRoute as? AppRoute.LocalAlbum)?.albumId
+          if (albumId != null) {
+            runCatching { runtime.getLocalAlbumBackupProgress(userId, albumId) }
+              .getOrNull()
+              ?.let {
+                applyLocalAlbumBackupProgress(
+                  userId,
+                  albumId,
+                  it.completedCount,
+                  it.totalCount,
+                  it.mediaStates,
+                )
+              }
+          }
+          if (overview.state == "COMPLETED" || overview.state == "AUTO_BACKUP_DISABLED") break
+        }
+        delay(1_500)
+      }
+    }
+  }
+
+  private fun stopBackupOverviewPolling() {
+    backupOverviewJob?.cancel()
+    backupOverviewJob = null
+  }
+
+  private fun applyBackupOverview(userId: String, overview: BackupOverview) {
+    mutableState.update { state ->
+      if (state.profile?.id != userId) return@update state
+      val currentTitle = overview.currentMediaRef
+        ?.let { ref -> state.backup.localMedia.firstOrNull { it.id == ref }?.title }
+        ?: state.backup.currentMediaTitle
+      val progress = when {
+        overview.totalBytes > 0 -> (overview.confirmedBytes.toDouble() / overview.totalBytes)
+          .toFloat()
+          .coerceIn(0f, 1f)
+        overview.state == "COMPLETED" -> 1f
+        else -> state.backup.progress
+      }
+      state.copy(
+        backup = state.backup.copy(
+          status = overview.toUiStatus(),
+          autoBackupEnabled = overview.autoBackupEnabled,
+          allowCellularBackup = overview.allowCellularBackup,
+          progress = progress,
+          currentMediaTitle = currentTitle,
+          uploadMessage = null,
+        ),
+      )
+    }
+  }
+
+  private fun applyLocalAlbumBackupProgress(
+    userId: String,
+    albumId: String,
+    completedCount: Int,
+    totalCount: Int,
+    mediaStates: Map<String, String>,
+  ) {
+    mutableState.update { state ->
+      if (state.profile?.id != userId || state.currentRoute != AppRoute.LocalAlbum(albumId)) state
+      else state.copy(backup = state.backup.copy(
+        albumCompletedCount = completedCount,
+        albumTotalCount = totalCount,
+        localMediaSyncStates = mediaStates.toLocalMediaSyncStates(),
+      ))
+    }
+  }
+
+  private fun LocalAlbumBackupProgress?.toLocalMediaSyncStates(): Map<String, LocalMediaSyncState> =
+    this?.mediaStates.toLocalMediaSyncStates()
+
+  private fun Map<String, String>?.toLocalMediaSyncStates(): Map<String, LocalMediaSyncState> =
+    this?.mapValues { (_, state) ->
+      runCatching { LocalMediaSyncState.valueOf(state) }.getOrDefault(LocalMediaSyncState.UNSYNCED)
+    } ?: emptyMap()
+
+  private fun BackupOverview.toUiStatus(): BackupStatus = when (state) {
+    "PERMISSION_REQUIRED" -> BackupStatus.PERMISSION_REQUIRED
+    "SCANNING" -> BackupStatus.SCANNING
+    "UPLOADING" -> BackupStatus.UPLOADING
+    "WAITING_FOR_WIFI" -> BackupStatus.WAITING_WIFI
+    "OFFLINE" -> BackupStatus.NETWORK_OFFLINE
+    "DEVICE_STORAGE_LOW" -> BackupStatus.DEVICE_STORAGE_FULL
+    "REMOTE_STORAGE_FULL" -> BackupStatus.CLOUD_STORAGE_FULL
+    "SERVICE_UNAVAILABLE", "RETRY_REQUIRED" -> BackupStatus.SERVICE_UNAVAILABLE
+    "AUTO_BACKUP_DISABLED" -> BackupStatus.PAUSED
+    "COMPLETED" -> BackupStatus.COMPLETE
+    else -> BackupStatus.INDEXED
+  }
+
+  private fun PrivateMediaSummary.toMediaItem(owner: UserProfile): MediaItem {
     val instant = runCatching { Instant.parse(capturedAt) }.getOrElse { Instant.EPOCH }
     val dateTime = instant.atZone(ZoneId.systemDefault())
     val kind = when (mediaType) {
@@ -812,10 +1165,67 @@ class MineGAppViewModel internal constructor(
       kind = kind,
       capturedAt = DATE_TIME_FORMAT.format(dateTime),
       dateGroup = DATE_GROUP_FORMAT.format(dateTime),
-      sizeLabel = "已安全备份",
+      duration = durationMs?.toDurationLabel(),
+      sizeLabel = originalTotalSize.toReadableSize(),
       owner = owner,
       colorSeed = id.hashCode(),
+      // A PHOTO/GIF can obtain a short-lived OSS dynamic thumbnail directly
+      // from its registered original when no uploaded THUMBNAIL exists.
+      canLoadRemotePreview = previewResource != null || mediaType in setOf("PHOTO", "GIF"),
     )
+  }
+
+  private fun PrivateMediaDetail.toMediaItem(owner: UserProfile): MediaItem {
+    val instant = runCatching { Instant.parse(capturedAt) }.getOrElse { Instant.EPOCH }
+    val dateTime = instant.atZone(ZoneId.systemDefault())
+    val kind = when (mediaType) {
+      "VIDEO" -> MediaKind.VIDEO
+      "GIF" -> MediaKind.GIF
+      "LIVE_PHOTO", "DYNAMIC" -> MediaKind.LIVE_PHOTO
+      else -> MediaKind.PHOTO
+    }
+    return MediaItem(
+      id = id,
+      title = when (kind) {
+        MediaKind.VIDEO -> "视频"
+        MediaKind.GIF -> "GIF"
+        MediaKind.LIVE_PHOTO -> "动态照片"
+        MediaKind.PHOTO -> "照片"
+      },
+      kind = kind,
+      capturedAt = DATE_TIME_FORMAT.format(dateTime),
+      dateGroup = DATE_GROUP_FORMAT.format(dateTime),
+      duration = durationMs?.toDurationLabel(),
+      sizeLabel = originalTotalSize.toReadableSize(),
+      owner = owner,
+      colorSeed = id.hashCode(),
+      canLoadRemotePreview = mediaType in setOf("PHOTO", "GIF") || resources.any {
+        it.resourceType in setOf("THUMBNAIL", "VIDEO_COVER", "PREVIEW", "DYNAMIC_PREVIEW")
+      },
+    )
+  }
+
+  private fun Long.toDurationLabel(): String {
+    val totalSeconds = this / 1_000L
+    return String.format(Locale.ROOT, "%d:%02d", totalSeconds / 60L, totalSeconds % 60L)
+  }
+
+  private fun markPrivateMediaPreviewUnavailable(userId: String, mediaId: String) {
+    mutableState.update { state ->
+      if (state.profile?.id != userId) state else state.copy(
+        privateSpace = state.privateSpace.copy(
+          previewLoadingIds = state.privateSpace.previewLoadingIds - mediaId,
+          previewUnavailableIds = state.privateSpace.previewUnavailableIds + mediaId,
+        ),
+      )
+    }
+  }
+
+  private fun Long.toReadableSize(): String = when {
+    this >= 1024L * 1024L * 1024L -> String.format(Locale.ROOT, "%.1f GB", this / (1024.0 * 1024.0 * 1024.0))
+    this >= 1024L * 1024L -> String.format(Locale.ROOT, "%.1f MB", this / (1024.0 * 1024.0))
+    this >= 1024L -> String.format(Locale.ROOT, "%.1f KB", this / 1024.0)
+    else -> "$this B"
   }
 
   private fun startReviewPolling() {
@@ -835,8 +1245,11 @@ class MineGAppViewModel internal constructor(
 
   private fun performLogout(message: String? = null) {
     stopReviewPolling()
+    stopBackupOverviewPolling()
+    val previewHandles = mutableState.value.privateSpace.previewViewHandles.values
     mutableState.update { it.copy(currentRoute = AppRoute.Restoring, backStack = emptyList(), dialog = null) }
     viewModelScope.launch {
+      previewHandles.forEach { handle -> runCatching { runtime.closePrivateMedia(handle) } }
       runCatching { runtime.signOut() }
       currentUserId = null
       showLogin(message)
@@ -845,6 +1258,7 @@ class MineGAppViewModel internal constructor(
 
   private fun showLogin(message: String? = null, isError: Boolean = false) {
     stopReviewPolling()
+    stopBackupOverviewPolling()
     currentUserId = null
     mutableState.value = MineGAppState(
       currentRoute = AppRoute.Login,
@@ -872,9 +1286,9 @@ class MineGAppViewModel internal constructor(
 
   private fun messageFor(problem: AccountProblem): String = when (problem.code) {
     "PHONE_INVALID" -> "请输入有效的中国大陆手机号。"
-    "PHONE_ALREADY_REGISTERED" -> "该手机号已经注册，请直接登录。"
+    "PHONE_ALREADY_REGISTERED" -> "该手机号已注册"
     "PASSWORD_INVALID" -> "密码需为 8～64 位，并同时包含字母和数字。"
-    "CREDENTIALS_INVALID" -> "手机号或密码错误。"
+    "CREDENTIALS_INVALID" -> "手机号或密码错误"
     "AGREEMENT_REQUIRED" -> "请先同意服务协议和隐私政策。"
     "ACCOUNT_PENDING" -> "账号仍在等待管理员审核。"
     "NETWORK_UNAVAILABLE" -> "网络不可用，请检查连接后重试。"
@@ -889,6 +1303,7 @@ class MineGAppViewModel internal constructor(
 
   override fun onCleared() {
     stopReviewPolling()
+    stopBackupOverviewPolling()
     runtime.close()
     super.onCleared()
   }

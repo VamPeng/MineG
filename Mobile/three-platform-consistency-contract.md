@@ -4,9 +4,9 @@
 
 ## 1. 契约信息
 
-- 契约版本：v1.1
+- 契约版本：v1.2
 - 核定日期：2026-07-26
-- 最近修订：2026-07-30（明确 C++ 领域数据主权与 PlatformEffect 边界）
+- 最近修订：2026-08-02（登记 `stage04-v1` 完整备份队列基线）
 - 适用平台：Android、iOS、HarmonyOS
 - 首个参考实现：Android
 - 上位基线：[功能需求](../Requirement/functional-requirements.md)、[技术需求](../Requirement/technical-requirements.md)
@@ -147,6 +147,7 @@ Core 命令需要外部副作用时返回版本化 `PlatformEffect`；平台执�
 | `TransportEffect` | API/RPC 操作、路径/方法、业务头和正文、幂等与后续状态 | 建连、TLS、发送字节、接收状态/头/正文、取消 |
 | `SecureStoreEffect` | 凭据逻辑名称、读取/替换/删除时机 | KeyStore/Keychain/HUKS 加解密和原子读写 |
 | `MediaSourceEffect` | 扫描批次、恢复游标、索引与任务迁移 | 权限原语、媒体分页和资源句柄 |
+| `ConnectivityEffect` | 网络类型如何门禁任务、何时进入等待或恢复 | 返回在线状态及是否计量，不决定业务重试 |
 | `BackgroundSchedulerEffect` | 是否需要任务、账号和业务约束 | 向系统申请/取消执行机会并报告执行窗口 |
 | `File/SystemAlbumEffect` | 文件生命周期、校验和业务完成条件 | 临时文件、空间查询、安全删除和系统相册写入 |
 
@@ -163,7 +164,7 @@ Core 命令需要外部副作用时返回版本化 `PlatformEffect`；平台执�
 | 账号 | `signUp`、`signIn`、`signOut`、`restoreSession`、`refreshReviewStatus` |
 | 资料与密钥 | `getProfile`、`updateProfile`、`getKeyBundle`、`completeFamilyKeyGrant` |
 | 权限与设置 | `getPermissionSnapshot`、`requestFullLibraryAccess`、`getBackupSettings`、`updateBackupSettings` |
-| 本地媒体与备份 | `scanLocalMedia`、`backupSingleMedia`、`getSingleMediaBackup`、`observeBackupState`、`retryBackup`、`cancelCurrentOperation` |
+| 本地媒体与备份 | `scanLocalMedia`、`backupSingleMedia`、`reconcileBackupQueue`、`runBackupCycle`、`getBackupOverview`、`observeBackupState`、`retryBackup`、`cancelCurrentOperation` |
 | 私人空间 | `listPrivateMedia`、`getPrivateMediaDetail`、`savePrivateMedia`、`moveToTrash` |
 | 家庭相册 | `shareMedia`、`unshareMedia`、`listFamilyMedia`、`getFamilyMediaDetail` |
 | 回收站 | `listTrashItems`、`restoreFromTrash` |
@@ -183,6 +184,7 @@ auth.signup
 auth.reviewPending
 permission.library
 backup.overview
+backup.settings
 private.list
 private.detail
 family.list
@@ -234,8 +236,8 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 | F-01～F-03 账号、审核、资料 | `BASELINED`（`account-v3`） | 服务端专用库 migration 与 Android 真机直接准入闭环通过后转为 `FROZEN`；旧 `account-v1/v2` 只作兼容 |
 | F-04～F-06 权限、设置、本地相册 | `FROZEN` | Android M2 与隔离 OSS/权限矩阵验收已通过 |
 | F-07 与单媒体 F-08 旧加密备份 | `DEPRECATED` | 仅用于旧任务/字段迁移，不接入新上传主链 |
-| F-07 与单媒体 F-08 安全传输备份 | `PLANNED` | Android 通过真实 ECS + 私有 OSS 的 HTTPS、短期授权和长度/SHA-256 验收 |
-| F-08 批量队列 | `PLANNED` | Android M4 通过 |
+| F-07 与单媒体 F-08 安全传输备份 | `FROZEN`（`stage03-v2`） | 项目负责人已确认 Android 经真实 ECS + 私有 OSS 的 HTTPS、短期授权和长度/SHA-256 上传验收；故障演练转入阶段 09 |
+| F-08 批量队列 | `BASELINED`（`stage04-v1`） | Android M4 的持久队列、恢复、网络门禁和真实备份页验收通过 |
 | F-09～F-10 私人空间与保存 | `PLANNED` | Android M5 通过 |
 | F-11～F-14 家庭、回收站、帮助反馈 | `PLANNED` | Android M6 通过 |
 
@@ -263,7 +265,7 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 ## 13. M2 旧密钥、资料、权限与本地相册冻结记录
 
 - 冻结清单：[`contracts/stage02-v1.json`](./contracts/stage02-v1.json)
-- 冻结范围：资料更新、六态相册权限、设备级备份设置、MediaSourcePort 分页扫描以及本地相册三列网格继续有效；家庭密钥 bootstrap/grant 仅保留迁移兼容。
+- 冻结范围：资料更新、六态相册权限、设备级备份设置、MediaSourcePort 分页扫描、两列相册封面卡片以及单相册三列媒体网格继续有效；家庭密钥 bootstrap/grant 仅保留迁移兼容。
 - C ABI：版本升至 3；用户密钥包解封和家庭 sealed-box 操作留在 C++，进程恢复只保存由设备随机包装密钥再次加密的 unlock blob。
 - 本地状态：SQLite v3 保存设备设置、扫描游标、媒体/相册索引与关系；不保存密码、私钥、User Master Key、Family Sharing Key 或媒体明文。
 - 权限门禁：仅 `FULL` 可创建扫描与调度；`NOT_DETERMINED`、`LIMITED`、`RESTRICTED`、`DENIED`、`SYSTEM_RESTRICTED` 均保持在统一说明页。
@@ -301,5 +303,14 @@ Android 功能未登记契约不得合入；契约未通过测试不得算 Andro
 - 基线清单：[`contracts/account-v3.json`](./contracts/account-v3.json)。
 - 注册：只提交手机号、密码、设备安装 ID 与平台；Core 不创建用户 key bundle，Android 不解析或补充旧密钥字段。
 - 审核：管理员批准后服务端直接 `APPROVED`，不创建 key-grant 任务；客户端按 `APP_HOME` 拉取 Profile。
-- 兼容：`account-v2`、旧 key bundle/grant API 与密码学 C ABI 暂留兼容，生产账号入口不得调用；后续独立迁移确认无旧客户端依赖后再删除。
+- 删除：`account-v2`、旧 key bundle/grant API 与密码学 C ABI 已删除；三端只实现 `account-v3`、`stage02-v2` 与 `stage03-v2`。
 - 当前状态：`BASELINED`；服务端专用 PostgreSQL migration 闭环、Android 真机注册—审核—登录验证完成后转为 `FROZEN`。
+
+## 18. M4 完整队列基线
+
+- 基线清单：[`contracts/stage04-v1.json`](./contracts/stage04-v1.json)。
+- 方案范围：可恢复历史/增量扫描、持久任务/资源/分片、网络与设置门禁、2×2 并发、退避、WorkManager 执行机会以及备份聚合状态。
+- Core operation：`ReconcileBackupQueue`、`RunBackupCycle`、`RetryBackupQueue` 和 `NotifyLibraryChanged` 的状态迁移、API 编排、恢复和调度决策全部属于 C++ Core。
+- 平台适配：MediaStore、连接状态、HTTP/OSS 字节传输和 WorkManager 只执行 Effect；Worker 状态不得映射为备份完成、失败或进度。
+- 安全基线：继续使用 `stage03-v2 / MEDIA_ORIGINAL`，不持久化签名 URL、临时云凭据或文件描述符，不重新引入 `ENCRYPTING` 和旧密文字段。
+- 当前状态：`BASELINED`；Android 真实 ECS + 隔离私有 OSS 的队列、恢复和页面矩阵通过后转为 `FROZEN`。

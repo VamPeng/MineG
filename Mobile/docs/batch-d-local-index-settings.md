@@ -4,6 +4,8 @@
 
 批次 D 采用一次性的前台扫描：C++ Core 决定扫描顺序并保存索引，Android 只通过 `MediaSourcePort` 读取系统相册。扫描执行上下文只存在内存中，进程结束即丢弃；下次调用重新从第一页开始。
 
+> 验收记录（2026-08-02）：项目负责人已确认批次 D 完成，`stage02-v2` 2.1.0 已冻结。自动上传、后台调度与故障恢复仍不属于本批次。
+
 SQLite 保存的是可查询的业务结果和设置，不保存“上次执行到哪一步”。WorkManager、后台调度、上传队列和 operation 恢复均不属于本方案。
 
 上位需求：[批次 D 需求](../../Requirement/plans/02-keys-profile-local-media/batch-d-requirements.md)。

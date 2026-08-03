@@ -2,9 +2,7 @@ package httpapi
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vampeng/mineg/service/internal/account"
@@ -39,107 +37,6 @@ func handleUpdateProfile(service *account.Service) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, profile)
-	}
-}
-
-func handleGetKeyBundle(service *account.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, ok := requireUser(w, r, service)
-		if !ok {
-			return
-		}
-		result, err := service.GetKeyMaterial(r.Context(), session)
-		if err != nil {
-			writeAccountError(w, r, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, result)
-	}
-}
-
-type updateKeyBundleRequest struct {
-	PublicKey       string          `json:"public_key"`
-	EncryptedBundle string          `json:"encrypted_key_bundle"`
-	KDFParameters   json.RawMessage `json:"kdf_parameters"`
-	BundleVersion   int32           `json:"bundle_version"`
-}
-
-func handleUpdateKeyBundle(service *account.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, ok := requireUser(w, r, service)
-		if !ok {
-			return
-		}
-		var request updateKeyBundleRequest
-		if !decodeJSON(w, r, &request) {
-			return
-		}
-		publicKey, publicErr := base64.RawStdEncoding.DecodeString(request.PublicKey)
-		bundle, bundleErr := base64.RawStdEncoding.DecodeString(request.EncryptedBundle)
-		if publicErr != nil || bundleErr != nil {
-			writeAccountError(w, r, &account.Error{Code: "KEY_BUNDLE_INVALID", Status: 422, Title: "Invalid key bundle", Detail: "Key data must use unpadded base64."})
-			return
-		}
-		result, err := service.UpdateKeyBundle(r.Context(), session, account.UpdateKeyBundleInput{
-			PublicKey: publicKey, EncryptedBundle: bundle, KDFParameters: request.KDFParameters,
-			BundleVersion: request.BundleVersion, RequestID: RequestIDFromContext(r.Context()),
-		})
-		if err != nil {
-			writeAccountError(w, r, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, result)
-	}
-}
-
-func handlePendingKeyGrants(service *account.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, ok := requireUser(w, r, service)
-		if !ok {
-			return
-		}
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		result, err := service.ListPendingKeyGrants(r.Context(), session, limit)
-		if err != nil {
-			writeAccountError(w, r, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, result)
-	}
-}
-
-type completeKeyGrantRequest struct {
-	RecipientPublicKey string `json:"recipient_public_key"`
-	EncryptedEnvelope  string `json:"encrypted_envelope"`
-	Algorithm          string `json:"algorithm"`
-	EnvelopeVersion    int32  `json:"envelope_version"`
-}
-
-func handleCompleteKeyGrant(service *account.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, ok := requireUser(w, r, service)
-		if !ok {
-			return
-		}
-		var request completeKeyGrantRequest
-		if !decodeJSON(w, r, &request) {
-			return
-		}
-		publicKey, publicErr := base64.RawStdEncoding.DecodeString(request.RecipientPublicKey)
-		envelope, envelopeErr := base64.RawStdEncoding.DecodeString(request.EncryptedEnvelope)
-		if publicErr != nil || envelopeErr != nil {
-			writeAccountError(w, r, &account.Error{Code: "KEY_ENVELOPE_INVALID", Status: 422, Title: "Invalid key envelope", Detail: "Key data must use unpadded base64."})
-			return
-		}
-		result, err := service.CompleteKeyGrant(r.Context(), session, chi.URLParam(r, "grantID"), account.CompleteKeyGrantInput{
-			RecipientPublicKey: publicKey, EncryptedEnvelope: envelope, Algorithm: request.Algorithm,
-			EnvelopeVersion: request.EnvelopeVersion, RequestID: RequestIDFromContext(r.Context()),
-		})
-		if err != nil {
-			writeAccountError(w, r, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, result)
 	}
 }
 
