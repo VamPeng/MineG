@@ -7,8 +7,8 @@
 ## 实施任务
 
 - 新增/完善 `shares`、`trash_records`、`feedback`、`audit_events` 及相关索引、约束与 migration。
-- 实现分享/取消事务和家庭 Media Key envelope 引用；分享幂等更新，取消后停止签发访问授权。
-- 实现家庭列表 `all|mine`、本地日期分组所需时间数据、详情和仅 `view/stream` 的短期密文授权。
+- 实现分享/取消事务；分享幂等更新，取消后停止签发访问授权。新链路不创建或读取 Media Key、envelope 或 key grant。
+- 实现固定双人家庭列表 `all|mine`、本地日期分组所需时间数据、详情和仅 `view/stream` 的短期私有 OSS 授权。
 - 完成回收站按 `trashed_at` 倒序列表与恢复事务；恢复后保持私有，不恢复原分享。
 - 实现受限清理 CLI 两阶段 JSON 清单、SHA-256 和二次确认；使用独立 OSS 删除身份，在线 API 无 purge endpoint。
 - 实现版本化 FAQ 兼容接口与反馈幂等写入，校验分类和 1～1000 字；拒绝附件、日志包、Token、对象地址和密钥。

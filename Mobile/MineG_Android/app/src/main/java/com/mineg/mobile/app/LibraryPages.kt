@@ -22,10 +22,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -44,6 +46,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -52,28 +61,42 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import com.mineg.mobile.platform.PrivateThumbnailCacheKeys
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun PrivateSpacePage(
     privateState: PrivateSpaceUiState,
+    privatePreviewSources: Map<String, String>,
     sharedState: FamilyAlbumUiState,
     selectedLibraryTab: LibraryTab,
+    privateMediaListScrollPosition: MediaListScrollPosition,
+    familyMediaListScrollPosition: MediaListScrollPosition,
     selectedTab: MainTab,
     onSelectLibraryTab: (LibraryTab) -> Unit,
     onSelectTab: (MainTab) -> Unit,
     onOpenPrivateMedia: (String) -> Unit,
     onRefreshPrivateMedia: () -> Unit,
     onLoadMorePrivateMedia: () -> Unit,
-    onLoadPrivateMediaPreview: (String) -> Unit,
+    onVisiblePrivateMediaChanged: (List<String>) -> Unit,
+    onRetryPrivateMediaPreview: (String) -> Unit,
+    onPrivateMediaListScrollPositionChanged: (Int, Int) -> Unit,
+    onFamilyMediaListScrollPositionChanged: (Int, Int) -> Unit,
     onOpenSharedMedia: (String) -> Unit,
 ) {
     Scaffold(
@@ -89,15 +112,21 @@ fun PrivateSpacePage(
                 when (selectedLibraryTab) {
                     LibraryTab.PRIVATE -> PrivateSpaceContent(
                         privateState,
+                        privatePreviewSources,
+                        privateMediaListScrollPosition,
                         onOpenPrivateMedia,
                         onRefreshPrivateMedia,
                         onLoadMorePrivateMedia,
-                        onLoadPrivateMediaPreview,
+                        onVisiblePrivateMediaChanged,
+                        onRetryPrivateMediaPreview,
+                        onPrivateMediaListScrollPositionChanged,
                     )
                     LibraryTab.SHARED -> SharedAlbumContent(
-                        sharedState,
-                        sharedState.items,
-                        onOpenSharedMedia
+                        state = sharedState,
+                        visibleItems = sharedState.items,
+                        scrollPosition = familyMediaListScrollPosition,
+                        onOpenMedia = onOpenSharedMedia,
+                        onScrollPositionChanged = onFamilyMediaListScrollPositionChanged,
                     )
                 }
             }
@@ -134,11 +163,50 @@ private fun LibraryTabSwitcher(
 @Composable
 private fun PrivateSpaceContent(
     state: PrivateSpaceUiState,
+    previewSources: Map<String, String>,
+    scrollPosition: MediaListScrollPosition,
     onOpenMedia: (String) -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
-    onLoadPreview: (String) -> Unit,
+    onVisibleMediaChanged: (List<String>) -> Unit,
+    onRetryPreview: (String) -> Unit,
+    onScrollPositionChanged: (Int, Int) -> Unit,
 ) {
+    val gridState = rememberLazyGridState(
+        initialFirstVisibleItemIndex = scrollPosition.firstVisibleItemIndex,
+        initialFirstVisibleItemScrollOffset = scrollPosition.firstVisibleItemScrollOffset,
+    )
+    val currentOnVisibleMediaChanged by rememberUpdatedState(onVisibleMediaChanged)
+    val currentOnScrollPositionChanged by rememberUpdatedState(onScrollPositionChanged)
+    val mediaIds = state.items.map(MediaItem::id)
+    LaunchedEffect(gridState, mediaIds) {
+        snapshotFlow {
+            gridState.layoutInfo.visibleItemsInfo.map { it.index }
+        }
+            .distinctUntilChanged()
+            .collectLatest { visibleIndices ->
+                // 暂时停用“等待滚动停止后再加载”，可见窗口变化时立即调度预览。
+                onVisibleMediaChanged(privateMediaPreviewWindow(mediaIds, visibleIndices))
+            }
+    }
+    DisposableEffect(gridState) {
+        onDispose {
+            currentOnVisibleMediaChanged(emptyList())
+            currentOnScrollPositionChanged(
+                gridState.firstVisibleItemIndex,
+                gridState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
+    LaunchedEffect(gridState, state.items.size, state.fullyLoaded) {
+        if (state.fullyLoaded || state.loadState != PageLoadState.CONTENT) return@LaunchedEffect
+        val footerVisible = snapshotFlow {
+            gridState.layoutInfo.visibleItemsInfo.any { it.key == PRIVATE_MEDIA_PAGING_FOOTER_KEY }
+        }.first { it }
+        if (shouldAutoLoadMedia(footerVisible, state.loadingMore, state.fullyLoaded)) {
+            onLoadMore()
+        }
+    }
     when (state.loadState) {
         PageLoadState.LOADING -> Box(Modifier.fillMaxSize()) { PageLoading() }
         PageLoadState.EMPTY -> Box(Modifier.fillMaxSize()) {
@@ -161,50 +229,75 @@ private fun PrivateSpaceContent(
 
         PageLoadState.CONTENT -> LazyVerticalGrid(
             columns = GridCells.Fixed(3),
+            state = gridState,
             modifier = Modifier.fillMaxSize().testTag("private-media.grid"),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(state.items, key = MediaItem::id) { media ->
+            items(state.items, key = MediaItem::id, contentType = { "private-media" }) { media ->
                 PrivateMediaThumbnail(
-                    media = media,
+                    media = previewSources[media.id]?.let { media.copy(imageUrl = it) } ?: media,
                     previewLoading = media.id in state.previewLoadingIds,
                     previewUnavailable = media.id in state.previewUnavailableIds,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f),
                     onClick = { onOpenMedia(media.id) },
-                    onLoadPreview = { onLoadPreview(media.id) },
+                    onRetryPreview = { onRetryPreview(media.id) },
                 )
             }
-            if (!state.fullyLoaded) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    TextButton(
-                        onClick = onLoadMore,
-                        enabled = !state.loadingMore,
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).testTag("private-media.grid.load-more"),
-                    ) {
-                        if (state.loadingMore) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        } else {
-                            Text("加载更多")
-                        }
+            item(key = PRIVATE_MEDIA_PAGING_FOOTER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                TextButton(
+                    onClick = onLoadMore,
+                    enabled = !state.loadingMore && !state.fullyLoaded,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).testTag("private-media.grid.load-more"),
+                ) {
+                    if (state.loadingMore) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
                     }
+                    Text(mediaPagingLabel(state.items.size, state.fullyLoaded))
                 }
             }
             if (!state.loadingMore && state.errorMessage != null && !state.fullyLoaded) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    TextButton(
-                        onClick = onLoadMore,
-                        modifier = Modifier.fillMaxWidth().testTag("private-media.grid.load-more"),
-                    ) {
-                        Text("加载失败，重试")
-                    }
+                    Text(
+                        state.errorMessage,
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
         }
     }
+}
+
+internal fun mediaPagingLabel(itemCount: Int, fullyLoaded: Boolean): String =
+    if (fullyLoaded) "已加载全部媒体" else "加载更多（已加载$itemCount）"
+
+internal fun shouldAutoLoadMedia(
+    footerVisible: Boolean,
+    loadingMore: Boolean,
+    fullyLoaded: Boolean,
+): Boolean = footerVisible && !loadingMore && !fullyLoaded
+
+internal fun privateMediaPreviewWindow(
+    mediaIds: List<String>,
+    visibleIndices: List<Int>,
+    columns: Int = 3,
+): List<String> {
+    val valid = visibleIndices.filter { it in mediaIds.indices }
+    if (valid.isEmpty()) return emptyList()
+    val first = valid.min()
+    val last = valid.max()
+    val visibleCount = (last - first + 1).coerceAtLeast(columns)
+    val aheadCount = visibleCount.coerceAtMost(columns * 2)
+    val start = (first - columns).coerceAtLeast(0)
+    val endExclusive = (last + 1 + aheadCount).coerceAtMost(mediaIds.size)
+    return mediaIds.subList(start, endExclusive)
 }
 
 @Composable
@@ -214,73 +307,221 @@ private fun PrivateMediaThumbnail(
     previewUnavailable: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onLoadPreview: () -> Unit,
+    onRetryPreview: () -> Unit,
 ) {
     val shape = RoundedCornerShape(4.dp)
-    LaunchedEffect(media.id, media.imageUrl, previewLoading, previewUnavailable) {
-        if (media.imageUrl == null && media.canLoadRemotePreview && !previewLoading && !previewUnavailable) {
-            onLoadPreview()
-        }
-    }
     Box(
         modifier = modifier
-            .border(1.dp, Color(0xB8C7D6E0), shape)
+//            .border(1.dp, Color(0xB8C7D6E0), shape)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick),
     ) {
-        MediaArtwork(media, Modifier.fillMaxSize())
-        if (previewLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center).size(20.dp),
-                strokeWidth = 2.dp,
+        PrivateMediaArtwork(
+            media = media,
+            previewLoading = previewLoading,
+            previewUnavailable = previewUnavailable,
+            onRetry = onRetryPreview,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+internal enum class MediaItemImageState { LOADING, FAILED, SUCCESS }
+
+internal enum class MediaItemVisualState { LOADING, FAILED, SUCCESS, UNAVAILABLE }
+
+internal fun mediaItemVisualState(
+    imageUrl: String?,
+    canLoadRemotePreview: Boolean,
+    previewLoading: Boolean,
+    previewUnavailable: Boolean,
+    imageState: MediaItemImageState,
+): MediaItemVisualState = when {
+    previewUnavailable -> MediaItemVisualState.FAILED
+    previewLoading -> MediaItemVisualState.LOADING
+    imageUrl != null -> when (imageState) {
+        MediaItemImageState.LOADING -> MediaItemVisualState.LOADING
+        MediaItemImageState.FAILED -> MediaItemVisualState.FAILED
+        MediaItemImageState.SUCCESS -> MediaItemVisualState.SUCCESS
+    }
+    canLoadRemotePreview -> MediaItemVisualState.LOADING
+    else -> MediaItemVisualState.UNAVAILABLE
+}
+
+@Composable
+private fun PrivateMediaArtwork(
+    media: MediaItem,
+    previewLoading: Boolean,
+    previewUnavailable: Boolean,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var imageState by remember(media.id, media.imageUrl) {
+        mutableStateOf(MediaItemImageState.LOADING)
+    }
+    val imageModel = remember(context, media.owner.id, media.id, media.imageUrl) {
+        media.imageUrl?.let { imageUrl ->
+            ImageRequest.Builder(context)
+                .data(imageUrl)
+                .memoryCacheKey(PrivateThumbnailCacheKeys.memoryKey(media.owner.id, media.id))
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .build()
+        }
+    }
+    val visualState = mediaItemVisualState(
+        imageUrl = media.imageUrl,
+        canLoadRemotePreview = media.canLoadRemotePreview,
+        previewLoading = previewLoading,
+        previewUnavailable = previewUnavailable,
+        imageState = imageState,
+    )
+    val background = when (visualState) {
+        MediaItemVisualState.LOADING -> MaterialTheme.colorScheme.surfaceContainerLow
+        MediaItemVisualState.FAILED -> MaterialTheme.colorScheme.errorContainer
+        MediaItemVisualState.SUCCESS -> MaterialTheme.colorScheme.surface
+        MediaItemVisualState.UNAVAILABLE -> MaterialTheme.colorScheme.surfaceContainer
+    }
+    Box(
+        modifier = modifier
+            .background(background)
+            .testTag("private-media.item.state.${visualState.name.lowercase()}")
+            .semantics {
+                stateDescription = when (visualState) {
+                    MediaItemVisualState.LOADING -> "媒体加载中"
+                    MediaItemVisualState.FAILED -> "媒体加载失败"
+                    MediaItemVisualState.SUCCESS -> "媒体加载成功"
+                    MediaItemVisualState.UNAVAILABLE -> "媒体暂无预览"
+                }
+            },
+    ) {
+        imageModel?.let { request ->
+            AsyncImage(
+                model = request,
+                contentDescription = media.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+                onLoading = {
+                    imageState = MediaItemImageState.LOADING
+                    MediaLoadLog.trace(
+                        "artwork loading media=${MediaLoadLog.mediaRef(media.id)} kind=${media.kind}",
+                    )
+                },
+                onSuccess = {
+                    imageState = MediaItemImageState.SUCCESS
+                    MediaLoadLog.trace(
+                        "artwork ready media=${MediaLoadLog.mediaRef(media.id)} kind=${media.kind}",
+                    )
+                },
+                onError = {
+                    imageState = MediaItemImageState.FAILED
+                    MediaLoadLog.warning(
+                        "artwork failed media=${MediaLoadLog.mediaRef(media.id)} kind=${media.kind}",
+                    )
+                },
             )
         }
-        when (media.kind) {
-            MediaKind.VIDEO -> {
-                androidx.compose.material3.Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp),
-                    color = Color.Black.copy(alpha = 0.40f),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Text(
-                        text = media.duration ?: "视频",
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
+        when (visualState) {
+            MediaItemVisualState.LOADING -> Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
                 Text(
-                    text = "▶",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White.copy(alpha = 0.80f),
-                    fontSize = 20.sp,
+                    "加载中",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
                 )
             }
 
-            MediaKind.LIVE_PHOTO, MediaKind.GIF -> {
-                androidx.compose.material3.Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
-                    color = Color.Black.copy(alpha = 0.30f),
-                    shape = RoundedCornerShape(4.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
-                ) {
-                    Text(
-                        text = if (media.kind == MediaKind.LIVE_PHOTO) "Live" else "GIF",
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+            MediaItemVisualState.FAILED -> Column(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable(onClick = onRetry)
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    "加载失败",
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "轻触重试",
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.72f),
+                    fontSize = 9.sp,
+                    lineHeight = 12.sp,
+                )
             }
 
-            MediaKind.PHOTO -> Unit
+            MediaItemVisualState.UNAVAILABLE -> Text(
+                text = "暂无预览",
+                modifier = Modifier.align(Alignment.Center),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+            )
+
+            MediaItemVisualState.SUCCESS -> Unit
+        }
+        if (visualState == MediaItemVisualState.SUCCESS) {
+            when (media.kind) {
+                MediaKind.VIDEO -> {
+                    androidx.compose.material3.Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp),
+                        color = Color.Black.copy(alpha = 0.40f),
+                        shape = RoundedCornerShape(4.dp),
+                    ) {
+                        Text(
+                            text = media.duration ?: "视频",
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    Text(
+                        text = "▶",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color.White.copy(alpha = 0.80f),
+                        fontSize = 20.sp,
+                    )
+                }
+
+                MediaKind.LIVE_PHOTO, MediaKind.GIF -> {
+                    androidx.compose.material3.Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp),
+                        color = Color.Black.copy(alpha = 0.30f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
+                    ) {
+                        Text(
+                            text = if (media.kind == MediaKind.LIVE_PHOTO) "Live" else "GIF",
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+
+                MediaKind.PHOTO -> Unit
+            }
         }
     }
 }
@@ -290,9 +531,44 @@ private fun SharedAlbumContent(
     state: FamilyAlbumUiState,
     visibleItems: List<MediaItem>,
     onOpenMedia: (String) -> Unit,
+    scrollPosition: MediaListScrollPosition = MediaListScrollPosition(),
+    onScrollPositionChanged: (Int, Int) -> Unit = { _, _ -> },
 ) {
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = scrollPosition.firstVisibleItemIndex,
+        initialFirstVisibleItemScrollOffset = scrollPosition.firstVisibleItemScrollOffset,
+    )
+    var scrollPositionRestored by remember(scrollPosition) { mutableStateOf(false) }
+    val currentOnScrollPositionChanged by rememberUpdatedState(onScrollPositionChanged)
+    LaunchedEffect(state.loadState, visibleItems, scrollPosition, scrollPositionRestored) {
+        if (!scrollPositionRestored && state.loadState == PageLoadState.CONTENT && visibleItems.isNotEmpty()) {
+            val itemCount = visibleItems
+                .groupBy(MediaItem::dateGroup)
+                .values
+                .sumOf { media -> 1 + (media.size + 2) / 3 }
+            val targetIndex = scrollPosition.firstVisibleItemIndex.coerceAtMost(itemCount - 1)
+            listState.scrollToItem(
+                index = targetIndex,
+                scrollOffset = if (targetIndex == scrollPosition.firstVisibleItemIndex) {
+                    scrollPosition.firstVisibleItemScrollOffset
+                } else {
+                    0
+                },
+            )
+            scrollPositionRestored = true
+        }
+    }
+    DisposableEffect(listState) {
+        onDispose {
+            currentOnScrollPositionChanged(
+                listState.firstVisibleItemIndex,
+                listState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = listState,
         contentPadding = PaddingValues(bottom = 20.dp),
     ) {
         if (state.loadState == PageLoadState.LOADING) {
@@ -1042,8 +1318,20 @@ fun LocalAlbumPage(
     album: LocalAlbum?,
     state: BackupUiState,
     onUpload: (String) -> Unit,
+    onLoadMore: () -> Unit,
     onBack: () -> Unit
 ) {
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(gridState, album?.id, state.localMedia.size, state.localMediaFullyLoaded) {
+        if (album == null || state.localMediaInitialLoading || state.localMediaFullyLoaded ||
+            state.localMediaErrorMessage != null) return@LaunchedEffect
+        val footerVisible = snapshotFlow {
+            gridState.layoutInfo.visibleItemsInfo.any { it.key == LOCAL_MEDIA_PAGING_FOOTER_KEY }
+        }.first { it }
+        if (shouldAutoLoadMedia(footerVisible, state.localMediaLoadingMore, state.localMediaFullyLoaded)) {
+            onLoadMore()
+        }
+    }
     Scaffold(topBar = { DetailTopBar(album?.name ?: "本地相册", onBack) }) { padding ->
         if (album == null) {
             Box(
@@ -1065,26 +1353,76 @@ fun LocalAlbumPage(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    items(state.localMedia, key = MediaItem::id) { item ->
-                        MediaPlaceholder(
-                            item,
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                                .clickable(
-                                    onClick = { onUpload(item.id) },
-                                ),
-                            bottomStartSyncState = state.localMediaSyncStates[item.id]
-                                ?: LocalMediaSyncState.UNSYNCED,
-                        )
+                when {
+                    state.localMediaInitialLoading && state.localMedia.isEmpty() -> Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) { CircularProgressIndicator() }
+
+                    state.localMedia.isEmpty() && state.localMediaErrorMessage != null -> Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        EmptyState("本地媒体加载失败", state.localMediaErrorMessage)
+                        TextButton(onClick = onLoadMore) { Text("重新加载") }
+                    }
+
+                    state.localMedia.isEmpty() && state.localMediaFullyLoaded -> Box(
+                        Modifier.fillMaxSize(),
+                    ) { EmptyState("相册为空", "这个本地相册中暂时没有媒体。") }
+
+                    else -> LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        state = gridState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        items(state.localMedia, key = MediaItem::id) { item ->
+                            MediaPlaceholder(
+                                item,
+                                Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                                    .clickable(
+                                        onClick = { onUpload(item.id) },
+                                    ),
+                                bottomStartSyncState = state.localMediaSyncStates[item.id]
+                                    ?: LocalMediaSyncState.UNSYNCED,
+                            )
+                        }
+                        item(key = LOCAL_MEDIA_PAGING_FOOTER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                            TextButton(
+                                onClick = onLoadMore,
+                                enabled = !state.localMediaInitialLoading &&
+                                    !state.localMediaLoadingMore && !state.localMediaFullyLoaded,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp)
+                                    .testTag("local-media.grid.load-more"),
+                            ) {
+                                if (state.localMediaLoadingMore) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(mediaPagingLabel(state.localMedia.size, state.localMediaFullyLoaded))
+                            }
+                        }
+                        if (!state.localMediaLoadingMore && state.localMediaErrorMessage != null &&
+                            !state.localMediaFullyLoaded) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Text(
+                                    state.localMediaErrorMessage,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1100,12 +1438,15 @@ fun PrivateMediaDetailPage(
     onLoadPreview: () -> Unit,
     onBack: () -> Unit,
     onDownload: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit,
     onRetrySave: () -> Unit,
     onDismissAction: () -> Unit,
 ) {
-    LaunchedEffect(media?.id, media?.imageUrl, media?.canLoadRemotePreview) {
-        if (media != null && media.imageUrl == null && media.canLoadRemotePreview) onLoadPreview()
+    LaunchedEffect(media?.id, media?.detailImageUrl, media?.imageUrl, media?.canLoadRemotePreview) {
+        if (media != null && media.detailImageUrl == null && media.imageUrl == null && media.canLoadRemotePreview) {
+            onLoadPreview()
+        }
     }
     LaunchedEffect(actionState) {
         if (actionState in setOf(MediaActionState.SAVED, MediaActionState.SHARED)) {
@@ -1118,7 +1459,7 @@ fun PrivateMediaDetailPage(
         topBar = { PrivateMediaTopBar(onBack) },
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            PrivateMediaActionBar(onDownload, onDelete)
+            PrivateMediaActionBar(media?.isShared == true, onDownload, onShare, onDelete)
         },
     ) { padding ->
         if (media == null) {
@@ -1227,44 +1568,66 @@ private fun MediaArtwork(media: MediaItem, modifier: Modifier = Modifier) {
         MediaKind.LIVE_PHOTO -> Color(0xFF465C67)
         MediaKind.PHOTO -> Color(0xFF627485)
     }
+    val artworkUrl = detailArtworkSource(media)
+    var imageLoaded by remember(artworkUrl) { mutableStateOf(false) }
     Box(modifier.background(placeholderColor)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = when (media.kind) {
-                    MediaKind.VIDEO -> "视频"
-                    MediaKind.GIF -> "GIF"
-                    MediaKind.LIVE_PHOTO -> "动态照片"
-                    MediaKind.PHOTO -> "照片"
-                },
-                color = Color.White.copy(alpha = 0.92f),
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
-            )
-            if (!media.canLoadRemotePreview && media.imageUrl == null) {
+        if (!imageLoaded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
                 Text(
-                    text = "暂无预览",
-                    modifier = Modifier.padding(top = 3.dp),
-                    color = Color.White.copy(alpha = 0.70f),
-                    fontSize = 10.sp,
+                    text = when (media.kind) {
+                        MediaKind.VIDEO -> "视频"
+                        MediaKind.GIF -> "GIF"
+                        MediaKind.LIVE_PHOTO -> "动态照片"
+                        MediaKind.PHOTO -> "照片"
+                    },
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
                 )
+                if (!media.canLoadRemotePreview && artworkUrl == null) {
+                    Text(
+                        text = "暂无预览",
+                        modifier = Modifier.padding(top = 3.dp),
+                        color = Color.White.copy(alpha = 0.70f),
+                        fontSize = 10.sp,
+                    )
+                }
             }
         }
-        media.imageUrl?.let { imageUrl ->
+        artworkUrl?.let { imageUrl ->
             AsyncImage(
                 model = imageUrl,
                 contentDescription = media.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),
+                onSuccess = {
+                    imageLoaded = true
+                    MediaLoadLog.trace(
+                        "artwork ready media=${MediaLoadLog.mediaRef(media.id)} kind=${media.kind}",
+                    )
+                },
+                onError = {
+                    imageLoaded = false
+                    MediaLoadLog.warning(
+                        "artwork failed media=${MediaLoadLog.mediaRef(media.id)} kind=${media.kind}",
+                    )
+                },
             )
         }
     }
 }
+
+internal fun detailArtworkSource(media: MediaItem): String? =
+    media.detailImageUrl ?: media.imageUrl
+
+private const val PRIVATE_MEDIA_PAGING_FOOTER_KEY = "private-media-paging-footer"
+private const val LOCAL_MEDIA_PAGING_FOOTER_KEY = "local-media-paging-footer"
 
 @Composable
 private fun DownloadProgressOverlay() {
@@ -1300,7 +1663,9 @@ private fun DownloadProgressOverlay() {
 
 @Composable
 private fun PrivateMediaActionBar(
+    isShared: Boolean,
     onDownload: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
     androidx.compose.material3.Surface(
@@ -1316,6 +1681,11 @@ private fun PrivateMediaActionBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             DetailAction("下载", onDownload, Modifier.testTag("private-media.detail.save"))
+            DetailAction(
+                if (isShared) "取消共享" else "共享",
+                onShare,
+                Modifier.testTag(if (isShared) "private-media.detail.unshare" else "private-media.detail.share"),
+            )
             DetailAction("删除", onDelete, Modifier.testTag("private-media.detail.delete"))
         }
     }
@@ -1449,7 +1819,10 @@ private fun ErrorToastButton(
 }
 
 @Composable
-fun FamilyMediaDetailPage(media: MediaItem?, onBack: () -> Unit) {
+fun FamilyMediaDetailPage(media: MediaItem?, onLoadPreview: () -> Unit, onBack: () -> Unit) {
+    LaunchedEffect(media?.id, media?.imageUrl, media?.canLoadRemotePreview) {
+        if (media != null && media.imageUrl == null && media.canLoadRemotePreview) onLoadPreview()
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()

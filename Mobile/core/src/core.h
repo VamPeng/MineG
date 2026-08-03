@@ -98,7 +98,8 @@ class Core final {
 	std::string read_private_media_snapshot_locked(int limit);
 	bool has_private_media_cache_locked();
 	bool persist_private_media_locked(const std::string &page_json);
-	std::string read_private_media_page_v2_locked(int limit);
+	std::string read_private_media_page_v2_locked(int limit,
+	                                             const std::string &page_json = {});
 	bool has_private_media_page_v2_locked();
 	std::string read_private_media_next_cursor_v2_locked();
 	bool persist_private_media_page_v2_locked(const std::string &page_json, bool replace);

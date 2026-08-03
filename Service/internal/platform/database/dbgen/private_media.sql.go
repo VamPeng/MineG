@@ -11,6 +11,54 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acquireFeedbackIdempotencyLock = `-- name: AcquireFeedbackIdempotencyLock :exec
+SELECT pg_advisory_xact_lock(hashtextextended(
+    $1::text || ':' || $2::text, 3
+))
+`
+
+type AcquireFeedbackIdempotencyLockParams struct {
+	UserID         string `json:"user_id"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+func (q *Queries) AcquireFeedbackIdempotencyLock(ctx context.Context, arg AcquireFeedbackIdempotencyLockParams) error {
+	_, err := q.db.Exec(ctx, acquireFeedbackIdempotencyLock, arg.UserID, arg.IdempotencyKey)
+	return err
+}
+
+const acquireRestoreIdempotencyLock = `-- name: AcquireRestoreIdempotencyLock :exec
+SELECT pg_advisory_xact_lock(hashtextextended(
+    $1::text || ':' || $2::text, 2
+))
+`
+
+type AcquireRestoreIdempotencyLockParams struct {
+	OwnerID        string `json:"owner_id"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+func (q *Queries) AcquireRestoreIdempotencyLock(ctx context.Context, arg AcquireRestoreIdempotencyLockParams) error {
+	_, err := q.db.Exec(ctx, acquireRestoreIdempotencyLock, arg.OwnerID, arg.IdempotencyKey)
+	return err
+}
+
+const acquireShareIdempotencyLock = `-- name: AcquireShareIdempotencyLock :exec
+SELECT pg_advisory_xact_lock(hashtextextended(
+    $1::text || ':' || $2::text, 1
+))
+`
+
+type AcquireShareIdempotencyLockParams struct {
+	OwnerID        string `json:"owner_id"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+func (q *Queries) AcquireShareIdempotencyLock(ctx context.Context, arg AcquireShareIdempotencyLockParams) error {
+	_, err := q.db.Exec(ctx, acquireShareIdempotencyLock, arg.OwnerID, arg.IdempotencyKey)
+	return err
+}
+
 const acquireTrashIdempotencyLock = `-- name: AcquireTrashIdempotencyLock :exec
 SELECT pg_advisory_xact_lock(hashtextextended($1::text || ':' || $2::text, 0))
 `
@@ -25,6 +73,28 @@ func (q *Queries) AcquireTrashIdempotencyLock(ctx context.Context, arg AcquireTr
 	return err
 }
 
+const activateShare = `-- name: ActivateShare :exec
+INSERT INTO mineg.shares(media_id, owner_id, state, shared_at, unshared_at, updated_at)
+VALUES ($1, $2, 'ACTIVE', $3, NULL, $3)
+ON CONFLICT (media_id) DO UPDATE
+SET state = 'ACTIVE',
+    version = mineg.shares.version + 1,
+    shared_at = EXCLUDED.shared_at,
+    unshared_at = NULL,
+    updated_at = EXCLUDED.updated_at
+`
+
+type ActivateShareParams struct {
+	MediaID  pgtype.UUID        `json:"media_id"`
+	OwnerID  pgtype.UUID        `json:"owner_id"`
+	SharedAt pgtype.Timestamptz `json:"shared_at"`
+}
+
+func (q *Queries) ActivateShare(ctx context.Context, arg ActivateShareParams) error {
+	_, err := q.db.Exec(ctx, activateShare, arg.MediaID, arg.OwnerID, arg.SharedAt)
+	return err
+}
+
 const bumpPrivateMediaAccessVersion = `-- name: BumpPrivateMediaAccessVersion :exec
 UPDATE mineg.media
 SET access_version = access_version + 1
@@ -33,6 +103,126 @@ WHERE id = $1
 
 func (q *Queries) BumpPrivateMediaAccessVersion(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, bumpPrivateMediaAccessVersion, id)
+	return err
+}
+
+const createFeedback = `-- name: CreateFeedback :one
+INSERT INTO mineg.feedback(
+    user_id, category, description, contact, app_version, platform, os_version,
+    device_installation_id, created_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, created_at
+`
+
+type CreateFeedbackParams struct {
+	UserID               pgtype.UUID        `json:"user_id"`
+	Category             string             `json:"category"`
+	Description          string             `json:"description"`
+	Contact              pgtype.Text        `json:"contact"`
+	AppVersion           string             `json:"app_version"`
+	Platform             string             `json:"platform"`
+	OsVersion            string             `json:"os_version"`
+	DeviceInstallationID string             `json:"device_installation_id"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+}
+
+type CreateFeedbackRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateFeedback(ctx context.Context, arg CreateFeedbackParams) (CreateFeedbackRow, error) {
+	row := q.db.QueryRow(ctx, createFeedback,
+		arg.UserID,
+		arg.Category,
+		arg.Description,
+		arg.Contact,
+		arg.AppVersion,
+		arg.Platform,
+		arg.OsVersion,
+		arg.DeviceInstallationID,
+		arg.CreatedAt,
+	)
+	var i CreateFeedbackRow
+	err := row.Scan(&i.ID, &i.CreatedAt)
+	return i, err
+}
+
+const createFeedbackRequest = `-- name: CreateFeedbackRequest :exec
+INSERT INTO mineg.feedback_requests(user_id, idempotency_key, request_hash, feedback_id)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateFeedbackRequestParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	IdempotencyKey string      `json:"idempotency_key"`
+	RequestHash    []byte      `json:"request_hash"`
+	FeedbackID     pgtype.UUID `json:"feedback_id"`
+}
+
+func (q *Queries) CreateFeedbackRequest(ctx context.Context, arg CreateFeedbackRequestParams) error {
+	_, err := q.db.Exec(ctx, createFeedbackRequest,
+		arg.UserID,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.FeedbackID,
+	)
+	return err
+}
+
+const createRestoreRequest = `-- name: CreateRestoreRequest :exec
+INSERT INTO mineg.restore_requests(
+    owner_id, idempotency_key, media_id, request_hash, outcome, restored_at
+) VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type CreateRestoreRequestParams struct {
+	OwnerID        pgtype.UUID        `json:"owner_id"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	MediaID        pgtype.UUID        `json:"media_id"`
+	RequestHash    []byte             `json:"request_hash"`
+	Outcome        string             `json:"outcome"`
+	RestoredAt     pgtype.Timestamptz `json:"restored_at"`
+}
+
+func (q *Queries) CreateRestoreRequest(ctx context.Context, arg CreateRestoreRequestParams) error {
+	_, err := q.db.Exec(ctx, createRestoreRequest,
+		arg.OwnerID,
+		arg.IdempotencyKey,
+		arg.MediaID,
+		arg.RequestHash,
+		arg.Outcome,
+		arg.RestoredAt,
+	)
+	return err
+}
+
+const createShareRequest = `-- name: CreateShareRequest :exec
+INSERT INTO mineg.share_requests(
+    owner_id, idempotency_key, media_id, requested_state, request_hash, outcome, effective_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type CreateShareRequestParams struct {
+	OwnerID        pgtype.UUID        `json:"owner_id"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	MediaID        pgtype.UUID        `json:"media_id"`
+	RequestedState string             `json:"requested_state"`
+	RequestHash    []byte             `json:"request_hash"`
+	Outcome        string             `json:"outcome"`
+	EffectiveAt    pgtype.Timestamptz `json:"effective_at"`
+}
+
+func (q *Queries) CreateShareRequest(ctx context.Context, arg CreateShareRequestParams) error {
+	_, err := q.db.Exec(ctx, createShareRequest,
+		arg.OwnerID,
+		arg.IdempotencyKey,
+		arg.MediaID,
+		arg.RequestedState,
+		arg.RequestHash,
+		arg.Outcome,
+		arg.EffectiveAt,
+	)
 	return err
 }
 
@@ -124,6 +314,107 @@ func (q *Queries) FindActiveTrashRecord(ctx context.Context, arg FindActiveTrash
 	return i, err
 }
 
+const findFamilyMedia = `-- name: FindFamilyMedia :one
+SELECT media.id,
+       media.owner_id,
+       owner.nickname AS owner_nickname,
+       media.media_type,
+       media.captured_at,
+       media.created_at,
+       media.width,
+       media.height,
+       media.duration_ms,
+       COALESCE(originals.original_total_size, 0)::bigint AS original_total_size
+FROM mineg.family_memberships AS viewer
+JOIN mineg.family_memberships AS household ON household.family_id = viewer.family_id
+JOIN mineg.shares AS share ON share.owner_id = household.user_id AND share.state = 'ACTIVE'
+JOIN mineg.media AS media ON media.id = share.media_id AND media.owner_id = share.owner_id
+JOIN mineg.users AS owner ON owner.id = media.owner_id AND owner.status = 'APPROVED'
+LEFT JOIN mineg.trash_records AS trash
+  ON trash.media_id = media.id AND trash.restored_at IS NULL AND trash.purged_at IS NULL
+LEFT JOIN LATERAL (
+    SELECT COALESCE(sum(resource.content_size), 0)::bigint AS original_total_size
+    FROM mineg.media_resources AS resource
+    WHERE resource.media_id = media.id
+      AND resource.state = 'READY'
+      AND resource.resource_type IN ('ORIGINAL', 'LIVE_PHOTO_VIDEO')
+) AS originals ON TRUE
+WHERE viewer.user_id = $1
+  AND media.id = $2
+  AND media.upload_status = 'COMPLETED'
+  AND trash.media_id IS NULL
+`
+
+type FindFamilyMediaParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	ID     pgtype.UUID `json:"id"`
+}
+
+type FindFamilyMediaRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	OwnerID           pgtype.UUID        `json:"owner_id"`
+	OwnerNickname     string             `json:"owner_nickname"`
+	MediaType         string             `json:"media_type"`
+	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	Width             pgtype.Int4        `json:"width"`
+	Height            pgtype.Int4        `json:"height"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
+	OriginalTotalSize int64              `json:"original_total_size"`
+}
+
+func (q *Queries) FindFamilyMedia(ctx context.Context, arg FindFamilyMediaParams) (FindFamilyMediaRow, error) {
+	row := q.db.QueryRow(ctx, findFamilyMedia, arg.UserID, arg.ID)
+	var i FindFamilyMediaRow
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.OwnerNickname,
+		&i.MediaType,
+		&i.CapturedAt,
+		&i.CreatedAt,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
+		&i.OriginalTotalSize,
+	)
+	return i, err
+}
+
+const findFeedbackRequest = `-- name: FindFeedbackRequest :one
+SELECT request.user_id, request.idempotency_key, request.request_hash,
+       feedback.id AS feedback_id, feedback.created_at
+FROM mineg.feedback_requests AS request
+JOIN mineg.feedback AS feedback ON feedback.id = request.feedback_id
+WHERE request.user_id = $1 AND request.idempotency_key = $2
+`
+
+type FindFeedbackRequestParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	IdempotencyKey string      `json:"idempotency_key"`
+}
+
+type FindFeedbackRequestRow struct {
+	UserID         pgtype.UUID        `json:"user_id"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	RequestHash    []byte             `json:"request_hash"`
+	FeedbackID     pgtype.UUID        `json:"feedback_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) FindFeedbackRequest(ctx context.Context, arg FindFeedbackRequestParams) (FindFeedbackRequestRow, error) {
+	row := q.db.QueryRow(ctx, findFeedbackRequest, arg.UserID, arg.IdempotencyKey)
+	var i FindFeedbackRequestRow
+	err := row.Scan(
+		&i.UserID,
+		&i.IdempotencyKey,
+		&i.RequestHash,
+		&i.FeedbackID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const findPrivateMedia = `-- name: FindPrivateMedia :one
 SELECT media.id,
        media.media_type,
@@ -183,6 +474,80 @@ func (q *Queries) FindPrivateMedia(ctx context.Context, arg FindPrivateMediaPara
 	return i, err
 }
 
+const findRestoreRequest = `-- name: FindRestoreRequest :one
+SELECT owner_id, idempotency_key, media_id, request_hash, outcome, restored_at FROM mineg.restore_requests
+WHERE owner_id = $1 AND idempotency_key = $2
+`
+
+type FindRestoreRequestParams struct {
+	OwnerID        pgtype.UUID `json:"owner_id"`
+	IdempotencyKey string      `json:"idempotency_key"`
+}
+
+func (q *Queries) FindRestoreRequest(ctx context.Context, arg FindRestoreRequestParams) (MinegRestoreRequest, error) {
+	row := q.db.QueryRow(ctx, findRestoreRequest, arg.OwnerID, arg.IdempotencyKey)
+	var i MinegRestoreRequest
+	err := row.Scan(
+		&i.OwnerID,
+		&i.IdempotencyKey,
+		&i.MediaID,
+		&i.RequestHash,
+		&i.Outcome,
+		&i.RestoredAt,
+	)
+	return i, err
+}
+
+const findShare = `-- name: FindShare :one
+SELECT media_id, owner_id, state, version, shared_at, unshared_at, updated_at FROM mineg.shares
+WHERE media_id = $1 AND owner_id = $2
+`
+
+type FindShareParams struct {
+	MediaID pgtype.UUID `json:"media_id"`
+	OwnerID pgtype.UUID `json:"owner_id"`
+}
+
+func (q *Queries) FindShare(ctx context.Context, arg FindShareParams) (MinegShare, error) {
+	row := q.db.QueryRow(ctx, findShare, arg.MediaID, arg.OwnerID)
+	var i MinegShare
+	err := row.Scan(
+		&i.MediaID,
+		&i.OwnerID,
+		&i.State,
+		&i.Version,
+		&i.SharedAt,
+		&i.UnsharedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findShareRequest = `-- name: FindShareRequest :one
+SELECT owner_id, idempotency_key, media_id, requested_state, request_hash, outcome, effective_at FROM mineg.share_requests
+WHERE owner_id = $1 AND idempotency_key = $2
+`
+
+type FindShareRequestParams struct {
+	OwnerID        pgtype.UUID `json:"owner_id"`
+	IdempotencyKey string      `json:"idempotency_key"`
+}
+
+func (q *Queries) FindShareRequest(ctx context.Context, arg FindShareRequestParams) (MinegShareRequest, error) {
+	row := q.db.QueryRow(ctx, findShareRequest, arg.OwnerID, arg.IdempotencyKey)
+	var i MinegShareRequest
+	err := row.Scan(
+		&i.OwnerID,
+		&i.IdempotencyKey,
+		&i.MediaID,
+		&i.RequestedState,
+		&i.RequestHash,
+		&i.Outcome,
+		&i.EffectiveAt,
+	)
+	return i, err
+}
+
 const findTrashRequest = `-- name: FindTrashRequest :one
 SELECT owner_id, idempotency_key, media_id, request_hash, outcome, trashed_at FROM mineg.trash_requests
 WHERE owner_id = $1 AND idempotency_key = $2
@@ -205,6 +570,311 @@ func (q *Queries) FindTrashRequest(ctx context.Context, arg FindTrashRequestPara
 		&i.TrashedAt,
 	)
 	return i, err
+}
+
+const inactivateShare = `-- name: InactivateShare :execrows
+UPDATE mineg.shares
+SET state = 'INACTIVE', version = version + 1, unshared_at = $3, updated_at = $3
+WHERE media_id = $1 AND owner_id = $2 AND state = 'ACTIVE'
+`
+
+type InactivateShareParams struct {
+	MediaID    pgtype.UUID        `json:"media_id"`
+	OwnerID    pgtype.UUID        `json:"owner_id"`
+	UnsharedAt pgtype.Timestamptz `json:"unshared_at"`
+}
+
+func (q *Queries) InactivateShare(ctx context.Context, arg InactivateShareParams) (int64, error) {
+	result, err := q.db.Exec(ctx, inactivateShare, arg.MediaID, arg.OwnerID, arg.UnsharedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const isFixedFamilyMember = `-- name: IsFixedFamilyMember :one
+SELECT EXISTS(
+    SELECT 1 FROM mineg.family_memberships
+    WHERE user_id = $1
+) AS is_member
+`
+
+func (q *Queries) IsFixedFamilyMember(ctx context.Context, userID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isFixedFamilyMember, userID)
+	var is_member bool
+	err := row.Scan(&is_member)
+	return is_member, err
+}
+
+const listFamilyMedia = `-- name: ListFamilyMedia :many
+SELECT media.id,
+       media.owner_id,
+       owner.nickname AS owner_nickname,
+       media.media_type,
+       media.captured_at,
+       media.created_at,
+       media.duration_ms,
+       COALESCE(originals.original_total_size, 0)::bigint AS original_total_size
+FROM mineg.family_memberships AS viewer
+JOIN mineg.family_memberships AS household
+  ON household.family_id = viewer.family_id
+JOIN mineg.shares AS share
+  ON share.owner_id = household.user_id AND share.state = 'ACTIVE'
+JOIN mineg.media AS media
+  ON media.id = share.media_id AND media.owner_id = share.owner_id
+JOIN mineg.users AS owner ON owner.id = media.owner_id AND owner.status = 'APPROVED'
+LEFT JOIN mineg.trash_records AS trash
+  ON trash.media_id = media.id AND trash.restored_at IS NULL AND trash.purged_at IS NULL
+LEFT JOIN LATERAL (
+    SELECT COALESCE(sum(resource.content_size), 0)::bigint AS original_total_size
+    FROM mineg.media_resources AS resource
+    WHERE resource.media_id = media.id
+      AND resource.state = 'READY'
+      AND resource.resource_type IN ('ORIGINAL', 'LIVE_PHOTO_VIDEO')
+) AS originals ON TRUE
+WHERE viewer.user_id = $1
+  AND media.upload_status = 'COMPLETED'
+  AND trash.media_id IS NULL
+  AND ($2::boolean = false OR media.owner_id = $1)
+ORDER BY media.captured_at DESC, media.id DESC
+LIMIT $3
+`
+
+type ListFamilyMediaParams struct {
+	ViewerID  pgtype.UUID `json:"viewer_id"`
+	OwnerOnly bool        `json:"owner_only"`
+	PageLimit int32       `json:"page_limit"`
+}
+
+type ListFamilyMediaRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	OwnerID           pgtype.UUID        `json:"owner_id"`
+	OwnerNickname     string             `json:"owner_nickname"`
+	MediaType         string             `json:"media_type"`
+	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
+	OriginalTotalSize int64              `json:"original_total_size"`
+}
+
+func (q *Queries) ListFamilyMedia(ctx context.Context, arg ListFamilyMediaParams) ([]ListFamilyMediaRow, error) {
+	rows, err := q.db.Query(ctx, listFamilyMedia, arg.ViewerID, arg.OwnerOnly, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFamilyMediaRow
+	for rows.Next() {
+		var i ListFamilyMediaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.OwnerNickname,
+			&i.MediaType,
+			&i.CapturedAt,
+			&i.CreatedAt,
+			&i.DurationMs,
+			&i.OriginalTotalSize,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFamilyMediaAccessResources = `-- name: ListFamilyMediaAccessResources :many
+SELECT resource.id, resource.resource_type, resource.object_key, resource.mime_type,
+       resource.content_size, resource.content_sha256
+FROM mineg.media_resources AS resource
+WHERE resource.media_id = $1 AND resource.state = 'READY'
+ORDER BY CASE resource.resource_type
+    WHEN 'ORIGINAL' THEN 1 WHEN 'LIVE_PHOTO_VIDEO' THEN 2 WHEN 'THUMBNAIL' THEN 3
+    WHEN 'VIDEO_COVER' THEN 4 WHEN 'PREVIEW' THEN 5 ELSE 6 END, resource.id
+`
+
+type ListFamilyMediaAccessResourcesRow struct {
+	ID            pgtype.UUID `json:"id"`
+	ResourceType  string      `json:"resource_type"`
+	ObjectKey     string      `json:"object_key"`
+	MimeType      string      `json:"mime_type"`
+	ContentSize   int64       `json:"content_size"`
+	ContentSha256 []byte      `json:"content_sha256"`
+}
+
+func (q *Queries) ListFamilyMediaAccessResources(ctx context.Context, mediaID pgtype.UUID) ([]ListFamilyMediaAccessResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listFamilyMediaAccessResources, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFamilyMediaAccessResourcesRow
+	for rows.Next() {
+		var i ListFamilyMediaAccessResourcesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceType,
+			&i.ObjectKey,
+			&i.MimeType,
+			&i.ContentSize,
+			&i.ContentSha256,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFamilyMediaAfter = `-- name: ListFamilyMediaAfter :many
+SELECT media.id,
+       media.owner_id,
+       owner.nickname AS owner_nickname,
+       media.media_type,
+       media.captured_at,
+       media.created_at,
+       media.duration_ms,
+       COALESCE(originals.original_total_size, 0)::bigint AS original_total_size
+FROM mineg.family_memberships AS viewer
+JOIN mineg.family_memberships AS household
+  ON household.family_id = viewer.family_id
+JOIN mineg.shares AS share
+  ON share.owner_id = household.user_id AND share.state = 'ACTIVE'
+JOIN mineg.media AS media
+  ON media.id = share.media_id AND media.owner_id = share.owner_id
+JOIN mineg.users AS owner ON owner.id = media.owner_id AND owner.status = 'APPROVED'
+LEFT JOIN mineg.trash_records AS trash
+  ON trash.media_id = media.id AND trash.restored_at IS NULL AND trash.purged_at IS NULL
+LEFT JOIN LATERAL (
+    SELECT COALESCE(sum(resource.content_size), 0)::bigint AS original_total_size
+    FROM mineg.media_resources AS resource
+    WHERE resource.media_id = media.id
+      AND resource.state = 'READY'
+      AND resource.resource_type IN ('ORIGINAL', 'LIVE_PHOTO_VIDEO')
+) AS originals ON TRUE
+WHERE viewer.user_id = $1
+  AND media.upload_status = 'COMPLETED'
+  AND trash.media_id IS NULL
+  AND ($2::boolean = false OR media.owner_id = $1)
+  AND (media.captured_at < $3
+       OR (media.captured_at = $3 AND media.id < $4))
+ORDER BY media.captured_at DESC, media.id DESC
+LIMIT $5
+`
+
+type ListFamilyMediaAfterParams struct {
+	ViewerID        pgtype.UUID        `json:"viewer_id"`
+	OwnerOnly       bool               `json:"owner_only"`
+	AfterCapturedAt pgtype.Timestamptz `json:"after_captured_at"`
+	AfterMediaID    pgtype.UUID        `json:"after_media_id"`
+	PageLimit       int32              `json:"page_limit"`
+}
+
+type ListFamilyMediaAfterRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	OwnerID           pgtype.UUID        `json:"owner_id"`
+	OwnerNickname     string             `json:"owner_nickname"`
+	MediaType         string             `json:"media_type"`
+	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
+	OriginalTotalSize int64              `json:"original_total_size"`
+}
+
+func (q *Queries) ListFamilyMediaAfter(ctx context.Context, arg ListFamilyMediaAfterParams) ([]ListFamilyMediaAfterRow, error) {
+	rows, err := q.db.Query(ctx, listFamilyMediaAfter,
+		arg.ViewerID,
+		arg.OwnerOnly,
+		arg.AfterCapturedAt,
+		arg.AfterMediaID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFamilyMediaAfterRow
+	for rows.Next() {
+		var i ListFamilyMediaAfterRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.OwnerNickname,
+			&i.MediaType,
+			&i.CapturedAt,
+			&i.CreatedAt,
+			&i.DurationMs,
+			&i.OriginalTotalSize,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFamilyMediaResources = `-- name: ListFamilyMediaResources :many
+SELECT resource.id, resource.resource_type, resource.mime_type, resource.content_size, resource.content_sha256
+FROM mineg.family_memberships AS viewer
+JOIN mineg.family_memberships AS household ON household.family_id = viewer.family_id
+JOIN mineg.shares AS share ON share.owner_id = household.user_id AND share.state = 'ACTIVE'
+JOIN mineg.media AS media ON media.id = share.media_id AND media.owner_id = share.owner_id
+JOIN mineg.media_resources AS resource ON resource.media_id = media.id AND resource.state = 'READY'
+LEFT JOIN mineg.trash_records AS trash
+  ON trash.media_id = media.id AND trash.restored_at IS NULL AND trash.purged_at IS NULL
+WHERE viewer.user_id = $1 AND media.id = $2
+  AND media.upload_status = 'COMPLETED' AND trash.media_id IS NULL
+ORDER BY CASE resource.resource_type
+    WHEN 'ORIGINAL' THEN 1 WHEN 'LIVE_PHOTO_VIDEO' THEN 2 WHEN 'THUMBNAIL' THEN 3
+    WHEN 'VIDEO_COVER' THEN 4 WHEN 'PREVIEW' THEN 5 ELSE 6 END, resource.id
+`
+
+type ListFamilyMediaResourcesParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	ID     pgtype.UUID `json:"id"`
+}
+
+type ListFamilyMediaResourcesRow struct {
+	ID            pgtype.UUID `json:"id"`
+	ResourceType  string      `json:"resource_type"`
+	MimeType      string      `json:"mime_type"`
+	ContentSize   int64       `json:"content_size"`
+	ContentSha256 []byte      `json:"content_sha256"`
+}
+
+func (q *Queries) ListFamilyMediaResources(ctx context.Context, arg ListFamilyMediaResourcesParams) ([]ListFamilyMediaResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listFamilyMediaResources, arg.UserID, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFamilyMediaResourcesRow
+	for rows.Next() {
+		var i ListFamilyMediaResourcesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceType,
+			&i.MimeType,
+			&i.ContentSize,
+			&i.ContentSha256,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPrivateMedia = `-- name: ListPrivateMedia :many
@@ -462,6 +1132,163 @@ func (q *Queries) ListPrivateMediaResources(ctx context.Context, arg ListPrivate
 	return items, nil
 }
 
+const listTrashMedia = `-- name: ListTrashMedia :many
+SELECT media.id, media.media_type, media.captured_at, media.created_at, media.duration_ms,
+       trash.trashed_at, COALESCE(originals.original_total_size, 0)::bigint AS original_total_size
+FROM mineg.trash_records AS trash
+JOIN mineg.media AS media ON media.id = trash.media_id AND media.owner_id = trash.owner_id
+LEFT JOIN LATERAL (
+    SELECT COALESCE(sum(resource.content_size), 0)::bigint AS original_total_size
+    FROM mineg.media_resources AS resource
+    WHERE resource.media_id = media.id AND resource.state = 'READY'
+      AND resource.resource_type IN ('ORIGINAL', 'LIVE_PHOTO_VIDEO')
+) AS originals ON TRUE
+WHERE trash.owner_id = $1 AND trash.restored_at IS NULL AND trash.purged_at IS NULL
+ORDER BY trash.trashed_at DESC, media.id DESC
+LIMIT $2
+`
+
+type ListTrashMediaParams struct {
+	OwnerID pgtype.UUID `json:"owner_id"`
+	Limit   int32       `json:"limit"`
+}
+
+type ListTrashMediaRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	MediaType         string             `json:"media_type"`
+	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
+	TrashedAt         pgtype.Timestamptz `json:"trashed_at"`
+	OriginalTotalSize int64              `json:"original_total_size"`
+}
+
+func (q *Queries) ListTrashMedia(ctx context.Context, arg ListTrashMediaParams) ([]ListTrashMediaRow, error) {
+	rows, err := q.db.Query(ctx, listTrashMedia, arg.OwnerID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTrashMediaRow
+	for rows.Next() {
+		var i ListTrashMediaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaType,
+			&i.CapturedAt,
+			&i.CreatedAt,
+			&i.DurationMs,
+			&i.TrashedAt,
+			&i.OriginalTotalSize,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTrashMediaAfter = `-- name: ListTrashMediaAfter :many
+SELECT media.id, media.media_type, media.captured_at, media.created_at, media.duration_ms,
+       trash.trashed_at, COALESCE(originals.original_total_size, 0)::bigint AS original_total_size
+FROM mineg.trash_records AS trash
+JOIN mineg.media AS media ON media.id = trash.media_id AND media.owner_id = trash.owner_id
+LEFT JOIN LATERAL (
+    SELECT COALESCE(sum(resource.content_size), 0)::bigint AS original_total_size
+    FROM mineg.media_resources AS resource
+    WHERE resource.media_id = media.id AND resource.state = 'READY'
+      AND resource.resource_type IN ('ORIGINAL', 'LIVE_PHOTO_VIDEO')
+) AS originals ON TRUE
+WHERE trash.owner_id = $1 AND trash.restored_at IS NULL AND trash.purged_at IS NULL
+  AND (trash.trashed_at < $2 OR (trash.trashed_at = $2 AND media.id < $3))
+ORDER BY trash.trashed_at DESC, media.id DESC
+LIMIT $4
+`
+
+type ListTrashMediaAfterParams struct {
+	OwnerID   pgtype.UUID        `json:"owner_id"`
+	TrashedAt pgtype.Timestamptz `json:"trashed_at"`
+	ID        pgtype.UUID        `json:"id"`
+	Limit     int32              `json:"limit"`
+}
+
+type ListTrashMediaAfterRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	MediaType         string             `json:"media_type"`
+	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	DurationMs        pgtype.Int8        `json:"duration_ms"`
+	TrashedAt         pgtype.Timestamptz `json:"trashed_at"`
+	OriginalTotalSize int64              `json:"original_total_size"`
+}
+
+func (q *Queries) ListTrashMediaAfter(ctx context.Context, arg ListTrashMediaAfterParams) ([]ListTrashMediaAfterRow, error) {
+	rows, err := q.db.Query(ctx, listTrashMediaAfter,
+		arg.OwnerID,
+		arg.TrashedAt,
+		arg.ID,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTrashMediaAfterRow
+	for rows.Next() {
+		var i ListTrashMediaAfterRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaType,
+			&i.CapturedAt,
+			&i.CreatedAt,
+			&i.DurationMs,
+			&i.TrashedAt,
+			&i.OriginalTotalSize,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockFamilyMediaForAccess = `-- name: LockFamilyMediaForAccess :one
+SELECT media.id, media.media_type, media.access_version
+FROM mineg.family_memberships AS viewer
+JOIN mineg.family_memberships AS household ON household.family_id = viewer.family_id
+JOIN mineg.shares AS share ON share.owner_id = household.user_id AND share.state = 'ACTIVE'
+JOIN mineg.media AS media ON media.id = share.media_id AND media.owner_id = share.owner_id
+LEFT JOIN mineg.trash_records AS trash
+  ON trash.media_id = media.id AND trash.restored_at IS NULL AND trash.purged_at IS NULL
+WHERE viewer.user_id = $1 AND media.id = $2
+  AND media.upload_status = 'COMPLETED' AND trash.media_id IS NULL
+FOR UPDATE OF media, share
+`
+
+type LockFamilyMediaForAccessParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	ID     pgtype.UUID `json:"id"`
+}
+
+type LockFamilyMediaForAccessRow struct {
+	ID            pgtype.UUID `json:"id"`
+	MediaType     string      `json:"media_type"`
+	AccessVersion int64       `json:"access_version"`
+}
+
+func (q *Queries) LockFamilyMediaForAccess(ctx context.Context, arg LockFamilyMediaForAccessParams) (LockFamilyMediaForAccessRow, error) {
+	row := q.db.QueryRow(ctx, lockFamilyMediaForAccess, arg.UserID, arg.ID)
+	var i LockFamilyMediaForAccessRow
+	err := row.Scan(&i.ID, &i.MediaType, &i.AccessVersion)
+	return i, err
+}
+
 const lockPrivateMediaForAccess = `-- name: LockPrivateMediaForAccess :one
 SELECT media.id, media.media_type, media.access_version
 FROM mineg.media AS media
@@ -494,6 +1321,33 @@ func (q *Queries) LockPrivateMediaForAccess(ctx context.Context, arg LockPrivate
 	return i, err
 }
 
+const lockPrivateMediaForShare = `-- name: LockPrivateMediaForShare :one
+SELECT media.id
+FROM mineg.media AS media
+JOIN mineg.family_memberships AS member ON member.user_id = media.owner_id
+LEFT JOIN mineg.trash_records AS trash
+    ON trash.media_id = media.id
+   AND trash.restored_at IS NULL
+   AND trash.purged_at IS NULL
+WHERE media.id = $1
+  AND media.owner_id = $2
+  AND media.upload_status = 'COMPLETED'
+  AND trash.media_id IS NULL
+FOR UPDATE OF media
+`
+
+type LockPrivateMediaForShareParams struct {
+	ID      pgtype.UUID `json:"id"`
+	OwnerID pgtype.UUID `json:"owner_id"`
+}
+
+func (q *Queries) LockPrivateMediaForShare(ctx context.Context, arg LockPrivateMediaForShareParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockPrivateMediaForShare, arg.ID, arg.OwnerID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const lockPrivateMediaForTrash = `-- name: LockPrivateMediaForTrash :one
 SELECT id
 FROM mineg.media
@@ -513,4 +1367,48 @@ func (q *Queries) LockPrivateMediaForTrash(ctx context.Context, arg LockPrivateM
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const lockTrashRecordForRestore = `-- name: LockTrashRecordForRestore :one
+SELECT media_id, owner_id, trashed_at, restored_at, purged_at FROM mineg.trash_records
+WHERE media_id = $1 AND owner_id = $2 AND purged_at IS NULL
+FOR UPDATE
+`
+
+type LockTrashRecordForRestoreParams struct {
+	MediaID pgtype.UUID `json:"media_id"`
+	OwnerID pgtype.UUID `json:"owner_id"`
+}
+
+func (q *Queries) LockTrashRecordForRestore(ctx context.Context, arg LockTrashRecordForRestoreParams) (MinegTrashRecord, error) {
+	row := q.db.QueryRow(ctx, lockTrashRecordForRestore, arg.MediaID, arg.OwnerID)
+	var i MinegTrashRecord
+	err := row.Scan(
+		&i.MediaID,
+		&i.OwnerID,
+		&i.TrashedAt,
+		&i.RestoredAt,
+		&i.PurgedAt,
+	)
+	return i, err
+}
+
+const restoreTrashRecord = `-- name: RestoreTrashRecord :execrows
+UPDATE mineg.trash_records
+SET restored_at = $3
+WHERE media_id = $1 AND owner_id = $2 AND restored_at IS NULL AND purged_at IS NULL
+`
+
+type RestoreTrashRecordParams struct {
+	MediaID    pgtype.UUID        `json:"media_id"`
+	OwnerID    pgtype.UUID        `json:"owner_id"`
+	RestoredAt pgtype.Timestamptz `json:"restored_at"`
+}
+
+func (q *Queries) RestoreTrashRecord(ctx context.Context, arg RestoreTrashRecordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, restoreTrashRecord, arg.MediaID, arg.OwnerID, arg.RestoredAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

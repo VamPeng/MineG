@@ -73,6 +73,7 @@ func New(deps Dependencies) http.Handler {
 			}
 			if deps.Media != nil {
 				mountPrivateMediaRoutes(api, deps.Account, deps.Media)
+				mountStage06Routes(api, deps.Account, deps.Media)
 			}
 		}
 	})

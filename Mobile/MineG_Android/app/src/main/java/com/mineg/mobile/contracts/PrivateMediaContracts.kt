@@ -28,6 +28,8 @@ data class PrivateMediaSummary(
   val durationMs: Long?,
   val originalTotalSize: Long,
   val previewResource: PrivateMediaResourceSummary?,
+  val localPlatformAssetRef: String? = null,
+  val localSourceUri: String? = null,
 )
 
 data class PrivateMediaPage(
@@ -47,6 +49,8 @@ data class PrivateMediaDetail(
   val durationMs: Long?,
   val originalTotalSize: Long,
   val resources: List<PrivateMediaResourceSummary>,
+  val localPlatformAssetRef: String? = null,
+  val localSourceUri: String? = null,
 )
 
 /** An in-memory-only source for a temporary file that Core has already integrity-checked. */

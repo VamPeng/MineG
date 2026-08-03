@@ -34,17 +34,17 @@ MainActivity
 
 当前 C++ Core 已负责：
 
-- SQLite migration、账号路由状态、本地媒体索引、备份设置和单媒体任务状态；
-- 用户/家庭/媒体密钥、内容指纹和媒体资源加解密；
-- 已登记 Core 命令、查询、事件与状态迁移校验。
+- SQLite migration、账号路由状态、本地媒体索引、备份设置、备份队列和私人媒体快照；
+- 私人媒体访问完整性校验、受控临时文件和系统相册保存状态机；
+- 阶段 06 分享、家庭只读、回收站恢复和反馈命令、事件及传输响应校验。
 
 当前 Kotlin 仍负责：
 
-- 扫描循环、部分备份门禁和单媒体上传业务编排；
+- Android 权限、MediaStore、网络、安全存储、文件和媒体播放 Effect；
 - 审核轮询的执行时钟与页面 UiState 映射；
-- 分享、删除、恢复、下载、反馈和部分备份设置的页面内模拟状态。
+- 阶段 06 家庭/回收站分页结果的展示态；Core SQLite 可恢复快照仍是后续切片。
 
-因此目前 C++ 更接近“加密与持久化组件”，尚未成为完整的跨端数据层。
+媒体对象不执行客户端应用层加密；Android 不保存媒体密钥或 envelope。
 
 ## 3. 迁移判定标准
 
@@ -124,7 +124,7 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 | AND-DATA-005 | P0 | 单媒体上传 | 已实现，当前新入口未直接调用 | 上传状态机和服务端 DTO | Core 完整状态机；TransportPort 只上传字节/分片 |
 | AND-DATA-006 | P1 | 本地扫描 | 批次 D 已关闭 | 旧 Client 路径仅编译兼容 | Core 非恢复型前台扫描；MediaSourcePort 只返回批次 |
 | AND-DATA-007 | P1 | 备份设置 | 批次 D 已关闭 | 旧 Client 路径仅编译兼容 | Core Settings Snapshot；不创建任务或调度 Effect |
-| AND-DATA-008 | P0 | 分享/删除/恢复/下载/反馈 | 页面生效但业务为模拟 | ViewModel 直接增删列表或标记成功 | 正式实现时直接进入 Core；联调前不得宣称完成 |
+| AND-DATA-008 | P0 | 分享/删除/恢复/下载/反馈 | 阶段 06 首批真实链路已接通 | Android 只保存 UiState 与输入草稿 | Core 继续补齐家庭/回收站可恢复 SQLite 快照与分页 Query |
 | AND-DATA-009 | P1 | 审核轮询与页面准入 | 当前生效 | 轮询、错误分流、资料准入判断 | Core 审核 operation；ViewModel 只响应领域状态 |
 | AND-DATA-010 | P1 | 业务校验 | 当前生效 | 手机号、密码、昵称规则 | Core 权威校验；平台可保留等价的即时展示预校验 |
 | AND-DATA-011 | P1 | Kotlin 领域 Contract | 当前生效 | 平台接口和模型可承载业务判断 | 收缩为生成/验证的 Bridge Snapshot 与 Port 原语 |
@@ -254,16 +254,17 @@ Core 领域操作使用稳定名称，例如 `account.signIn`、`profile.getCurr
 
 ### AND-DATA-008：页面中的模拟领域操作
 
-当前代码：
+2026-08-03 当前结果：
 
-- `MineGAppViewModel.kt`：`finishMockDownload`、`toggleShare`、`confirmDialog` 中的删除/恢复、`submitFeedback`；
-- `MineGApp.kt`：这些方法已经绑定到当前页面操作。
+- 分享/取消分享、家庭列表/详情/受控预览、回收站列表/恢复和反馈全部通过 `stage06-v1` Core operation；
+- 页面只在 Core 完成后应用归一化结果，失败不再本地标记成功；
+- 生产源集中的 `MockMineGRepository` 与两项数据主权临时例外已删除，例外清单为空。
 
-处理要求：
+剩余工作：
 
-- 这些逻辑不是“迁移既有真实业务”，而是尚未联调的 UI 占位；
-- 在对应 M5/M6 服务接口与 Core 契约完成前，不得把本地列表变化或模拟成功作为产品完成状态；
-- 正式实现直接从 Core command/query/event 开始，不先补 Android Repository。
+- 将家庭/回收站分页快照和下一游标持久化到 Core SQLite；
+- 以双用户真实服务环境覆盖分享撤销、删除失效、恢复不自动重分享及并发幂等；
+- Mock 仅允许存在于 Preview、截图夹具或显式测试源集。
 
 完成条件：生产页面只显示真实 Core 结果；Mock 仅存在于 Preview、截图夹具或显式测试源集。
 

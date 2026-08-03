@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -502,11 +503,16 @@ func selectAccessResources(mediaType string, resources []dbgen.ListPrivateMediaA
 			if resource, exists := first("THUMBNAIL", "VIDEO_COVER"); exists {
 				return []dbgen.ListPrivateMediaAccessResourcesRow{resource}, nil
 			}
-			if resource, exists := first("ORIGINAL"); exists && isOSSImagePreviewCandidate(mediaType, resource) {
+			if resource, exists := first("ORIGINAL"); exists && isImageThumbnailCandidate(mediaType, resource) {
 				return []dbgen.ListPrivateMediaAccessResourcesRow{resource}, nil
 			}
-		} else if resource, exists := first("PREVIEW", "DYNAMIC_PREVIEW", "THUMBNAIL", "VIDEO_COVER"); exists {
-			return []dbgen.ListPrivateMediaAccessResourcesRow{resource}, nil
+		} else {
+			if resource, exists := first("ORIGINAL"); exists && isImageDetailOriginalCandidate(mediaType, resource) {
+				return []dbgen.ListPrivateMediaAccessResourcesRow{resource}, nil
+			}
+			if resource, exists := first("PREVIEW", "DYNAMIC_PREVIEW", "THUMBNAIL", "VIDEO_COVER"); exists {
+				return []dbgen.ListPrivateMediaAccessResourcesRow{resource}, nil
+			}
 		}
 	case "STREAM":
 		if resource, exists := first("PREVIEW", "DYNAMIC_PREVIEW"); exists {
@@ -528,6 +534,17 @@ func selectAccessResources(mediaType string, resources []dbgen.ListPrivateMediaA
 		return selected, nil
 	}
 	return nil, accessUnavailable()
+}
+
+func isImageThumbnailCandidate(mediaType string, resource dbgen.ListPrivateMediaAccessResourcesRow) bool {
+	return isOSSImagePreviewCandidate(mediaType, resource) ||
+		(resource.ResourceType == "ORIGINAL" && mediaType == "PHOTO" &&
+			resource.MimeType == "image/svg+xml" && resource.ContentSize <= ossImagePreviewMaximumBytes)
+}
+
+func isImageDetailOriginalCandidate(mediaType string, resource dbgen.ListPrivateMediaAccessResourcesRow) bool {
+	return resource.ResourceType == "ORIGINAL" && mediaType != "VIDEO" &&
+		strings.HasPrefix(resource.MimeType, "image/")
 }
 
 func isOSSImagePreviewCandidate(mediaType string, resource dbgen.ListPrivateMediaAccessResourcesRow) bool {

@@ -7,7 +7,7 @@ import { router as applicationRouter } from '@/router'
 describe('authentication guard', () => {
   it('does not add mobile profile, avatar, key, media, or member routes', () => {
     const paths = applicationRouter.getRoutes().map((route) => route.path).join(' ')
-    expect(paths).not.toMatch(/profile|avatar|key|grant|media|member/i)
+    expect(paths).not.toMatch(/profile|avatar|key|grant|media|member|family|trash|feedback/i)
   })
 
   it('redirects unauthenticated protected navigation into the login shell', async () => {

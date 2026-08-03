@@ -12,7 +12,7 @@ class Stage05ContractTest {
   fun baselineKeepsPrivateMediaOwnershipAndShortLivedObjectGrantsInCore() {
     val contract = resource("stage05-v1.json")
     listOf(
-      "stage05-v1", "BASELINED", "C++ Core", "RefreshPrivateMedia",
+      "stage05-v1", "FROZEN", "C++ Core", "RefreshPrivateMedia",
       "OpenPrivateMedia", "ClosePrivateMedia", "SavePrivateMediaToSystemAlbum", "TrashPrivateMedia", "DOWNLOAD",
       "maxGrantLifetimeSeconds", "PRIVATE_MEDIA_DOWNLOAD_INTEGRITY_FAILED",
     ).forEach { assertContains(contract, "\"$it\"") }

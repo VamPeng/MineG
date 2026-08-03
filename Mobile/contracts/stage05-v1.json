@@ -1,7 +1,7 @@
 {
   "contractVersion": "stage05-v1",
-  "version": "1.0.0",
-  "status": "BASELINED",
+  "version": "1.1.0",
+  "status": "FROZEN",
   "scope": "M5_PRIVATE_MEDIA_BROWSING_ORIGINAL_SAVE_AND_LOGICAL_DELETE",
   "architecture": {
     "businessOrchestrator": "C++ Core",
@@ -66,11 +66,17 @@
     "viewVariants": ["THUMBNAIL", "DETAIL"],
     "maxGrantLifetimeSeconds": 300,
     "rules": [
-      "VIEW THUMBNAIL selects an available THUMBNAIL or VIDEO_COVER; PHOTO/GIF without one may select ORIGINAL only with delivery_mode OSS_IMAGE_THUMBNAIL, whose OSS x-oss-process parameter is signed with the exact GET",
+      "VIEW THUMBNAIL selects an available THUMBNAIL or VIDEO_COVER; PHOTO/GIF without one may select a supported raster ORIGINAL with delivery_mode OSS_IMAGE_THUMBNAIL, while a validated PHOTO image/svg+xml ORIGINAL up to 5 MiB may use ORIGINAL_RESOURCE",
+      "VIEW DETAIL selects the exact image ORIGINAL for photo/GIF/static media and retains the preview/cover path for VIDEO",
       "STREAM selects only PREVIEW or DYNAMIC_PREVIEW",
       "DOWNLOAD returns the complete ORIGINAL and LIVE_PHOTO_VIDEO resource set",
       "ORIGINAL_RESOURCE downloads are checked for final byte length and SHA-256 before use",
       "OSS_IMAGE_THUMBNAIL is a non-persisted transformed response: Core verifies the short-lived signed HTTPS grant, image MIME type and maximum_output_size (5 MiB); its bytes are not compared with the source object SHA-256"
+    ],
+    "localMapping": [
+      "Core may enrich private-media list and detail snapshots with nullable localPlatformAssetRef and localSourceUri",
+      "A local mapping is usable only when the active local-library generation still contains an AVAILABLE item",
+      "Photo/GIF/static detail rendering tries a readable MediaStore mapping, then an integrity-checked account-scoped app-private file named exactly mediaId, then downloads and stores the exact cloud original; video keeps its cover/preview path and the private grid remains thumbnail-only"
     ]
   },
   "saveOperationStates": [

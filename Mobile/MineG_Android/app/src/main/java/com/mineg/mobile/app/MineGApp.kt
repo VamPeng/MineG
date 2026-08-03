@@ -77,15 +77,21 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
     )
     AppRoute.PrivateSpace -> PrivateSpacePage(
       privateState = state.privateSpace,
+      privatePreviewSources = viewModel.privateMediaPreviewSources,
       sharedState = state.familyAlbum,
       selectedLibraryTab = state.selectedLibraryTab,
+      privateMediaListScrollPosition = state.privateMediaListScrollPosition,
+      familyMediaListScrollPosition = state.familyMediaListScrollPosition,
       selectedTab = state.selectedTab,
       onSelectLibraryTab = viewModel::selectLibraryTab,
       onSelectTab = viewModel::selectTab,
       onOpenPrivateMedia = viewModel::openPrivateMedia,
       onRefreshPrivateMedia = viewModel::refreshPrivateMedia,
       onLoadMorePrivateMedia = viewModel::loadMorePrivateMedia,
-      onLoadPrivateMediaPreview = viewModel::loadPrivateMediaPreview,
+      onVisiblePrivateMediaChanged = viewModel::updateVisiblePrivateMedia,
+      onRetryPrivateMediaPreview = viewModel::retryPrivateMediaPreview,
+      onPrivateMediaListScrollPositionChanged = viewModel::updatePrivateMediaListScrollPosition,
+      onFamilyMediaListScrollPositionChanged = viewModel::updateFamilyMediaListScrollPosition,
       onOpenSharedMedia = viewModel::openFamilyMedia,
     )
     AppRoute.Backup -> BackupPage(
@@ -115,15 +121,26 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
       onLoadPreview = { viewModel.loadPrivateMediaPreview(route.mediaId) },
       onBack = viewModel::back,
       onDownload = viewModel::downloadSelectedMedia,
+      onShare = { viewModel.setSelectedMediaSharing(route.mediaId) },
       onDelete = { viewModel.requestDelete(route.mediaId) },
       onRetrySave = viewModel::downloadSelectedMedia,
       onDismissAction = viewModel::dismissSelectedMediaAction,
     )
-    is AppRoute.FamilyMediaDetail -> FamilyMediaDetailPage(viewModel.mediaById(route.mediaId), viewModel::back)
+    is AppRoute.FamilyMediaDetail -> FamilyMediaDetailPage(
+      media = viewModel.mediaById(route.mediaId),
+      onLoadPreview = { viewModel.loadFamilyMediaPreview(route.mediaId) },
+      onBack = viewModel::back,
+    )
     AppRoute.SharedByMe -> SharedByMePage(state.familyAlbum, viewModel::back, viewModel::openFamilyMedia)
     is AppRoute.LocalAlbum -> {
       val album = state.backup.albums.firstOrNull { it.id == route.albumId }
-      LocalAlbumPage(album, state.backup, viewModel::backupSingleMedia, viewModel::back)
+      LocalAlbumPage(
+        album = album,
+        state = state.backup,
+        onUpload = viewModel::backupSingleMedia,
+        onLoadMore = viewModel::loadMoreLocalAlbumMedia,
+        onBack = viewModel::back,
+      )
     }
     AppRoute.BackupSettings -> BackupSettingsPage(
       state.backup,
@@ -150,7 +167,7 @@ fun MineGApp(viewModel: MineGAppViewModel, onRequestLibraryAccess: () -> Unit) {
       viewModel::setFeedbackCategory,
       viewModel::updateFeedbackDescription,
       viewModel::updateFeedbackContact,
-      viewModel::submitFeedback,
+      viewModel::sendFeedback,
     )
     }
 

@@ -157,6 +157,33 @@ SET reviewed_at = COALESCE(reviewed_at, $2),
     updated_at = $2
 WHERE id = $1 AND status = 'PENDING';
 
+-- name: EnsureFixedFamilyMembership :one
+WITH family_lock AS MATERIALIZED (
+    SELECT pg_advisory_xact_lock(hashtextextended('mineg-fixed-household', 6))
+), next_slot AS (
+    SELECT min(slots.member_slot)::smallint AS member_slot
+    FROM (VALUES (1::smallint), (2::smallint)) AS slots(member_slot), family_lock
+    WHERE NOT EXISTS (
+        SELECT 1 FROM mineg.family_memberships member
+        WHERE member.family_id = '00000000-0000-4000-8000-000000000001'
+          AND member.member_slot = slots.member_slot
+    )
+), resolved_slot AS (
+    SELECT COALESCE(
+        (SELECT existing.member_slot FROM mineg.family_memberships AS existing WHERE existing.user_id = $1),
+        next_slot.member_slot
+    ) AS member_slot
+    FROM next_slot
+), ensured AS (
+    INSERT INTO mineg.family_memberships(user_id, member_slot)
+    SELECT $1, resolved_slot.member_slot
+    FROM resolved_slot
+    WHERE resolved_slot.member_slot IS NOT NULL
+    ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
+    RETURNING user_id
+)
+SELECT EXISTS(SELECT 1 FROM ensured) AS ensured;
+
 -- name: UpdateUserNickname :one
 UPDATE mineg.users
 SET nickname = $2, profile_version = profile_version + 1, updated_at = $3

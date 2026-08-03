@@ -26,7 +26,7 @@ class CoreStage05Client(
   suspend fun refreshPrivateMedia(limit: Int = 50, allowCached: Boolean = true): PrivateMediaPage =
     run("RefreshPrivateMedia", limit, allowCached)
 
-  suspend fun loadMorePrivateMedia(limit: Int = 50, allowCached: Boolean = true): PrivateMediaPage =
+  suspend fun loadMorePrivateMedia(limit: Int = 50, allowCached: Boolean = false): PrivateMediaPage =
     run("LoadMorePrivateMedia", limit, allowCached)
 
   suspend fun getPrivateMediaDetail(mediaId: String): PrivateMediaDetail =
@@ -191,6 +191,8 @@ class CoreStage05Client(
         contentSha256 = getString("contentSha256"),
       )
     },
+    localPlatformAssetRef = nullableString("localPlatformAssetRef"),
+    localSourceUri = nullableString("localSourceUri"),
   )
 
   private fun JSONObject.toPrivateMediaDetail() = PrivateMediaDetail(
@@ -213,7 +215,12 @@ class CoreStage05Client(
         )
       }
     },
+    localPlatformAssetRef = nullableString("localPlatformAssetRef"),
+    localSourceUri = nullableString("localSourceUri"),
   )
+
+  private fun JSONObject.nullableString(name: String): String? =
+    if (!has(name) || isNull(name)) null else getString(name).takeIf(String::isNotBlank)
 
   private fun JSONObject.toPrivateMediaSaveResult() = PrivateMediaSaveResult(
     mediaId = getString("mediaId"),

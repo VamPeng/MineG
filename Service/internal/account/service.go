@@ -667,6 +667,13 @@ func (s *Service) Approve(ctx context.Context, session AdminSession, userID, ide
 				outcome = "ALREADY_PROCESSED"
 			}
 		}
+		ensured, err := q.EnsureFixedFamilyMembership(ctx, parsedUserID)
+		if err != nil {
+			return err
+		}
+		if !ensured {
+			return conflictError("FIXED_FAMILY_FULL", "Fixed family full", "The two fixed household member slots are already occupied.")
+		}
 		result = ApproveResult{Approval: Approval{ID: uuidString(approval.ID), MaskedPhone: MaskPhone(approval.PhoneE164), Status: "PROCESSED", CreatedAt: approval.CreatedAt.Time}, Outcome: outcome}
 		return recordAudit(ctx, q, "ADMIN", session.AdminID, "APPROVAL_APPROVE", "USER", parsedUserID, "SUCCESS", requestID)
 	})

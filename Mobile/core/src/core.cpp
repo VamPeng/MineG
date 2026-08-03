@@ -490,6 +490,56 @@ std::string hex_encode(const unsigned char *bytes, size_t size) {
   return result;
 }
 
+struct LocalMediaMapping {
+  std::string platform_asset_ref;
+  std::string source_uri;
+};
+
+LocalMediaMapping find_local_media_mapping(sqlite3 *database, const std::string &user_id,
+                                           const std::string &cloud_media_id) {
+  if (database == nullptr || user_id.empty() || cloud_media_id.empty()) return {};
+  sqlite3_stmt *statement = nullptr;
+  const char *sql = R"SQL(
+    WITH mapping(platform_asset_ref,content_version,priority,updated_at) AS (
+      SELECT task.platform_asset_ref,task.content_version,0,task.updated_at
+      FROM backup_tasks task
+      WHERE task.user_id=?1 AND task.server_media_id=?2 AND task.state='COMPLETED'
+      UNION ALL
+      SELECT receipt.platform_asset_ref,NULL,1,receipt.updated_at
+      FROM download_receipts receipt
+      JOIN private_media_items_v2 item ON item.user_id=receipt.user_id
+        AND item.media_id=receipt.cloud_media_id
+        AND item.content_revision=receipt.content_revision
+      WHERE receipt.user_id=?1 AND receipt.cloud_media_id=?2
+    )
+    SELECT media.platform_asset_ref,media.thumbnail_uri
+    FROM mapping
+    JOIN local_library_active active ON active.user_id=?1
+    JOIN local_media media ON media.user_id=?1
+      AND media.generation_id=active.generation_id
+      AND media.platform_asset_ref=mapping.platform_asset_ref
+    WHERE media.availability='AVAILABLE'
+      AND (mapping.priority=1 OR mapping.content_version=media.content_version)
+    ORDER BY mapping.priority,mapping.updated_at DESC
+    LIMIT 1
+  )SQL";
+  if (sqlite3_prepare_v2(database, sql, -1, &statement, nullptr) != SQLITE_OK) return {};
+  int status = sqlite3_bind_text(statement, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 2, cloud_media_id.c_str(), -1, SQLITE_TRANSIENT);
+  }
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  LocalMediaMapping mapping;
+  if (status == SQLITE_ROW) {
+    const auto *asset_ref = sqlite3_column_text(statement, 0);
+    const auto *source_uri = sqlite3_column_text(statement, 1);
+    if (asset_ref != nullptr) mapping.platform_asset_ref = reinterpret_cast<const char *>(asset_ref);
+    if (source_uri != nullptr) mapping.source_uri = reinterpret_cast<const char *>(source_uri);
+  }
+  sqlite3_finalize(statement);
+  return mapping;
+}
+
 }  // namespace
 
 struct Core::ActiveAccountSession {
@@ -561,6 +611,13 @@ struct Core::AccountOperation {
   std::string private_media_captured_at;
   std::string private_media_view_variant;
   std::string private_media_view_handle;
+  std::string family_media_filter;
+  std::string family_media_cursor;
+  std::string feedback_category;
+  std::string feedback_description;
+  std::string feedback_contact;
+  std::string feedback_app_version;
+  std::string feedback_os_version;
   std::vector<std::string> private_media_resource_ids;
   std::vector<std::string> private_media_resource_types;
   std::vector<std::string> private_media_resource_mime_types;
@@ -574,6 +631,7 @@ struct Core::AccountOperation {
   int64_t private_media_view_maximum_output_size = 0;
   bool private_media_save_started = false;
   bool private_media_view_uses_oss_image_thumbnail = false;
+  bool private_media_share_active = false;
   std::vector<int64_t> media_part_sizes;
   std::vector<std::string> media_part_digests;
   std::vector<int64_t> media_uploaded_part_indexes;
@@ -632,6 +690,13 @@ struct Core::AccountOperation {
     wipe_string(private_media_captured_at);
     wipe_string(private_media_view_variant);
     wipe_string(private_media_view_handle);
+    wipe_string(family_media_filter);
+    wipe_string(family_media_cursor);
+    wipe_string(feedback_category);
+    wipe_string(feedback_description);
+    wipe_string(feedback_contact);
+    wipe_string(feedback_app_version);
+    wipe_string(feedback_os_version);
     for (auto &value : private_media_resource_ids) wipe_string(value);
     private_media_resource_ids.clear();
     for (auto &value : private_media_resource_types) wipe_string(value);
@@ -653,6 +718,7 @@ struct Core::AccountOperation {
     private_media_view_maximum_output_size = 0;
     private_media_save_started = false;
     private_media_view_uses_oss_image_thumbnail = false;
+    private_media_share_active = false;
     for (auto &digest : media_part_digests) wipe_string(digest);
     media_part_digests.clear();
     for (auto &etag : media_uploaded_part_etags) wipe_string(etag);
@@ -1349,6 +1415,60 @@ mineg_error_code_t Core::issue_account_request_locked(AccountOperation &operatio
     path = "/api/v1/private/media/" + operation.private_media_id + "/access";
     body = "{\"purpose\":\"VIEW\",\"variant\":\"" +
         operation.private_media_view_variant + "\"}";
+  } else if (purpose == "PRIVATE_MEDIA_SHARE") {
+    if (operation.private_media_id.empty() || operation.idempotency_key.empty()) return MINEG_INVALID_ARGUMENT;
+    method = "POST";
+    path = "/api/v1/private/media/" + operation.private_media_id + "/share";
+    headers = "{\"Authorization\":\"Bearer " +
+        json_escape(active_account_session_->access_token) +
+        "\",\"Idempotency-Key\":\"" + json_escape(operation.idempotency_key) + "\"}";
+    body = std::string("{\"shared\":") + (operation.private_media_share_active ? "true" : "false") + "}";
+  } else if (purpose == "FAMILY_MEDIA_LIST") {
+    method = "GET";
+    path = "/api/v1/family/media?filter=" + operation.family_media_filter +
+        "&limit=" + std::to_string(operation.media_limit);
+    if (!operation.family_media_cursor.empty()) path += "&cursor=" + operation.family_media_cursor;
+  } else if (purpose == "FAMILY_MEDIA_DETAIL") {
+    if (operation.private_media_id.empty()) return MINEG_INVALID_ARGUMENT;
+    method = "GET";
+    path = "/api/v1/family/media/" + operation.private_media_id;
+  } else if (purpose == "FAMILY_MEDIA_VIEW_ACCESS") {
+    if (operation.private_media_id.empty() ||
+        (operation.private_media_view_variant != "THUMBNAIL" &&
+         operation.private_media_view_variant != "DETAIL")) return MINEG_INVALID_ARGUMENT;
+    method = "POST";
+    path = "/api/v1/family/media/" + operation.private_media_id + "/access";
+    body = "{\"purpose\":\"VIEW\",\"variant\":\"" +
+        operation.private_media_view_variant + "\"}";
+  } else if (purpose == "TRASH_MEDIA_LIST") {
+    method = "GET";
+    path = "/api/v1/trash?limit=" + std::to_string(operation.media_limit);
+    if (!operation.family_media_cursor.empty()) path += "&cursor=" + operation.family_media_cursor;
+  } else if (purpose == "TRASH_MEDIA_RESTORE") {
+    if (operation.private_media_id.empty() || operation.idempotency_key.empty()) return MINEG_INVALID_ARGUMENT;
+    method = "POST";
+    path = "/api/v1/trash/" + operation.private_media_id + "/restore";
+    headers = "{\"Authorization\":\"Bearer " +
+        json_escape(active_account_session_->access_token) +
+        "\",\"Idempotency-Key\":\"" + json_escape(operation.idempotency_key) + "\"}";
+    body = "{}";
+  } else if (purpose == "FEEDBACK_SUBMIT") {
+    if (operation.device_installation_id.empty() || operation.idempotency_key.empty()) return MINEG_INVALID_ARGUMENT;
+    method = "POST";
+    path = "/api/v1/feedback";
+    headers = "{\"Authorization\":\"Bearer " +
+        json_escape(active_account_session_->access_token) +
+        "\",\"Idempotency-Key\":\"" + json_escape(operation.idempotency_key) + "\"}";
+    body = "{\"category\":\"" + json_escape(operation.feedback_category) +
+        "\",\"description\":\"" + json_escape(operation.feedback_description) +
+        "\",\"app_version\":\"" + json_escape(operation.feedback_app_version) +
+        "\",\"platform\":\"ANDROID\",\"os_version\":\"" +
+        json_escape(operation.feedback_os_version) +
+        "\",\"device_installation_id\":\"" + json_escape(operation.device_installation_id) + "\"";
+    if (!operation.feedback_contact.empty()) {
+      body += ",\"contact\":\"" + json_escape(operation.feedback_contact) + "\"";
+    }
+    body += "}";
     } else if (purpose == "AVATAR_CREATE") {
       method = "POST";
       path = "/api/v1/me/avatar/uploads";
@@ -1668,11 +1788,13 @@ std::string Core::read_private_media_next_cursor_v2_locked() {
   return result;
 }
 
-std::string Core::read_private_media_page_v2_locked(int limit) {
+std::string Core::read_private_media_page_v2_locked(int limit,
+                                                    const std::string &page_json) {
   if (active_account_session_ == nullptr) return {};
   limit = std::clamp(limit, 1, 100);
   sqlite3_stmt *statement = nullptr;
-  const char *sql =
+  const bool response_page = !page_json.empty();
+  const char *cached_page_sql =
       "SELECT item.media_id,item.media_type,item.captured_at,item.created_at,item.duration_ms,"
       "item.original_total_size,resource.resource_id,resource.resource_type,resource.mime_type,"
       "resource.content_size,resource.content_sha256_base64 "
@@ -1680,10 +1802,29 @@ std::string Core::read_private_media_page_v2_locked(int limit) {
       "LEFT JOIN private_media_resources resource ON resource.user_id=item.user_id "
       "AND resource.resource_id=item.preview_resource_id "
       "WHERE item.user_id=? ORDER BY item.captured_at DESC,item.media_id DESC LIMIT ?";
+  const char *response_page_sql =
+      "SELECT item.media_id,item.media_type,item.captured_at,item.created_at,item.duration_ms,"
+      "item.original_total_size,resource.resource_id,resource.resource_type,resource.mime_type,"
+      "resource.content_size,resource.content_sha256_base64 "
+      "FROM json_each(?2,'$.items') page "
+      "JOIN private_media_items_v2 item ON item.user_id=?1 "
+      "AND item.media_id=json_extract(page.value,'$.id') "
+      "LEFT JOIN private_media_resources resource ON resource.user_id=item.user_id "
+      "AND resource.resource_id=item.preview_resource_id "
+      "ORDER BY CAST(page.key AS INTEGER) LIMIT ?3";
+  const char *sql = response_page ? response_page_sql : cached_page_sql;
   if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return {};
   int status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1,
                                  SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_int(statement, 2, limit);
+  if (response_page) {
+    if (status == SQLITE_OK) {
+      status = sqlite3_bind_text(statement, 2, page_json.c_str(),
+                                 static_cast<int>(page_json.size()), SQLITE_TRANSIENT);
+    }
+    if (status == SQLITE_OK) status = sqlite3_bind_int(statement, 3, limit);
+  } else if (status == SQLITE_OK) {
+    status = sqlite3_bind_int(statement, 2, limit);
+  }
   if (status != SQLITE_OK) {
     sqlite3_finalize(statement);
     return {};
@@ -1712,7 +1853,14 @@ std::string Core::read_private_media_page_v2_locked(int limit) {
           "\",\"contentSize\":" + std::to_string(sqlite3_column_int64(statement, 9)) +
           ",\"contentSha256\":\"" + json_escape(text_at(10)) + "\"}";
     }
-    result += "}";
+    const LocalMediaMapping local_mapping = find_local_media_mapping(
+        database_, active_account_session_->user_id, text_at(0));
+    result += ",\"localPlatformAssetRef\":" +
+        (local_mapping.platform_asset_ref.empty() ? std::string("null") :
+         "\"" + json_escape(local_mapping.platform_asset_ref) + "\"") +
+        ",\"localSourceUri\":" +
+        (local_mapping.source_uri.empty() ? std::string("null") :
+         "\"" + json_escape(local_mapping.source_uri) + "\"") + "}";
   }
   sqlite3_finalize(statement);
   if (status != SQLITE_DONE) return {};
@@ -1864,8 +2012,16 @@ std::string Core::read_private_media_detail_v2_locked(const std::string &media_i
       (sqlite3_column_type(item, 5) == SQLITE_NULL ? std::string("null") : std::to_string(sqlite3_column_int(item, 5))) +
       ",\"durationMs\":" +
       (sqlite3_column_type(item, 6) == SQLITE_NULL ? std::string("null") : std::to_string(sqlite3_column_int64(item, 6))) +
-      ",\"originalTotalSize\":" + std::to_string(sqlite3_column_int64(item, 7)) + ",\"resources\":[";
+      ",\"originalTotalSize\":" + std::to_string(sqlite3_column_int64(item, 7));
   sqlite3_finalize(item);
+  const LocalMediaMapping local_mapping = find_local_media_mapping(
+      database_, active_account_session_->user_id, media_id);
+  result += ",\"localPlatformAssetRef\":" +
+      (local_mapping.platform_asset_ref.empty() ? std::string("null") :
+       "\"" + json_escape(local_mapping.platform_asset_ref) + "\"") +
+      ",\"localSourceUri\":" +
+      (local_mapping.source_uri.empty() ? std::string("null") :
+       "\"" + json_escape(local_mapping.source_uri) + "\"") + ",\"resources\":[";
   sqlite3_stmt *resources = nullptr;
   const char *resources_sql =
       "SELECT resource_id,resource_type,mime_type,content_size,content_sha256_base64 "
@@ -1876,7 +2032,11 @@ std::string Core::read_private_media_detail_v2_locked(const std::string &media_i
   status = sqlite3_bind_text(resources, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
   if (status == SQLITE_OK) status = sqlite3_bind_text(resources, 2, media_id.c_str(), -1, SQLITE_TRANSIENT);
   int count = 0;
-  while (status == SQLITE_OK && (status = sqlite3_step(resources)) == SQLITE_ROW) {
+  if (status != SQLITE_OK) {
+    sqlite3_finalize(resources);
+    return {};
+  }
+  while ((status = sqlite3_step(resources)) == SQLITE_ROW) {
     const auto resource_text = [resources](int column) -> std::string {
       const auto *value = sqlite3_column_text(resources, column);
       return value == nullptr ? std::string{} : reinterpret_cast<const char *>(value);
@@ -2214,13 +2374,20 @@ bool Core::prepare_private_media_view_resource_locked(AccountOperation &operatio
       resource_type == "DYNAMIC_PREVIEW";
   const bool oss_image_thumbnail = delivery_mode == "OSS_IMAGE_THUMBNAIL";
   const bool original_delivery = delivery_mode == "ORIGINAL_RESOURCE";
+  const bool original_svg_thumbnail = original_delivery &&
+      operation.private_media_view_variant == "THUMBNAIL" && resource_type == "ORIGINAL" &&
+      mime_type == "image/svg+xml" && content_size <= 5LL * 1024LL * 1024LL;
+  const bool original_image_detail = original_delivery &&
+      operation.private_media_view_variant == "DETAIL" && resource_type == "ORIGINAL" &&
+      mime_type.rfind("image/", 0) == 0;
   if (resource_id.size() != 36U ||
       resource_id.find_first_not_of("0123456789abcdefABCDEF-") != std::string::npos ||
       !(oss_image_thumbnail
           ? (operation.private_media_view_variant == "THUMBNAIL" && resource_type == "ORIGINAL" &&
              mime_type.rfind("image/", 0) == 0 && maximum_output_size > 0 &&
              maximum_output_size <= 5LL * 1024LL * 1024LL)
-          : (original_delivery && (operation.private_media_view_variant == "THUMBNAIL" ? thumbnail_type : detail_type))) ||
+          : (original_svg_thumbnail || original_image_detail ||
+             (original_delivery && (operation.private_media_view_variant == "THUMBNAIL" ? thumbnail_type : detail_type)))) ||
       mime_type.empty() || mime_type.size() > 128U || content_size < 1 || method != "GET" ||
       url.empty() || url.size() > 8192U || !digest_valid || headers.empty() ||
       !valid_json(database_, headers) || headers.front() != '{') {
@@ -2412,7 +2579,8 @@ mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
   if (!valid_json(database_, command) ||
       (contract_version != "account-v3" &&
        contract_version != "stage02-v2" && contract_version != "stage03-v2" &&
-       contract_version != "stage04-v1" && contract_version != "stage05-v1")) {
+       contract_version != "stage04-v1" && contract_version != "stage05-v1" &&
+       contract_version != "stage06-v1")) {
     return MINEG_INVALID_ARGUMENT;
   }
   const std::string digest = command_digest(command);
@@ -2449,10 +2617,17 @@ mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
       value->type == "OpenPrivateMedia" || value->type == "ClosePrivateMedia" ||
       value->type == "TrashPrivateMedia" || value->type == "SavePrivateMediaToSystemAlbum" ||
       value->type == "RetryPrivateMediaSave" || value->type == "CancelPrivateMediaSave";
+  const bool stage06_type = value->type == "SetPrivateMediaShare" ||
+      value->type == "RefreshFamilyMedia" || value->type == "LoadMoreFamilyMedia" ||
+      value->type == "GetFamilyMediaDetail" || value->type == "OpenFamilyMedia" ||
+      value->type == "CloseFamilyMedia" || value->type == "RefreshTrashMedia" ||
+      value->type == "LoadMoreTrashMedia" || value->type == "RestoreTrashMedia" ||
+      value->type == "SubmitFeedback";
   if ((contract_version == "stage02-v2") != stage02_type ||
       (contract_version == "stage03-v2") != stage03_type ||
       (contract_version == "stage04-v1") != stage04_type ||
-      (contract_version == "stage05-v1") != stage05_type) {
+      (contract_version == "stage05-v1") != stage05_type ||
+      (contract_version == "stage06-v1") != stage06_type) {
     return fail("COMMAND_NOT_SUPPORTED");
   }
   if (value->type == "AccountSignIn" || value->type == "AccountSignUp") {
@@ -2602,6 +2777,103 @@ mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
           "\",\"state\":\"CANCELLED\"}";
       value->clear_sensitive();
     }
+  } else if (value->type == "SetPrivateMediaShare" ||
+             value->type == "GetFamilyMediaDetail" || value->type == "OpenFamilyMedia" ||
+             value->type == "RestoreTrashMedia") {
+    value->private_media_id = top_level_json_string(command, "mediaId");
+    if (value->private_media_id.size() != 36U ||
+        value->private_media_id.find_first_not_of("0123456789abcdefABCDEF-") != std::string::npos) {
+      return fail("PRIVATE_MEDIA_INVALID");
+    }
+    std::string purpose = "FAMILY_MEDIA_DETAIL";
+    if (value->type == "SetPrivateMediaShare" || value->type == "RestoreTrashMedia") {
+      value->idempotency_key = top_level_json_string(command, "idempotencyKey");
+      if (value->idempotency_key.size() < 8U || value->idempotency_key.size() > 128U ||
+          value->idempotency_key.find_first_not_of(
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-") !=
+              std::string::npos) {
+        return fail("IDEMPOTENCY_KEY_INVALID");
+      }
+      if (value->type == "SetPrivateMediaShare") {
+        value->private_media_share_active = extract_json_boolean(command, "shared", false);
+        purpose = "PRIVATE_MEDIA_SHARE";
+      } else {
+        purpose = "TRASH_MEDIA_RESTORE";
+      }
+    } else if (value->type == "OpenFamilyMedia") {
+      value->private_media_view_variant = top_level_json_string(command, "variant");
+      if (value->private_media_view_variant.empty()) value->private_media_view_variant = "THUMBNAIL";
+      if (value->private_media_view_variant != "THUMBNAIL" &&
+          value->private_media_view_variant != "DETAIL") {
+        return fail("FAMILY_MEDIA_RESOURCE_UNAVAILABLE");
+      }
+      purpose = "FAMILY_MEDIA_VIEW_ACCESS";
+    }
+    if (active_account_session_ != nullptr) {
+      if (issue_account_request_locked(*value, purpose) != MINEG_OK) return fail("SESSION_INVALID");
+    } else {
+      value->continuation = purpose;
+      issue_session_read_locked(*value);
+    }
+  } else if (value->type == "RefreshFamilyMedia" || value->type == "LoadMoreFamilyMedia") {
+    value->media_limit = std::clamp<int64_t>(extract_json_integer(command, "limit", 50), 1, 100);
+    value->family_media_filter = top_level_json_string(command, "filter");
+    if (value->family_media_filter.empty()) value->family_media_filter = "all";
+    if (value->family_media_filter != "all" && value->family_media_filter != "mine") {
+      return fail("FAMILY_FILTER_INVALID");
+    }
+    value->family_media_cursor = top_level_json_string(command, "cursor");
+    const std::string purpose = "FAMILY_MEDIA_LIST";
+    if (active_account_session_ != nullptr) {
+      if (issue_account_request_locked(*value, purpose) != MINEG_OK) return fail("SESSION_INVALID");
+    } else {
+      value->continuation = purpose;
+      issue_session_read_locked(*value);
+    }
+  } else if (value->type == "RefreshTrashMedia" || value->type == "LoadMoreTrashMedia") {
+    value->media_limit = std::clamp<int64_t>(extract_json_integer(command, "limit", 50), 1, 100);
+    value->family_media_cursor = top_level_json_string(command, "cursor");
+    const std::string purpose = "TRASH_MEDIA_LIST";
+    if (active_account_session_ != nullptr) {
+      if (issue_account_request_locked(*value, purpose) != MINEG_OK) return fail("SESSION_INVALID");
+    } else {
+      value->continuation = purpose;
+      issue_session_read_locked(*value);
+    }
+  } else if (value->type == "CloseFamilyMedia") {
+    value->private_media_view_handle = top_level_json_string(command, "viewHandle");
+    if (value->private_media_view_handle.size() < 8U || value->private_media_view_handle.size() > 256U ||
+        value->private_media_view_handle.find_first_not_of(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-") != std::string::npos) {
+      return fail("FAMILY_MEDIA_RESOURCE_UNAVAILABLE");
+    }
+    set_account_effect_locked(*value, "MediaPlaybackEffect",
+        "{\"action\":\"closeVerifiedMedia\",\"viewHandle\":\"" +
+        json_escape(value->private_media_view_handle) + "\"}", "PRIVATE_MEDIA_VIEW_CLOSE");
+  } else if (value->type == "SubmitFeedback") {
+    value->feedback_category = top_level_json_string(command, "category");
+    value->feedback_description = top_level_json_string(command, "description");
+    value->feedback_contact = top_level_json_string(command, "contact");
+    value->feedback_app_version = top_level_json_string(command, "appVersion");
+    value->feedback_os_version = top_level_json_string(command, "osVersion");
+    value->idempotency_key = top_level_json_string(command, "idempotencyKey");
+    const bool valid_category = value->feedback_category == "ACCOUNT" ||
+        value->feedback_category == "PERMISSION" || value->feedback_category == "BACKUP" ||
+        value->feedback_category == "BROWSE_PLAYBACK" || value->feedback_category == "SHARING" ||
+        value->feedback_category == "TRASH" || value->feedback_category == "OTHER";
+    const bool valid_idempotency = value->idempotency_key.size() >= 8U &&
+        value->idempotency_key.size() <= 128U &&
+        value->idempotency_key.find_first_not_of(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-") == std::string::npos;
+    if (!valid_category || value->feedback_description.empty() ||
+        value->feedback_description.size() > 4000U || value->feedback_contact.size() > 800U ||
+        value->feedback_app_version.empty() || value->feedback_app_version.size() > 64U ||
+        value->feedback_os_version.empty() || value->feedback_os_version.size() > 128U ||
+        !valid_idempotency) {
+      return fail("FEEDBACK_INVALID");
+    }
+    value->continuation = "FEEDBACK_SUBMIT";
+    issue_session_read_locked(*value);
   } else if (value->type == "StartForegroundLocalScan") {
     value->user_id = top_level_json_string(command, "userId");
     if (value->user_id.empty() || value->user_id.size() > 128U) {
@@ -3761,6 +4033,13 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_TRASH" ||
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_SAVE_ACCESS" ||
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_VIEW_ACCESS" ||
+        operation.stage == "TRANSPORT_PRIVATE_MEDIA_SHARE" ||
+        operation.stage == "TRANSPORT_FAMILY_MEDIA_LIST" ||
+        operation.stage == "TRANSPORT_FAMILY_MEDIA_DETAIL" ||
+        operation.stage == "TRANSPORT_FAMILY_MEDIA_VIEW_ACCESS" ||
+        operation.stage == "TRANSPORT_TRASH_MEDIA_LIST" ||
+        operation.stage == "TRANSPORT_TRASH_MEDIA_RESTORE" ||
+        operation.stage == "TRANSPORT_FEEDBACK_SUBMIT" ||
         operation.stage == "TRANSPORT_AVATAR_CREATE" ||
         operation.stage == "TRANSPORT_AVATAR_COMPLETE" ||
         operation.stage == "TRANSPORT_MEDIA_UPLOAD_STATUS" ||
@@ -3873,10 +4152,14 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
       wipe_string(response_body);
       return cached_profile_or_error("PRIVATE_MEDIA_RESPONSE_INVALID", false, request_id);
     }
+    const std::string response_page = read_private_media_page_v2_locked(
+        static_cast<int>(operation.media_limit), response_body);
     wipe_string(response_body);
+    if (response_page.empty()) {
+      return cached_profile_or_error("PRIVATE_MEDIA_RESPONSE_INVALID", false, request_id);
+    }
     operation.status = "COMPLETED";
-    operation.terminal_payload = read_private_media_page_v2_locked(
-        static_cast<int>(operation.media_limit));
+    operation.terminal_payload = response_page;
     operation.clear_sensitive();
     return account_operation_step_locked(operation, result);
   }
@@ -3908,6 +4191,210 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
     operation.terminal_payload = "{\"mediaId\":\"" + json_escape(response_media_id) +
         "\",\"outcome\":\"" + json_escape(outcome) + "\",\"trashedAt\":\"" +
         json_escape(trashed_at) + "\"}";
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_PRIVATE_MEDIA_SHARE") {
+    const std::string response_media_id = sqlite_json_text(database_, response_body, "$.media_id");
+    const std::string state = sqlite_json_text(database_, response_body, "$.state");
+    const std::string outcome = sqlite_json_text(database_, response_body, "$.outcome");
+    const std::string effective_at = sqlite_json_text(database_, response_body, "$.effective_at");
+    wipe_string(response_body);
+    const std::string expected_state = operation.private_media_share_active ? "ACTIVE" : "INACTIVE";
+    const bool valid_outcome = operation.private_media_share_active
+        ? (outcome == "SHARED" || outcome == "ALREADY_SHARED")
+        : (outcome == "UNSHARED" || outcome == "ALREADY_UNSHARED");
+    if (response_media_id != operation.private_media_id || state != expected_state ||
+        !valid_outcome || effective_at.empty()) {
+      return cached_profile_or_error("PRIVATE_MEDIA_SHARE_CONFLICT", false, request_id);
+    }
+    ++event_sequence_;
+    emit_locked("{\"contractVersion\":\"stage06-v1\",\"type\":\"PrivateMediaShareChanged\",\"sequence\":" +
+                std::to_string(event_sequence_) + ",\"mediaId\":\"" +
+                json_escape(response_media_id) + "\",\"state\":\"" + json_escape(state) + "\"}");
+    operation.status = "COMPLETED";
+    operation.terminal_payload = "{\"mediaId\":\"" + json_escape(response_media_id) +
+        "\",\"state\":\"" + json_escape(state) + "\",\"outcome\":\"" +
+        json_escape(outcome) + "\",\"effectiveAt\":\"" + json_escape(effective_at) + "\"}";
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_FAMILY_MEDIA_LIST") {
+    const int64_t count = json_array_length(database_, response_body, "$.items");
+    if (count < 0 || count > 100) {
+      wipe_string(response_body);
+      return cached_profile_or_error("FAMILY_MEDIA_RESPONSE_INVALID", false, request_id);
+    }
+    std::string page = "{\"items\":[";
+    for (int64_t index = 0; index < count; ++index) {
+      const std::string base = "$.items[" + std::to_string(index) + "]";
+      const std::string id = sqlite_json_text(database_, response_body, base + ".id");
+      const std::string owner_id = sqlite_json_text(database_, response_body, base + ".owner.id");
+      const std::string nickname = sqlite_json_text(database_, response_body, base + ".owner.nickname");
+      const std::string media_type = sqlite_json_text(database_, response_body, base + ".media_type");
+      const std::string captured_at = sqlite_json_text(database_, response_body, base + ".captured_at");
+      const std::string created_at = sqlite_json_text(database_, response_body, base + ".created_at");
+      const std::string duration = sqlite_json_text(database_, response_body, base + ".duration_ms");
+      const int64_t size = sqlite_json_integer(database_, response_body, base + ".original_total_size", -1);
+      if (id.size() != 36U || owner_id.size() != 36U || nickname.empty() || media_type.empty() ||
+          captured_at.empty() || created_at.empty() || size < 0) {
+        wipe_string(response_body);
+        return cached_profile_or_error("FAMILY_MEDIA_RESPONSE_INVALID", false, request_id);
+      }
+      if (index > 0) page += ',';
+      page += "{\"id\":\"" + json_escape(id) + "\",\"owner\":{\"id\":\"" +
+          json_escape(owner_id) + "\",\"nickname\":\"" + json_escape(nickname) +
+          "\"},\"mediaType\":\"" + json_escape(media_type) + "\",\"capturedAt\":\"" +
+          json_escape(captured_at) + "\",\"createdAt\":\"" + json_escape(created_at) +
+          "\",\"durationMs\":" + (duration.empty() ? std::string("null") : duration) +
+          ",\"originalTotalSize\":" + std::to_string(size) + "}";
+    }
+    const std::string cursor = sqlite_json_text(database_, response_body, "$.next_cursor");
+    wipe_string(response_body);
+    page += "],\"nextCursor\":" + (cursor.empty() ? std::string("null") :
+        "\"" + json_escape(cursor) + "\"") + ",\"fullyLoaded\":" +
+        (cursor.empty() ? "true" : "false") + "}";
+    operation.status = "COMPLETED";
+    operation.terminal_payload = page;
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_FAMILY_MEDIA_DETAIL") {
+    const std::string id = sqlite_json_text(database_, response_body, "$.id");
+    const std::string owner_id = sqlite_json_text(database_, response_body, "$.owner.id");
+    const std::string nickname = sqlite_json_text(database_, response_body, "$.owner.nickname");
+    const std::string media_type = sqlite_json_text(database_, response_body, "$.media_type");
+    const std::string captured_at = sqlite_json_text(database_, response_body, "$.captured_at");
+    const std::string created_at = sqlite_json_text(database_, response_body, "$.created_at");
+    const std::string width = sqlite_json_text(database_, response_body, "$.width");
+    const std::string height = sqlite_json_text(database_, response_body, "$.height");
+    const std::string duration = sqlite_json_text(database_, response_body, "$.duration_ms");
+    const int64_t size = sqlite_json_integer(database_, response_body, "$.original_total_size", -1);
+    const int64_t resource_count = json_array_length(database_, response_body, "$.resources");
+    if (id != operation.private_media_id || owner_id.size() != 36U || nickname.empty() ||
+        media_type.empty() || captured_at.empty() || created_at.empty() || size < 0 ||
+        resource_count < 1 || resource_count > 8) {
+      wipe_string(response_body);
+      return cached_profile_or_error("FAMILY_MEDIA_RESPONSE_INVALID", false, request_id);
+    }
+    std::string detail = "{\"id\":\"" + json_escape(id) + "\",\"owner\":{\"id\":\"" +
+        json_escape(owner_id) + "\",\"nickname\":\"" + json_escape(nickname) +
+        "\"},\"mediaType\":\"" + json_escape(media_type) + "\",\"capturedAt\":\"" +
+        json_escape(captured_at) + "\",\"createdAt\":\"" + json_escape(created_at) +
+        "\",\"width\":" + (width.empty() ? std::string("null") : width) +
+        ",\"height\":" + (height.empty() ? std::string("null") : height) +
+        ",\"durationMs\":" + (duration.empty() ? std::string("null") : duration) +
+        ",\"originalTotalSize\":" + std::to_string(size) + ",\"resources\":[";
+    for (int64_t index = 0; index < resource_count; ++index) {
+      const std::string base = "$.resources[" + std::to_string(index) + "]";
+      const std::string resource_id = sqlite_json_text(database_, response_body, base + ".resource_id");
+      const std::string resource_type = sqlite_json_text(database_, response_body, base + ".resource_type");
+      const std::string mime_type = sqlite_json_text(database_, response_body, base + ".mime_type");
+      const std::string digest = sqlite_json_text(database_, response_body, base + ".content_sha256");
+      const int64_t resource_size = sqlite_json_integer(database_, response_body, base + ".content_size", -1);
+      if (resource_id.size() != 36U || resource_type.empty() || mime_type.empty() || digest.empty() || resource_size < 1) {
+        wipe_string(response_body);
+        return cached_profile_or_error("FAMILY_MEDIA_RESPONSE_INVALID", false, request_id);
+      }
+      if (index > 0) detail += ',';
+      detail += "{\"resourceId\":\"" + json_escape(resource_id) +
+          "\",\"resourceType\":\"" + json_escape(resource_type) +
+          "\",\"mimeType\":\"" + json_escape(mime_type) +
+          "\",\"contentSize\":" + std::to_string(resource_size) +
+          ",\"contentSha256\":\"" + json_escape(digest) + "\"}";
+    }
+    wipe_string(response_body);
+    detail += "]}";
+    operation.status = "COMPLETED";
+    operation.terminal_payload = detail;
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_FAMILY_MEDIA_VIEW_ACCESS") {
+    if (!prepare_private_media_view_resource_locked(operation, response_body)) {
+      wipe_string(response_body);
+      return cached_profile_or_error("FAMILY_MEDIA_RESOURCE_UNAVAILABLE", false, request_id);
+    }
+    wipe_string(response_body);
+    set_account_effect_locked(operation, "FileEffect",
+        "{\"action\":\"createTaskTempFile\",\"name\":\"private-view-" +
+        std::to_string(operation.operation_id) + "\"}", "PRIVATE_MEDIA_VIEW_CREATE_TEMP");
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_TRASH_MEDIA_LIST") {
+    const int64_t count = json_array_length(database_, response_body, "$.items");
+    if (count < 0 || count > 100) {
+      wipe_string(response_body);
+      return cached_profile_or_error("TRASH_MEDIA_RESPONSE_INVALID", false, request_id);
+    }
+    std::string page = "{\"items\":[";
+    for (int64_t index = 0; index < count; ++index) {
+      const std::string base = "$.items[" + std::to_string(index) + "]";
+      const std::string id = sqlite_json_text(database_, response_body, base + ".id");
+      const std::string media_type = sqlite_json_text(database_, response_body, base + ".media_type");
+      const std::string captured_at = sqlite_json_text(database_, response_body, base + ".captured_at");
+      const std::string created_at = sqlite_json_text(database_, response_body, base + ".created_at");
+      const std::string trashed_at = sqlite_json_text(database_, response_body, base + ".trashed_at");
+      const std::string duration = sqlite_json_text(database_, response_body, base + ".duration_ms");
+      const int64_t size = sqlite_json_integer(database_, response_body, base + ".original_total_size", -1);
+      if (id.size() != 36U || media_type.empty() || captured_at.empty() || created_at.empty() ||
+          trashed_at.empty() || size < 0) {
+        wipe_string(response_body);
+        return cached_profile_or_error("TRASH_MEDIA_RESPONSE_INVALID", false, request_id);
+      }
+      if (index > 0) page += ',';
+      page += "{\"id\":\"" + json_escape(id) + "\",\"mediaType\":\"" +
+          json_escape(media_type) + "\",\"capturedAt\":\"" + json_escape(captured_at) +
+          "\",\"createdAt\":\"" + json_escape(created_at) + "\",\"durationMs\":" +
+          (duration.empty() ? std::string("null") : duration) + ",\"originalTotalSize\":" +
+          std::to_string(size) + ",\"trashedAt\":\"" + json_escape(trashed_at) + "\"}";
+    }
+    const std::string cursor = sqlite_json_text(database_, response_body, "$.next_cursor");
+    wipe_string(response_body);
+    page += "],\"nextCursor\":" + (cursor.empty() ? std::string("null") :
+        "\"" + json_escape(cursor) + "\"") + ",\"fullyLoaded\":" +
+        (cursor.empty() ? "true" : "false") + "}";
+    operation.status = "COMPLETED";
+    operation.terminal_payload = page;
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_TRASH_MEDIA_RESTORE") {
+    const std::string id = sqlite_json_text(database_, response_body, "$.media_id");
+    const std::string outcome = sqlite_json_text(database_, response_body, "$.outcome");
+    const std::string restored_at = sqlite_json_text(database_, response_body, "$.restored_at");
+    wipe_string(response_body);
+    if (id != operation.private_media_id ||
+        (outcome != "RESTORED" && outcome != "ALREADY_RESTORED") || restored_at.empty()) {
+      return cached_profile_or_error("TRASH_RESTORE_CONFLICT", false, request_id);
+    }
+    ++event_sequence_;
+    emit_locked("{\"contractVersion\":\"stage06-v1\",\"type\":\"PrivateMediaRestored\",\"sequence\":" +
+                std::to_string(event_sequence_) + ",\"mediaId\":\"" + json_escape(id) + "\"}");
+    operation.status = "COMPLETED";
+    operation.terminal_payload = "{\"mediaId\":\"" + json_escape(id) +
+        "\",\"outcome\":\"" + json_escape(outcome) + "\",\"restoredAt\":\"" +
+        json_escape(restored_at) + "\"}";
+    operation.clear_sensitive();
+    return account_operation_step_locked(operation, result);
+  }
+  if (operation.stage == "TRANSPORT_FEEDBACK_SUBMIT") {
+    const std::string feedback_id = sqlite_json_text(database_, response_body, "$.feedback_id");
+    const std::string outcome = sqlite_json_text(database_, response_body, "$.outcome");
+    const std::string created_at = sqlite_json_text(database_, response_body, "$.created_at");
+    wipe_string(response_body);
+    if (feedback_id.size() != 36U ||
+        (outcome != "SUBMITTED" && outcome != "ALREADY_SUBMITTED") || created_at.empty()) {
+      return cached_profile_or_error("FEEDBACK_RESPONSE_INVALID", false, request_id);
+    }
+    ++event_sequence_;
+    emit_locked("{\"contractVersion\":\"stage06-v1\",\"type\":\"FeedbackSubmitted\",\"sequence\":" +
+                std::to_string(event_sequence_) + ",\"feedbackId\":\"" +
+                json_escape(feedback_id) + "\"}");
+    operation.status = "COMPLETED";
+    operation.terminal_payload = "{\"feedbackId\":\"" + json_escape(feedback_id) +
+        "\",\"outcome\":\"" + json_escape(outcome) + "\",\"createdAt\":\"" +
+        json_escape(created_at) + "\"}";
     operation.clear_sensitive();
     return account_operation_step_locked(operation, result);
   }
@@ -4159,7 +4646,8 @@ mineg_error_code_t Core::start_operation(uint64_t operation_id, const std::strin
   const std::string contract_version = top_level_json_string(command, "contractVersion");
   if (contract_version == "account-v3" ||
       contract_version == "stage02-v2" || contract_version == "stage03-v2" ||
-      contract_version == "stage04-v1" || contract_version == "stage05-v1") {
+      contract_version == "stage04-v1" || contract_version == "stage05-v1" ||
+      contract_version == "stage06-v1") {
     std::lock_guard<std::mutex> lock(mutex_);
     if (cancelled_operations_.erase(operation_id) > 0) return MINEG_CANCELLED;
     return start_account_operation_locked(operation_id, command, result);

@@ -18,7 +18,7 @@ describe('api client', () => {
       'restoreAdminSession',
       'runPlatformProbe',
     ])
-    expect(Object.keys(apiClient).join(' ')).not.toMatch(/avatar|bundle|grant|profile|media|member/i)
+    expect(Object.keys(apiClient).join(' ')).not.toMatch(/avatar|bundle|grant|profile|media|member|family|trash|feedback/i)
   })
 
   it('sends cookie and CSRF configuration without Web Storage tokens', async () => {

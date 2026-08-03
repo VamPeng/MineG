@@ -1,7 +1,7 @@
 {
   "contractVersion": "stage04-v1",
   "version": "1.0.0",
-  "status": "BASELINED",
+  "status": "FROZEN",
   "scope": "M4_PERSISTENT_BACKUP_QUEUE_AND_AUTO_BACKUP",
   "architecture": {
     "businessOrchestrator": "C++ Core",

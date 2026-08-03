@@ -1,5 +1,7 @@
 package com.mineg.mobile.app
 
+import com.mineg.mobile.contracts.LocalMediaCursor
+
 sealed interface AppRoute {
   data object Restoring : AppRoute
   data object Login : AppRoute
@@ -71,10 +73,13 @@ enum class MediaActionState {
 }
 
 enum class FeedbackCategory(val label: String) {
-  BACKUP("备份问题"),
-  MEDIA("照片与视频"),
   ACCOUNT("账号问题"),
-  SUGGESTION("产品建议"),
+  PERMISSION("权限问题"),
+  BACKUP("备份问题"),
+  BROWSE_PLAYBACK("浏览与播放"),
+  SHARING("共享问题"),
+  TRASH("回收站"),
+  OTHER("其他"),
 }
 
 data class UserProfile(
@@ -135,13 +140,14 @@ data class PrivateSpaceUiState(
   val loadingMore: Boolean = false,
   val previewLoadingIds: Set<String> = emptySet(),
   val previewUnavailableIds: Set<String> = emptySet(),
-  val previewViewHandles: Map<String, String> = emptyMap(),
   val errorMessage: String? = null,
 )
 
 data class FamilyAlbumUiState(
   val loadState: PageLoadState = PageLoadState.CONTENT,
   val items: List<MediaItem> = emptyList(),
+  val nextCursor: String? = null,
+  val fullyLoaded: Boolean = true,
   val errorMessage: String? = null,
 )
 
@@ -160,11 +166,19 @@ data class BackupUiState(
   val localMediaSyncStates: Map<String, LocalMediaSyncState> = emptyMap(),
   val albums: List<LocalAlbum> = emptyList(),
   val localMedia: List<MediaItem> = emptyList(),
+  val localMediaNextCursor: LocalMediaCursor? = null,
+  val localMediaInitialLoading: Boolean = false,
+  val localMediaLoadingMore: Boolean = false,
+  val localMediaFullyLoaded: Boolean = true,
+  val localMediaErrorMessage: String? = null,
 )
 
 data class RecycleBinUiState(
   val loadState: PageLoadState = PageLoadState.CONTENT,
   val items: List<DeletedMedia> = emptyList(),
+  val nextCursor: String? = null,
+  val fullyLoaded: Boolean = true,
+  val errorMessage: String? = null,
 )
 
 data class FeedbackUiState(
@@ -173,6 +187,7 @@ data class FeedbackUiState(
   val contact: String = "",
   val submitting: Boolean = false,
   val submitted: Boolean = false,
+  val feedbackId: String? = null,
   val errorMessage: String? = null,
 )
 
@@ -182,11 +197,18 @@ sealed interface AppDialog {
   data object Logout : AppDialog
 }
 
+data class MediaListScrollPosition(
+  val firstVisibleItemIndex: Int = 0,
+  val firstVisibleItemScrollOffset: Int = 0,
+)
+
 data class MineGAppState(
   val currentRoute: AppRoute = AppRoute.Restoring,
   val backStack: List<AppRoute> = emptyList(),
   val selectedTab: MainTab = MainTab.PRIVATE_SPACE,
   val selectedLibraryTab: LibraryTab = LibraryTab.PRIVATE,
+  val privateMediaListScrollPosition: MediaListScrollPosition = MediaListScrollPosition(),
+  val familyMediaListScrollPosition: MediaListScrollPosition = MediaListScrollPosition(),
   val auth: AuthUiState = AuthUiState(),
   val profile: UserProfile? = null,
   val profileDraftNickname: String = "",

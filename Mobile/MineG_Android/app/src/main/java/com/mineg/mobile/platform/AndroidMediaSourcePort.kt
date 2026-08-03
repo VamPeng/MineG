@@ -198,6 +198,17 @@ class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
     )
   }
 
+  /** Resolves a current MediaStore item and proves that it can still be opened for reading. */
+  internal fun resolveAvailableMediaUri(platformAssetRef: String): String? {
+    if (getPermissionSnapshot().library != LibraryPermissionState.FULL) return null
+    val id = assetId(platformAssetRef)
+    if (id <= 0) return null
+    val uri = ContentUris.withAppendedId(COLLECTION, id)
+    return runCatching {
+      context.contentResolver.openFileDescriptor(uri, "r")?.use { uri.toString() }
+    }.getOrNull()
+  }
+
   private fun android.database.Cursor.string(column: String): String =
     getString(getColumnIndexOrThrow(column)).orEmpty()
 

@@ -1,6 +1,6 @@
 # MineG MVP 分阶段执行计划
 
-> 当前基线（2026-07-30）：所有业务服务和 PostgreSQL 部署在公网 ECS，媒体保存在私有阿里云 OSS；客户端通过 HTTPS/TLS 上传和加载媒体，不执行应用层媒体加密。阶段 00～03D 的已实现结果保留，旧媒体密文字段仅作为兼容迁移输入，不得继续扩展。
+> 当前基线（2026-08-03）：所有业务服务和 PostgreSQL 部署在公网 ECS，媒体保存在私有阿里云 OSS；客户端通过 HTTPS/TLS 上传和加载媒体，不执行应用层媒体加密。项目负责人确认 Android MVP 主流程已经完成：阶段 04 关闭且不再安排后续收尾矩阵，阶段 05 进入不改变冻结行为的持续优化，阶段 06 正式开始。
 
 ## 1. 计划用途
 
@@ -23,9 +23,9 @@
 | 02 资料、权限与本地相册 | [后端](./02-keys-profile-local-media/backend.md) / [前端](./02-keys-profile-local-media/frontend.md) / [移动端](./02-keys-profile-local-media/mobile.md) | B2 / A3 冻结 / M2 | F-03、F-04、F-05、F-06 | 资料、授权与本地索引；旧 key grant 仅兼容 | 01 |
 | 03 单媒体上传（旧密文实现迁移输入） | [后端](./03-single-media-backup/backend.md) / [前端](./03-single-media-backup/frontend.md) / [移动端](./03-single-media-backup/mobile.md) | B3 / 管理端回归 / M3 | F-08 单媒体子集 | ECS 授权的私有 OSS 单媒体上传闭环；媒体不做客户端加密 | 02 |
 | 03D Android 数据层主权迁移 | 后端 B1～B3 回归 / 管理端回归 / [Android/C++ 迁移](../../Mobile/docs/android-data-layer-migration.md) / [批次 D 需求](./02-keys-profile-local-media/batch-d-requirements.md) / [批次 D 技术方案](../../Mobile/docs/batch-d-local-index-settings.md) | M3-D | 不新增功能 | Core 数据主权、PlatformEffect 与平台扫描门禁 | 03 |
-| 04 完整队列与自动备份（主流程验收完成） | [技术方案](./04-backup-queue/technical-design.md) / [后端](./04-backup-queue/backend.md) / [前端](./04-backup-queue/frontend.md) / [移动端](./04-backup-queue/mobile.md) | B3+B4 / 管理端回归 / M4 | F-08 完整队列 | 历史/增量扫描、断点续传、备份状态 | 03D |
-| 05 私人媒体闭环 | [技术方案](./05-private-media/technical-design.md) / [后端](./05-private-media/backend.md) / [前端](./05-private-media/frontend.md) / [移动端](./05-private-media/mobile.md) | B4+B6 删除子集 / 管理端回归 / M5 | F-09、F-10、F-13 删除子集 | 私人空间、原文件保存和逻辑删除 | 04 |
-| 06 家庭、回收站与反馈 | [后端](./06-family-trash-feedback/backend.md) / [前端](./06-family-trash-feedback/frontend.md) / [移动端](./06-family-trash-feedback/mobile.md) | B5+B6+B7 功能子集 / 管理端回归 / M6 | F-11、F-12、F-13、F-14 | 分享、家庭只读、恢复、帮助反馈 | 05 |
+| 04 完整队列与自动备份（已关闭） | [技术方案](./04-backup-queue/technical-design.md) / [后端](./04-backup-queue/backend.md) / [前端](./04-backup-queue/frontend.md) / [移动端](./04-backup-queue/mobile.md) | B3+B4 / 管理端回归 / M4 | F-08 完整队列 | 历史/增量扫描、断点续传、备份状态 | 03D |
+| 05 私人媒体闭环（MVP 已完成，持续优化） | [技术方案](./05-private-media/technical-design.md) / [后端](./05-private-media/backend.md) / [前端](./05-private-media/frontend.md) / [移动端](./05-private-media/mobile.md) | B4+B6 删除子集 / 管理端回归 / M5 | F-09、F-10、F-13 删除子集 | 私人空间、原文件保存和逻辑删除 | 04 |
+| 06 家庭、回收站与反馈（进行中） | [后端](./06-family-trash-feedback/backend.md) / [前端](./06-family-trash-feedback/frontend.md) / [移动端](./06-family-trash-feedback/mobile.md) | B5+B6+B7 功能子集 / 管理端回归 / M6 | F-11、F-12、F-13、F-14 | 分享、家庭只读、恢复、帮助反馈 | 05 |
 | 07 iOS 契约一致实现 | [后端](./07-ios-parity/backend.md) / [前端](./07-ios-parity/frontend.md) / [移动端](./07-ios-parity/mobile.md) | B7 观测 / 管理端回归 / M7 | F-01～F-14 iOS | iOS 全功能一致 | 06 |
 | 08 HarmonyOS 契约一致实现 | [后端](./08-harmonyos-parity/backend.md) / [前端](./08-harmonyos-parity/frontend.md) / [移动端](./08-harmonyos-parity/mobile.md) | B7 观测 / 管理端回归 / M8 | F-01～F-14 HarmonyOS | 三端全功能一致 | 07 |
 | 09 发布候选与故障演练 | [后端](./09-release-hardening/backend.md) / [前端](./09-release-hardening/frontend.md) / [移动端](./09-release-hardening/mobile.md) | 全系统加固 | F-01～F-14 回归 | RC、恢复演练、安全与性能报告 | 08 |
@@ -35,6 +35,8 @@
 2026-07-30 增加 M3-D 数据层主权门禁：阶段 01～03 的历史验收不回写，但阶段 04 开始前必须完成[Android 已实现数据层迁移](../../Mobile/docs/android-data-layer-migration.md)。该门禁不新增产品功能，只把已经位于 Kotlin 的业务数据处理迁回 C++ Core，并建立 PlatformEffect 与静态扫描约束。
 
 同日增加批次 E1 准入纠偏：新注册不创建或提交 key bundle，管理员审核后直接 `APPROVED`；旧 key bundle、family envelope 和 key-grant 表/API/C ABI 暂留一个兼容周期，但不得参与生产准入或新媒体链路。历史阶段 01/02 计划与验收记录是当时证据，不作为当前行为定义。
+
+2026-08-03 项目负责人更新阶段门禁：阶段 04 以后不再补做原验收记录中的保留异常矩阵，该矩阵不属于本次项目计划；阶段 05 按已完成 MVP 行为冻结，缩略图缓存、分页和播放器等工作作为不改变公共语义的优化继续实施。阶段 06 不依赖上述已撤销矩阵。
 
 ## 3. 执行规则
 

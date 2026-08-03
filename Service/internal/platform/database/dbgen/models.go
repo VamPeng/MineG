@@ -83,6 +83,33 @@ type MinegDevice struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
+type MinegFamilyMembership struct {
+	UserID     pgtype.UUID        `json:"user_id"`
+	FamilyID   pgtype.UUID        `json:"family_id"`
+	MemberSlot int16              `json:"member_slot"`
+	JoinedAt   pgtype.Timestamptz `json:"joined_at"`
+}
+
+type MinegFeedback struct {
+	ID                   pgtype.UUID        `json:"id"`
+	UserID               pgtype.UUID        `json:"user_id"`
+	Category             string             `json:"category"`
+	Description          string             `json:"description"`
+	Contact              pgtype.Text        `json:"contact"`
+	AppVersion           string             `json:"app_version"`
+	Platform             string             `json:"platform"`
+	OsVersion            string             `json:"os_version"`
+	DeviceInstallationID string             `json:"device_installation_id"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+}
+
+type MinegFeedbackRequest struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	IdempotencyKey string      `json:"idempotency_key"`
+	RequestHash    []byte      `json:"request_hash"`
+	FeedbackID     pgtype.UUID `json:"feedback_id"`
+}
+
 type MinegMediaAlbumLink struct {
 	MediaID   pgtype.UUID        `json:"media_id"`
 	AlbumID   pgtype.UUID        `json:"album_id"`
@@ -131,6 +158,15 @@ type MinegRegistrationRequest struct {
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
+type MinegRestoreRequest struct {
+	OwnerID        pgtype.UUID        `json:"owner_id"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	MediaID        pgtype.UUID        `json:"media_id"`
+	RequestHash    []byte             `json:"request_hash"`
+	Outcome        string             `json:"outcome"`
+	RestoredAt     pgtype.Timestamptz `json:"restored_at"`
+}
+
 type MinegShare struct {
 	MediaID    pgtype.UUID        `json:"media_id"`
 	OwnerID    pgtype.UUID        `json:"owner_id"`
@@ -139,6 +175,16 @@ type MinegShare struct {
 	SharedAt   pgtype.Timestamptz `json:"shared_at"`
 	UnsharedAt pgtype.Timestamptz `json:"unshared_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type MinegShareRequest struct {
+	OwnerID        pgtype.UUID        `json:"owner_id"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	MediaID        pgtype.UUID        `json:"media_id"`
+	RequestedState string             `json:"requested_state"`
+	RequestHash    []byte             `json:"request_hash"`
+	Outcome        string             `json:"outcome"`
+	EffectiveAt    pgtype.Timestamptz `json:"effective_at"`
 }
 
 type MinegTrashRecord struct {

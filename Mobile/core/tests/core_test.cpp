@@ -195,7 +195,8 @@ int main() {
   const std::string private_page_response =
       "{\"items\":[{\"id\":\"" + saved_media_id +
       "\",\"media_type\":\"PHOTO\",\"captured_at\":\"2026-08-01T00:00:00Z\","
-      "\"created_at\":\"2026-08-01T00:00:00Z\",\"original_total_size\":3}],\"next_cursor\":null}";
+      "\"created_at\":\"2026-08-01T00:00:00Z\",\"original_total_size\":3}],"
+      "\"next_cursor\":\"cursor-page-2\"}";
   const std::string refresh_response = successful_effect(12, 2, "TransportEffect",
       "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-refresh\","
       "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(private_page_response) + "\"}");
@@ -203,6 +204,43 @@ int main() {
                                      refresh_response.size(), &result),
          MINEG_OK, "persist stage05 private media page");
   assert(as_string(result).find("COMPLETED") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string load_more_private_media =
+      R"({"contractVersion":"stage05-v1","type":"LoadMorePrivateMedia","limit":50,"allowCached":true})";
+  expect(mineg_core_start_operation(
+             core, 120, reinterpret_cast<const uint8_t *>(load_more_private_media.data()),
+             load_more_private_media.size(), &result),
+         MINEG_OK, "start stage05 private media load more");
+  assert(as_string(result).find("TransportEffect") != std::string::npos);
+  assert(as_string(result).find("cursor=cursor-page-2") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string second_media_id = "33333333-3333-4333-8333-333333333333";
+  const std::string second_page_response_body =
+      "{\"items\":[{\"id\":\"" + second_media_id +
+      "\",\"media_type\":\"VIDEO\",\"captured_at\":\"2026-07-31T00:00:00Z\","
+      "\"created_at\":\"2026-07-31T00:00:00Z\",\"duration_ms\":1000,"
+      "\"original_total_size\":4}],\"next_cursor\":null}";
+  const std::string load_more_response = successful_effect(120, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-load-more\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" +
+      base64_encode(second_page_response_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 120,
+                                     reinterpret_cast<const uint8_t *>(load_more_response.data()),
+                                     load_more_response.size(), &result),
+         MINEG_OK, "persist second stage05 private media page");
+  const std::string load_more_result = as_string(result);
+  assert(load_more_result.find("COMPLETED") != std::string::npos);
+  assert(load_more_result.find(second_media_id) != std::string::npos);
+  assert(load_more_result.find(saved_media_id) == std::string::npos);
+  assert(load_more_result.find("\"fullyLoaded\":true") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(private_media_page.data()),
+                          private_media_page.size(), &result),
+         MINEG_OK, "read accumulated stage05 private media pages");
+  assert(as_string(result).find(saved_media_id) != std::string::npos);
+  assert(as_string(result).find(second_media_id) != std::string::npos);
   mineg_buffer_free(&result);
 
   const std::string save_command = "{\"contractVersion\":\"stage05-v1\",\"type\":\"SavePrivateMediaToSystemAlbum\",\"mediaId\":\"" +
@@ -270,6 +308,60 @@ int main() {
   assert(as_string(result).find("\"state\":\"COMPLETED\"") != std::string::npos);
   assert(as_string(result).find("signed_url") == std::string::npos);
   assert(as_string(result).find("object.example.test") == std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string indexed_saved_media =
+      "{\"version\":1,\"type\":\"ApplyLocalMediaBatch\",\"userId\":\"user-1\","
+      "\"scanGeneration\":\"saved-media-generation\",\"updatedAt\":\"2026-08-02T00:03:00Z\","
+      "\"albums\":[{\"platformAlbumRef\":\"camera\",\"name\":\"Camera\"}],\"media\":[{"
+      "\"platformAssetRef\":\"android:media-store:123\",\"mediaType\":\"PHOTO\","
+      "\"mimeType\":\"image/jpeg\",\"width\":100,\"height\":100,\"durationMs\":null,"
+      "\"capturedAt\":\"2026-08-01T00:00:00Z\",\"modifiedAt\":\"2026-08-02T00:03:00Z\","
+      "\"modifiedVersion\":3,\"contentVersion\":\"saved-version\",\"availability\":\"AVAILABLE\","
+      "\"thumbnailUri\":\"content://media/external/file/123\"}],\"relations\":[{"
+      "\"platformAssetRef\":\"android:media-store:123\",\"platformAlbumRef\":\"camera\"}],\"complete\":true}";
+  expect(mineg_core_execute(core, 130,
+                            reinterpret_cast<const uint8_t *>(indexed_saved_media.data()),
+                            indexed_saved_media.size(), &result),
+         MINEG_OK, "index saved cloud media in the active local library");
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(private_media_page.data()),
+                          private_media_page.size(), &result),
+         MINEG_OK, "map cloud media page to an available local original");
+  assert(as_string(result).find("\"localPlatformAssetRef\":\"android:media-store:123\"") !=
+         std::string::npos);
+  assert(as_string(result).find("\"localSourceUri\":\"content://media/external/file/123\"") !=
+         std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string mapped_media_detail =
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaDetail\",\"mediaId\":\"" +
+      saved_media_id + "\"}";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
+                          mapped_media_detail.size(), &result),
+         MINEG_OK, "map cloud media detail to an available local original");
+  assert(as_string(result).find("\"localSourceUri\":\"content://media/external/file/123\"") !=
+         std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string indexed_without_saved_media =
+      "{\"version\":1,\"type\":\"ApplyLocalMediaBatch\",\"userId\":\"user-1\","
+      "\"scanGeneration\":\"saved-media-removed-generation\",\"updatedAt\":\"2026-08-02T00:04:00Z\","
+      "\"albums\":[{\"platformAlbumRef\":\"camera\",\"name\":\"Camera\"}],\"media\":[{"
+      "\"platformAssetRef\":\"android:media-store:999\",\"mediaType\":\"PHOTO\","
+      "\"mimeType\":\"image/jpeg\",\"width\":100,\"height\":100,\"durationMs\":null,"
+      "\"capturedAt\":\"2026-08-01T00:00:00Z\",\"modifiedAt\":\"2026-08-02T00:04:00Z\","
+      "\"modifiedVersion\":4,\"contentVersion\":\"other-version\",\"availability\":\"AVAILABLE\","
+      "\"thumbnailUri\":\"content://media/external/file/999\"}],\"relations\":[{"
+      "\"platformAssetRef\":\"android:media-store:999\",\"platformAlbumRef\":\"camera\"}],\"complete\":true}";
+  expect(mineg_core_execute(core, 131,
+                            reinterpret_cast<const uint8_t *>(indexed_without_saved_media.data()),
+                            indexed_without_saved_media.size(), &result),
+         MINEG_OK, "activate a local generation without the mapped cloud media");
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
+                          mapped_media_detail.size(), &result),
+         MINEG_OK, "reject a stale cloud-to-local mapping");
+  assert(as_string(result).find("\"localPlatformAssetRef\":null") != std::string::npos);
+  assert(as_string(result).find("\"localSourceUri\":null") != std::string::npos);
   mineg_buffer_free(&result);
 
   const std::string open_thumbnail = "{\"contractVersion\":\"stage05-v1\",\"type\":\"OpenPrivateMedia\",\"mediaId\":\"" +
@@ -370,6 +462,255 @@ int main() {
                                      dynamic_download_result.size(), &result),
          MINEG_OK, "accept bounded OSS dynamic thumbnail bytes");
   assert(as_string(result).find("MediaPlaybackEffect") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string open_svg_thumbnail = "{\"contractVersion\":\"stage05-v1\",\"type\":\"OpenPrivateMedia\",\"mediaId\":\"" +
+      saved_media_id + "\",\"variant\":\"THUMBNAIL\"}";
+  expect(mineg_core_start_operation(core, 17, reinterpret_cast<const uint8_t *>(open_svg_thumbnail.data()),
+                                    open_svg_thumbnail.size(), &result),
+         MINEG_OK, "start direct SVG private media thumbnail");
+  mineg_buffer_free(&result);
+  const std::string svg_access_body =
+      "{\"media_id\":\"" + saved_media_id +
+      "\",\"purpose\":\"VIEW\",\"variant\":\"THUMBNAIL\",\"resources\":[{"
+      "\"resource_id\":\"" + resource_id +
+      "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/svg+xml\",\"content_size\":3,"
+      "\"content_sha256\":\"" + digest + "\",\"supports_range\":false,"
+      "\"delivery_mode\":\"ORIGINAL_RESOURCE\",\"grant\":{"
+      "\"url\":\"https://object.example.test/private-svg?grant=short\",\"method\":\"GET\","
+      "\"headers\":{\"X-MineG-Grant\":\"short\"},"
+      "\"expires_at\":\"2026-08-01T00:05:00Z\"}}]}";
+  const std::string svg_access_result = successful_effect(17, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-svg-view\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(svg_access_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 17, reinterpret_cast<const uint8_t *>(svg_access_result.data()),
+                                     svg_access_result.size(), &result),
+         MINEG_OK, "accept direct SVG thumbnail grant");
+  assert(as_string(result).find("createTaskTempFile") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string svg_temp_result = successful_effect(17, 2, "FileEffect",
+      "{\"path\":\"/safe/private-view-17.mineg-task\"}");
+  expect(mineg_core_resume_operation(core, 17, reinterpret_cast<const uint8_t *>(svg_temp_result.data()),
+                                     svg_temp_result.size(), &result),
+         MINEG_OK, "create direct SVG thumbnail temp file");
+  assert(as_string(result).find("\"expectedSize\":3") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string svg_download_result = successful_effect(17, 3, "TransportEffect",
+      "{\"status\":200,\"bytesWritten\":3,\"sha256Base64\":\"" + digest +
+      "\",\"contentType\":\"image/svg+xml\"}");
+  expect(mineg_core_resume_operation(core, 17, reinterpret_cast<const uint8_t *>(svg_download_result.data()),
+                                     svg_download_result.size(), &result),
+         MINEG_OK, "verify direct SVG thumbnail bytes");
+  assert(as_string(result).find("MediaPlaybackEffect") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string svg_open_result = successful_effect(17, 4, "MediaPlaybackEffect",
+      "{\"viewHandle\":\"svg-preview-handle\",\"sourceUri\":\"file:///safe/private-view-17.mineg-task\"}");
+  expect(mineg_core_resume_operation(core, 17, reinterpret_cast<const uint8_t *>(svg_open_result.data()),
+                                     svg_open_result.size(), &result),
+         MINEG_OK, "open verified direct SVG thumbnail view");
+  assert(as_string(result).find("\"mimeType\":\"image/svg+xml\"") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string open_original_detail =
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"OpenPrivateMedia\",\"mediaId\":\"" +
+      saved_media_id + "\",\"variant\":\"DETAIL\"}";
+  expect(mineg_core_start_operation(core, 180,
+                                    reinterpret_cast<const uint8_t *>(open_original_detail.data()),
+                                    open_original_detail.size(), &result),
+         MINEG_OK, "start exact original private media detail");
+  mineg_buffer_free(&result);
+  const std::string original_detail_access_body =
+      "{\"media_id\":\"" + saved_media_id +
+      "\",\"purpose\":\"VIEW\",\"variant\":\"DETAIL\",\"resources\":[{"
+      "\"resource_id\":\"" + resource_id +
+      "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/jpeg\",\"content_size\":3,"
+      "\"content_sha256\":\"" + digest + "\",\"supports_range\":false,"
+      "\"delivery_mode\":\"ORIGINAL_RESOURCE\",\"grant\":{"
+      "\"url\":\"https://object.example.test/private-original?grant=short\",\"method\":\"GET\","
+      "\"headers\":{\"X-MineG-Grant\":\"short\"},"
+      "\"expires_at\":\"2026-08-01T00:05:00Z\"}}]}";
+  const std::string original_detail_access = successful_effect(180, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-original-detail\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" +
+      base64_encode(original_detail_access_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 180,
+                                     reinterpret_cast<const uint8_t *>(original_detail_access.data()),
+                                     original_detail_access.size(), &result),
+         MINEG_OK, "accept exact original detail grant");
+  assert(as_string(result).find("createTaskTempFile") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string original_detail_temp = successful_effect(180, 2, "FileEffect",
+      "{\"path\":\"/safe/private-view-180.mineg-task\"}");
+  expect(mineg_core_resume_operation(core, 180,
+                                     reinterpret_cast<const uint8_t *>(original_detail_temp.data()),
+                                     original_detail_temp.size(), &result),
+         MINEG_OK, "create exact original detail temp file");
+  assert(as_string(result).find("\"expectedSize\":3") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string original_detail_download = successful_effect(180, 3, "TransportEffect",
+      "{\"status\":200,\"bytesWritten\":3,\"sha256Base64\":\"" + digest +
+      "\",\"contentType\":\"image/jpeg\"}");
+  expect(mineg_core_resume_operation(core, 180,
+                                     reinterpret_cast<const uint8_t *>(original_detail_download.data()),
+                                     original_detail_download.size(), &result),
+         MINEG_OK, "verify exact original detail bytes");
+  assert(as_string(result).find("MediaPlaybackEffect") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string original_detail_open = successful_effect(180, 4, "MediaPlaybackEffect",
+      "{\"viewHandle\":\"original-detail-handle\","
+      "\"sourceUri\":\"file:///safe/private-view-180.mineg-task\"}");
+  expect(mineg_core_resume_operation(core, 180,
+                                     reinterpret_cast<const uint8_t *>(original_detail_open.data()),
+                                     original_detail_open.size(), &result),
+         MINEG_OK, "open exact original detail");
+  assert(as_string(result).find("\"resourceType\":\"ORIGINAL\"") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string close_original_detail =
+      R"({"contractVersion":"stage05-v1","type":"ClosePrivateMedia","viewHandle":"original-detail-handle"})";
+  expect(mineg_core_start_operation(core, 181,
+                                    reinterpret_cast<const uint8_t *>(close_original_detail.data()),
+                                    close_original_detail.size(), &result),
+         MINEG_OK, "start exact original detail close");
+  mineg_buffer_free(&result);
+  const std::string original_detail_close = successful_effect(181, 1, "MediaPlaybackEffect",
+      "{\"closed\":true}");
+  expect(mineg_core_resume_operation(core, 181,
+                                     reinterpret_cast<const uint8_t *>(original_detail_close.data()),
+                                     original_detail_close.size(), &result),
+         MINEG_OK, "close exact original detail");
+  mineg_buffer_free(&result);
+
+  const std::string share_private_media =
+      "{\"contractVersion\":\"stage06-v1\",\"type\":\"SetPrivateMediaShare\",\"mediaId\":\"" +
+      saved_media_id +
+      "\",\"shared\":true,\"idempotencyKey\":\"share-request-0001\"}";
+  expect(mineg_core_start_operation(core, 18,
+                                    reinterpret_cast<const uint8_t *>(share_private_media.data()),
+                                    share_private_media.size(), &result),
+         MINEG_OK, "start stage06 private media share");
+  assert(as_string(result).find("/share") != std::string::npos);
+  assert(as_string(result).find("Idempotency-Key") != std::string::npos);
+  assert(as_string(result).find(base64_encode("{\"shared\":true}")) != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string share_response_body =
+      "{\"media_id\":\"" + saved_media_id +
+      "\",\"state\":\"ACTIVE\",\"outcome\":\"SHARED\","
+      "\"effective_at\":\"2026-08-03T00:00:00Z\"}";
+  const std::string share_response = successful_effect(18, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-share\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(share_response_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 18,
+                                     reinterpret_cast<const uint8_t *>(share_response.data()),
+                                     share_response.size(), &result),
+         MINEG_OK, "complete stage06 private media share");
+  assert(as_string(result).find("\"state\":\"ACTIVE\"") != std::string::npos);
+  assert(as_string(result).find("\"outcome\":\"SHARED\"") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string refresh_family_media =
+      R"({"contractVersion":"stage06-v1","type":"RefreshFamilyMedia","filter":"all","limit":50})";
+  expect(mineg_core_start_operation(core, 19,
+                                    reinterpret_cast<const uint8_t *>(refresh_family_media.data()),
+                                    refresh_family_media.size(), &result),
+         MINEG_OK, "start stage06 family media refresh");
+  assert(as_string(result).find("/api/v1/family/media?filter=all&amp;limit=50") != std::string::npos ||
+         as_string(result).find("/api/v1/family/media?filter=all&limit=50") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string family_owner_id = "44444444-4444-4444-8444-444444444444";
+  const std::string family_page_body =
+      "{\"items\":[{\"id\":\"" + saved_media_id +
+      "\",\"owner\":{\"id\":\"" + family_owner_id +
+      "\",\"nickname\":\"家人\"},\"media_type\":\"PHOTO\","
+      "\"captured_at\":\"2026-08-01T00:00:00Z\",\"created_at\":\"2026-08-01T00:00:00Z\","
+      "\"duration_ms\":null,\"original_total_size\":3}],\"next_cursor\":null}";
+  const std::string family_page_response = successful_effect(19, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-family\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(family_page_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 19,
+                                     reinterpret_cast<const uint8_t *>(family_page_response.data()),
+                                     family_page_response.size(), &result),
+         MINEG_OK, "complete stage06 family media refresh");
+  assert(as_string(result).find("\"owner\":{\"id\":\"" + family_owner_id) != std::string::npos);
+  assert(as_string(result).find("\"mediaType\":\"PHOTO\"") != std::string::npos);
+  assert(as_string(result).find("\"fullyLoaded\":true") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string refresh_trash =
+      R"({"contractVersion":"stage06-v1","type":"RefreshTrashMedia","limit":50})";
+  expect(mineg_core_start_operation(core, 20,
+                                    reinterpret_cast<const uint8_t *>(refresh_trash.data()),
+                                    refresh_trash.size(), &result),
+         MINEG_OK, "start stage06 trash refresh");
+  assert(as_string(result).find("/api/v1/trash?limit=50") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string trash_page_body =
+      "{\"items\":[{\"id\":\"" + saved_media_id +
+      "\",\"media_type\":\"PHOTO\",\"captured_at\":\"2026-08-01T00:00:00Z\","
+      "\"created_at\":\"2026-08-01T00:00:00Z\",\"duration_ms\":null,"
+      "\"original_total_size\":3,\"trashed_at\":\"2026-08-03T00:00:00Z\"}],"
+      "\"next_cursor\":null}";
+  const std::string trash_page_response = successful_effect(20, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-trash\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(trash_page_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 20,
+                                     reinterpret_cast<const uint8_t *>(trash_page_response.data()),
+                                     trash_page_response.size(), &result),
+         MINEG_OK, "complete stage06 trash refresh");
+  assert(as_string(result).find("\"trashedAt\":\"2026-08-03T00:00:00Z\"") != std::string::npos);
+  assert(as_string(result).find("\"fullyLoaded\":true") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string restore_trash =
+      "{\"contractVersion\":\"stage06-v1\",\"type\":\"RestoreTrashMedia\",\"mediaId\":\"" +
+      saved_media_id + "\",\"idempotencyKey\":\"restore-request-0001\"}";
+  expect(mineg_core_start_operation(core, 21,
+                                    reinterpret_cast<const uint8_t *>(restore_trash.data()),
+                                    restore_trash.size(), &result),
+         MINEG_OK, "start stage06 trash restore");
+  assert(as_string(result).find("/restore") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string restore_body =
+      "{\"media_id\":\"" + saved_media_id +
+      "\",\"outcome\":\"RESTORED\",\"restored_at\":\"2026-08-03T00:01:00Z\"}";
+  const std::string restore_response = successful_effect(21, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-restore\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(restore_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 21,
+                                     reinterpret_cast<const uint8_t *>(restore_response.data()),
+                                     restore_response.size(), &result),
+         MINEG_OK, "complete stage06 trash restore");
+  assert(as_string(result).find("\"outcome\":\"RESTORED\"") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string submit_feedback =
+      R"({"contractVersion":"stage06-v1","type":"SubmitFeedback","category":"BACKUP","description":"备份任务一直没有完成","contact":"","appVersion":"0.1.0","osVersion":"Android 16","idempotencyKey":"feedback-request-0001"})";
+  expect(mineg_core_start_operation(core, 22,
+                                    reinterpret_cast<const uint8_t *>(submit_feedback.data()),
+                                    submit_feedback.size(), &result),
+         MINEG_OK, "start stage06 feedback submission");
+  assert(as_string(result).find("SecureStoreEffect") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string feedback_session_result = successful_effect(22, 1, "SecureStoreEffect", session_values);
+  expect(mineg_core_resume_operation(core, 22,
+                                     reinterpret_cast<const uint8_t *>(feedback_session_result.data()),
+                                     feedback_session_result.size(), &result),
+         MINEG_OK, "restore device identity for feedback submission");
+  assert(as_string(result).find("/api/v1/feedback") != std::string::npos);
+  assert(as_string(result).find("bodyBase64") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string feedback_id = "55555555-5555-4555-8555-555555555555";
+  const std::string feedback_body =
+      "{\"feedback_id\":\"" + feedback_id +
+      "\",\"outcome\":\"SUBMITTED\",\"created_at\":\"2026-08-03T00:02:00Z\"}";
+  const std::string feedback_response = successful_effect(22, 2, "TransportEffect",
+      "{\"status\":201,\"contentType\":\"application/json\",\"requestId\":\"request-feedback\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(feedback_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 22,
+                                     reinterpret_cast<const uint8_t *>(feedback_response.data()),
+                                     feedback_response.size(), &result),
+         MINEG_OK, "complete stage06 feedback submission");
+  assert(as_string(result).find("\"feedbackId\":\"" + feedback_id + "\"") != std::string::npos);
+  assert(as_string(result).find("\"outcome\":\"SUBMITTED\"") != std::string::npos);
   mineg_buffer_free(&result);
 
   const std::string write_probe =

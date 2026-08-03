@@ -21,4 +21,11 @@ class AndroidFilePort(private val context: Context) : FilePort {
     require(target.parentFile == taskFiles) { "Only MineG task files can be removed" }
     return !target.exists() || target.delete()
   }
+
+  fun deleteOrphanedPrivateViewFiles(): Int {
+    val candidates = taskFilesDirectory.listFiles().orEmpty().filter { file ->
+      file.isFile && file.name.matches(Regex("private-view-[0-9]{1,19}\\.mineg-task"))
+    }
+    return candidates.count(File::delete)
+  }
 }

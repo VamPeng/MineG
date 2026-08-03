@@ -289,7 +289,7 @@ fun RecycleBinPage(state: RecycleBinUiState, onBack: () -> Unit, onRestore: (Str
       }
     } else if (state.loadState == PageLoadState.ERROR) {
       Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-        EmptyState("回收站加载失败", "请检查网络后重试。")
+        EmptyState("回收站加载失败", state.errorMessage ?: "请检查网络后重试。")
       }
     } else if (state.loadState == PageLoadState.EMPTY || state.items.isEmpty()) {
       Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -560,10 +560,15 @@ fun HelpFeedbackPage(
           FilterChip(category == state.category, onClick = { onCategory(category) }, label = { Text(category.label, fontSize = 12.sp) })
         }
       }
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FeedbackCategory.entries.drop(3).take(3).forEach { category ->
+          FilterChip(category == state.category, onClick = { onCategory(category) }, label = { Text(category.label, fontSize = 12.sp) })
+        }
+      }
       FilterChip(
-        FeedbackCategory.SUGGESTION == state.category,
-        onClick = { onCategory(FeedbackCategory.SUGGESTION) },
-        label = { Text(FeedbackCategory.SUGGESTION.label) },
+        FeedbackCategory.OTHER == state.category,
+        onClick = { onCategory(FeedbackCategory.OTHER) },
+        label = { Text(FeedbackCategory.OTHER.label) },
       )
       OutlinedTextField(
         state.description,
@@ -574,9 +579,16 @@ fun HelpFeedbackPage(
         supportingText = { state.errorMessage?.let { Text(it) } },
       )
       OutlinedTextField(state.contact, onContact, Modifier.fillMaxWidth(), label = { Text("联系方式（可选）") })
-      Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("提交反馈") }
+      Button(
+        onClick = onSubmit,
+        enabled = !state.submitting,
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+      ) { Text(if (state.submitting) "提交中…" else "提交反馈") }
       if (state.submitted) {
-        Text("反馈已提交，感谢你的帮助。", color = MaterialTheme.mineGColors.success)
+        Text(
+          "反馈已提交，感谢你的帮助。" + state.feedbackId?.let { " 编号：$it" }.orEmpty(),
+          color = MaterialTheme.mineGColors.success,
+        )
       }
       Text("不会自动附带媒体、访问令牌、密钥或完整手机号。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }

@@ -165,58 +165,6 @@ export interface paths {
         patch: operations["updateProfile"];
         trace?: never;
     };
-    "/api/v1/me/key-bundle": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @deprecated */
-        get: operations["getKeyBundle"];
-        /** @deprecated */
-        put: operations["updateKeyBundle"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/key-grants/pending": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @deprecated */
-        get: operations["listPendingKeyGrants"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/key-grants/{grant_id}/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @deprecated */
-        post: operations["completeKeyGrant"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/me/avatar/uploads": {
         parameters: {
             query?: never;
@@ -345,6 +293,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/private/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPrivateMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/private/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPrivateMediaDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/private/media/{media_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createPrivateMediaAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/private/media/{media_id}/trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trashPrivateMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/private/media/{media_id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["setPrivateMediaShare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/family/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listFamilyMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/family/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFamilyMediaDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/family/media/{media_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createFamilyMediaAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTrashMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trash/{media_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restoreTrashMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/help/faq": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFAQ"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submitFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/login": {
         parameters: {
             query?: never;
@@ -459,22 +599,6 @@ export interface components {
         SignUpRequest: {
             phone: string;
             password: string;
-            /**
-             * @deprecated
-             * @description Optional legacy unpadded base64 32-byte X25519 public key; retained only for old-client compatibility and not required by admission.
-             */
-            public_key?: string;
-            /**
-             * @deprecated
-             * @description Optional legacy encrypted client key bundle; retained only for old-client compatibility and not required by admission.
-             */
-            encrypted_key_bundle?: string;
-            /** @deprecated */
-            kdf_parameters?: {
-                [key: string]: unknown;
-            };
-            /** @deprecated */
-            bundle_version?: number;
             device_installation_id: string;
             /** @enum {string} */
             platform: "ANDROID" | "IOS" | "HARMONYOS";
@@ -537,66 +661,6 @@ export interface components {
         UpdateProfileRequest: {
             nickname: string;
         };
-        KeyMaterial: {
-            /** @description Unpadded standard base64 32-byte X25519 public key. */
-            public_key: string;
-            /** @description Unpadded standard base64 password-wrapped user key bundle. */
-            encrypted_key_bundle: string;
-            kdf_parameters: {
-                [key: string]: unknown;
-            };
-            bundle_version: number;
-            /** @description Unpadded standard base64 X25519 sealed box. */
-            family_envelope?: string;
-            /** @enum {string} */
-            family_envelope_algorithm?: "X25519_SEALED_BOX";
-            family_envelope_version?: number;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        UpdateKeyBundleRequest: {
-            public_key: string;
-            encrypted_key_bundle: string;
-            kdf_parameters: {
-                [key: string]: unknown;
-            };
-            bundle_version: number;
-        };
-        PendingKeyGrant: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            user_id: string;
-            /** Format: uuid */
-            family_id: string;
-            /** @enum {string} */
-            kind: "FAMILY_BOOTSTRAP" | "MEMBER_GRANT";
-            recipient_public_key: string;
-            bundle_version: number;
-            /** Format: date-time */
-            created_at: string;
-        };
-        PendingKeyGrantPage: {
-            items: components["schemas"]["PendingKeyGrant"][];
-        };
-        CompleteKeyGrantRequest: {
-            recipient_public_key: string;
-            /** @description Unpadded standard base64 80-byte sealed family key. */
-            encrypted_envelope: string;
-            /** @enum {string} */
-            algorithm: "X25519_SEALED_BOX";
-            envelope_version: number;
-        };
-        CompleteKeyGrantResult: {
-            /** Format: uuid */
-            grant_id: string;
-            /** Format: uuid */
-            user_id: string;
-            /** @enum {string} */
-            outcome: "COMPLETED" | "ALREADY_COMPLETED";
-            /** @enum {string} */
-            status: "APPROVED";
-        };
         CreateAvatarUploadRequest: {
             /** @enum {string} */
             content_type: "image/jpeg" | "image/png" | "image/heic" | "image/heif" | "image/webp";
@@ -637,6 +701,8 @@ export interface components {
             /** Format: uuid */
             resource_id: string;
             resource_type: components["schemas"]["MediaResourceType"];
+            /** @description Required per resource by stage05-v1; inherited from the top-level MIME for older protocols. */
+            mime_type?: string;
             content_size: number;
             /** @description Unpadded standard base64 whole original-media digest. */
             content_sha256: string;
@@ -644,7 +710,7 @@ export interface components {
         };
         CreateMediaUploadRequest: {
             /** @enum {string} */
-            protocol_version: "stage03-v2";
+            protocol_version: "stage03-v2" | "stage04-v1" | "stage05-v1";
             /**
              * Format: uuid
              * @description Stable client-generated media ID.
@@ -657,7 +723,17 @@ export interface components {
             /** Format: date-time */
             captured_at: string;
             mime_type: string;
+            width?: number;
+            height?: number;
+            duration_ms?: number;
             resources: components["schemas"]["MediaResourcePlan"][];
+            /** @description Required for stage04-v1 when client album membership is supplied. */
+            device_installation_id?: string;
+            client_albums?: components["schemas"]["ClientAlbumRef"][];
+        };
+        ClientAlbumRef: {
+            client_album_id: string;
+            name: string;
         };
         MediaPartGrant: {
             part_number: number;
@@ -672,7 +748,7 @@ export interface components {
         };
         MediaUploadGrant: {
             /** @enum {string} */
-            purpose: "MEDIA_ORIGINAL" | "MEDIA_CIPHERTEXT";
+            purpose: "MEDIA_ORIGINAL";
             scope_prefix: string;
             /** Format: date-time */
             expires_at: string;
@@ -684,10 +760,10 @@ export interface components {
             resource_type: components["schemas"]["MediaResourceType"];
             object_key?: string;
             content_size?: number;
-            /** @deprecated */
-            ciphertext_size?: number;
             part_count: number;
             uploaded_parts: number;
+            /** @description Exact server-confirmed multipart part numbers for safe client recovery. */
+            confirmed_part_numbers: number[];
         };
         MediaUploadSession: {
             /** Format: uuid */
@@ -697,10 +773,11 @@ export interface components {
             /** @enum {string} */
             state: "PENDING" | "VERIFYING" | "COMPLETED" | "EXPIRED" | "INVALID";
             /** @enum {string} */
-            purpose: "MEDIA_ORIGINAL" | "MEDIA_CIPHERTEXT";
+            purpose: "MEDIA_ORIGINAL";
             /** Format: uuid */
             media_id?: string;
             deduplicated: boolean;
+            grant_generation: number;
             /** Format: date-time */
             expires_at: string;
             grant?: components["schemas"]["MediaUploadGrant"];
@@ -747,6 +824,198 @@ export interface components {
         };
         OwnerMediaPage: {
             items: components["schemas"]["OwnerMediaSummary"][];
+            next_cursor?: string;
+        };
+        PrivateMediaResource: {
+            /** Format: uuid */
+            resource_id: string;
+            resource_type: components["schemas"]["MediaResourceType"];
+            mime_type: string;
+            content_size: number;
+            /** @description Unpadded standard base64 SHA-256 digest. */
+            content_sha256: string;
+        };
+        PrivateMediaSummary: {
+            /** Format: uuid */
+            id: string;
+            media_type: components["schemas"]["MediaType"];
+            /** Format: date-time */
+            captured_at: string;
+            /** Format: date-time */
+            created_at: string;
+            duration_ms?: number;
+            original_total_size: number;
+            preview_resource?: components["schemas"]["PrivateMediaResource"];
+        };
+        PrivateMediaPage: {
+            items: components["schemas"]["PrivateMediaSummary"][];
+            next_cursor?: string | null;
+        };
+        PrivateMediaDetail: {
+            /** Format: uuid */
+            id: string;
+            media_type: components["schemas"]["MediaType"];
+            /** Format: date-time */
+            captured_at: string;
+            /** Format: date-time */
+            created_at: string;
+            width?: number;
+            height?: number;
+            duration_ms?: number;
+            original_total_size: number;
+            resources: components["schemas"]["PrivateMediaResource"][];
+        };
+        PrivateMediaAccessRequest: {
+            /** @enum {string} */
+            purpose: "VIEW" | "STREAM" | "DOWNLOAD";
+            /** @enum {string} */
+            variant?: "THUMBNAIL" | "DETAIL";
+        };
+        PrivateMediaAccessResource: {
+            /** Format: uuid */
+            resource_id: string;
+            resource_type: components["schemas"]["MediaResourceType"];
+            mime_type: string;
+            content_size: number;
+            content_sha256: string;
+            supports_range: boolean;
+            /**
+             * @description ORIGINAL_RESOURCE returns the registered bytes. OSS_IMAGE_THUMBNAIL returns an on-the-fly OSS image transformation of the registered ORIGINAL; content_size/content_sha256 describe that source object and must not be used to validate transformed bytes.
+             * @enum {string}
+             */
+            delivery_mode: "ORIGINAL_RESOURCE" | "OSS_IMAGE_THUMBNAIL";
+            /** @description Required for OSS_IMAGE_THUMBNAIL; the transformed image byte limit enforced by the client. */
+            maximum_output_size?: number;
+            grant: components["schemas"]["ObjectGrant"];
+        };
+        PrivateMediaAccessResult: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            purpose: "VIEW" | "STREAM" | "DOWNLOAD";
+            /** @enum {string} */
+            variant?: "THUMBNAIL" | "DETAIL";
+            /** Format: date-time */
+            issued_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            resources: components["schemas"]["PrivateMediaAccessResource"][];
+        };
+        PrivateMediaTrashResult: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            outcome: "TRASHED" | "ALREADY_TRASHED";
+            /** Format: date-time */
+            trashed_at: string;
+        };
+        SetPrivateMediaShareRequest: {
+            shared: boolean;
+        };
+        PrivateMediaShareResult: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            state: "ACTIVE" | "INACTIVE";
+            /** @enum {string} */
+            outcome: "SHARED" | "ALREADY_SHARED" | "UNSHARED" | "ALREADY_UNSHARED";
+            /** Format: date-time */
+            effective_at: string;
+        };
+        FamilyMediaOwner: {
+            /** Format: uuid */
+            id: string;
+            nickname: string;
+        };
+        FamilyMediaSummary: {
+            /** Format: uuid */
+            id: string;
+            owner: components["schemas"]["FamilyMediaOwner"];
+            media_type: components["schemas"]["MediaType"];
+            /** Format: date-time */
+            captured_at: string;
+            /** Format: date-time */
+            created_at: string;
+            duration_ms?: number;
+            original_total_size: number;
+        };
+        FamilyMediaPage: {
+            items: components["schemas"]["FamilyMediaSummary"][];
+            next_cursor?: string | null;
+        };
+        FamilyMediaDetail: {
+            /** Format: uuid */
+            id: string;
+            owner: components["schemas"]["FamilyMediaOwner"];
+            media_type: components["schemas"]["MediaType"];
+            /** Format: date-time */
+            captured_at: string;
+            /** Format: date-time */
+            created_at: string;
+            width?: number;
+            height?: number;
+            duration_ms?: number;
+            original_total_size: number;
+            resources: components["schemas"]["PrivateMediaResource"][];
+        };
+        FamilyMediaAccessRequest: {
+            /** @enum {string} */
+            purpose: "VIEW" | "STREAM";
+            /** @enum {string} */
+            variant?: "THUMBNAIL" | "DETAIL";
+        };
+        TrashMediaSummary: {
+            /** Format: uuid */
+            id: string;
+            media_type: components["schemas"]["MediaType"];
+            /** Format: date-time */
+            captured_at: string;
+            /** Format: date-time */
+            created_at: string;
+            duration_ms?: number;
+            original_total_size: number;
+            /** Format: date-time */
+            trashed_at: string;
+        };
+        TrashMediaPage: {
+            items: components["schemas"]["TrashMediaSummary"][];
+            next_cursor?: string | null;
+        };
+        TrashMediaRestoreResult: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            outcome: "RESTORED" | "ALREADY_RESTORED";
+            /** Format: date-time */
+            restored_at: string;
+        };
+        FAQItem: {
+            id: string;
+            question: string;
+            answer: string;
+        };
+        FAQDocument: {
+            version: string;
+            items: components["schemas"]["FAQItem"][];
+        };
+        SubmitFeedbackRequest: {
+            /** @enum {string} */
+            category: "ACCOUNT" | "PERMISSION" | "BACKUP" | "BROWSE_PLAYBACK" | "SHARING" | "TRASH" | "OTHER";
+            description: string;
+            contact?: string;
+            app_version: string;
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS" | "HARMONYOS";
+            os_version: string;
+            device_installation_id: string;
+        };
+        SubmitFeedbackResult: {
+            /** Format: uuid */
+            feedback_id: string;
+            /** @enum {string} */
+            outcome: "SUBMITTED" | "ALREADY_SUBMITTED";
+            /** Format: date-time */
+            created_at: string;
         };
         AdminLoginRequest: {
             username: string;
@@ -806,8 +1075,8 @@ export interface components {
     };
     parameters: {
         ApprovalId: string;
-        GrantId: string;
         UploadId: string;
+        MediaId: string;
         Origin: string;
         CSRFToken: string;
         IdempotencyKey: string;
@@ -1056,109 +1325,6 @@ export interface operations {
             422: components["responses"]["Problem"];
         };
     };
-    getKeyBundle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The current member encrypted key bundle and, when ready, its family envelope. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KeyMaterial"];
-                };
-            };
-            401: components["responses"]["Problem"];
-            404: components["responses"]["Problem"];
-        };
-    };
-    updateKeyBundle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateKeyBundleRequest"];
-            };
-        };
-        responses: {
-            /** @description The password-wrapped bundle was replaced without changing the registered public key. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KeyMaterial"];
-                };
-            };
-            401: components["responses"]["Problem"];
-            409: components["responses"]["Problem"];
-            422: components["responses"]["Problem"];
-        };
-    };
-    listPendingKeyGrants: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Eligible bootstrap or member grant work. Public keys are only disclosed to the target bootstrap member or an approved family member. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PendingKeyGrantPage"];
-                };
-            };
-            401: components["responses"]["Problem"];
-        };
-    };
-    completeKeyGrant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                grant_id: components["parameters"]["GrantId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CompleteKeyGrantRequest"];
-            };
-        };
-        responses: {
-            /** @description The envelope was committed and the target account became APPROVED, or an identical completion was replayed. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CompleteKeyGrantResult"];
-                };
-            };
-            401: components["responses"]["Problem"];
-            403: components["responses"]["Problem"];
-            404: components["responses"]["Problem"];
-            409: components["responses"]["Problem"];
-            422: components["responses"]["Problem"];
-        };
-    };
     createAvatarUpload: {
         parameters: {
             query?: never;
@@ -1371,6 +1537,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -1389,6 +1556,347 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    listPrivateMedia: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped completed, non-trashed media in a stable HMAC-bound seek page; no object URL is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateMediaPage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getPrivateMediaDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: components["parameters"]["MediaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped media detail and registered resource metadata; object keys and grants are omitted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateMediaDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createPrivateMediaAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: components["parameters"]["MediaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrivateMediaAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description A fresh, short-lived owner-scoped GET authorization. The caller must not persist the grants. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateMediaAccessResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    trashPrivateMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: components["parameters"]["MediaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Media was logically trashed or the prior identical request was replayed. No OSS object is moved or removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateMediaTrashResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    setPrivateMediaShare: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: components["parameters"]["MediaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPrivateMediaShareRequest"];
+            };
+        };
+        responses: {
+            /** @description The owner-scoped family visibility reached the requested state; repeat requests are idempotent. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateMediaShareResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    listFamilyMedia: {
+        parameters: {
+            query?: {
+                filter?: "all" | "mine";
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active, non-trashed media shared inside the fixed household; mine filters before pagination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyMediaPage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getFamilyMediaDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: components["parameters"]["MediaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Read-only metadata for an active fixed-household share; object keys are omitted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyMediaDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createFamilyMediaAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: components["parameters"]["MediaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FamilyMediaAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description A short-lived read-only view or stream grant. Family access never supports DOWNLOAD. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateMediaAccessResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    listTrashMedia: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active logical-trash records owned by the authenticated member, ordered by first trash time. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrashMediaPage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    restoreTrashMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: components["parameters"]["MediaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The media was restored to private state and remains unshared. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrashMediaRestoreResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getFAQ: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versioned FAQ compatibility payload. The App retains an offline copy of the same subjects. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FAQDocument"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    submitFeedback: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitFeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Feedback was stored once; a repeated identical request returns the existing identifier. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitFeedbackResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
         };
     };
     adminSignIn: {

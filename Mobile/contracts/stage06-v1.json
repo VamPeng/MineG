@@ -1,0 +1,99 @@
+{
+  "contractVersion": "stage06-v1",
+  "version": "0.1.0",
+  "status": "BASELINED",
+  "scope": "M6_FIXED_FAMILY_SHARING_TRASH_RESTORE_AND_FEEDBACK",
+  "architecture": {
+    "businessOrchestrator": "C++ Core",
+    "businessTruth": "Core SQLite",
+    "androidRole": "platform effects and Compose rendering only",
+    "clientMediaEncryption": false,
+    "familyModel": "ONE_FIXED_TWO_MEMBER_HOUSEHOLD",
+    "familyAccess": "short_lived_view_or_stream_only"
+  },
+  "commands": [
+    "SetPrivateMediaShare",
+    "RefreshFamilyMedia",
+    "LoadMoreFamilyMedia",
+    "GetFamilyMediaDetail",
+    "OpenFamilyMedia",
+    "CloseFamilyMedia",
+    "RefreshTrashMedia",
+    "LoadMoreTrashMedia",
+    "RestoreTrashMedia",
+    "SubmitFeedback"
+  ],
+  "queries": [
+    "GetFamilyMediaPage",
+    "GetFamilyMediaDetail",
+    "GetTrashMediaPage"
+  ],
+  "events": [
+    "PrivateMediaShareChanged",
+    "FamilyMediaPageChanged",
+    "FamilyMediaDetailChanged",
+    "TrashMediaPageChanged",
+    "PrivateMediaRestored",
+    "FeedbackSubmitted"
+  ],
+  "api": {
+    "operations": [
+      "setPrivateMediaShare",
+      "listFamilyMedia",
+      "getFamilyMediaDetail",
+      "createFamilyMediaAccess",
+      "listTrashMedia",
+      "restoreTrashMedia",
+      "getFAQ",
+      "submitFeedback"
+    ],
+    "familyFilters": ["all", "mine"],
+    "pagination": {
+      "familySort": "captured_at DESC, id DESC",
+      "trashSort": "trashed_at DESC, id DESC",
+      "defaultLimit": 50,
+      "maximumLimit": 100,
+      "cursorBinding": ["viewer_id", "filter", "scope", "last_item"]
+    }
+  },
+  "sharing": {
+    "states": ["ACTIVE", "INACTIVE"],
+    "outcomes": ["SHARED", "ALREADY_SHARED", "UNSHARED", "ALREADY_UNSHARED"],
+    "ownerOnlyMutation": true,
+    "deleteDeactivatesShare": true,
+    "usesMediaKeyOrEnvelope": false
+  },
+  "familyMedia": {
+    "accessPurposes": ["VIEW", "STREAM"],
+    "forbiddenPurposes": ["DOWNLOAD", "SAVE", "EXPORT", "RESHARE"],
+    "membershipRequired": true,
+    "activeShareRequired": true,
+    "nonTrashedRequired": true
+  },
+  "trash": {
+    "logicalOnly": true,
+    "restoreOutcomes": ["RESTORED", "ALREADY_RESTORED"],
+    "restoreShareState": "INACTIVE",
+    "mobilePermanentDelete": false
+  },
+  "feedback": {
+    "categories": ["ACCOUNT", "PERMISSION", "BACKUP", "BROWSE_PLAYBACK", "SHARING", "TRASH", "OTHER"],
+    "descriptionLength": [1, 1000],
+    "optionalContactMaximumLength": 200,
+    "attachmentsAllowed": false,
+    "idempotencyRequired": true,
+    "forbiddenContent": ["media", "logs", "tokens", "object_urls", "cloud_credentials"]
+  },
+  "semanticIds": [
+    "private-media.detail.share",
+    "private-media.detail.unshare",
+    "family-media.timeline",
+    "family-media.mine",
+    "family-media.detail",
+    "trash-media.list",
+    "trash-media.restore.confirm",
+    "help-feedback.faq",
+    "help-feedback.form",
+    "help-feedback.submit"
+  ]
+}

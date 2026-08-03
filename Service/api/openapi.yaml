@@ -407,6 +407,174 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+  /api/v1/private/media/{media_id}/share:
+    post:
+      operationId: setPrivateMediaShare
+      tags: [sharing]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/MediaId" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetPrivateMediaShareRequest" }
+      responses:
+        "200":
+          description: The owner-scoped family visibility reached the requested state; repeat requests are idempotent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivateMediaShareResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/family/media:
+    get:
+      operationId: listFamilyMedia
+      tags: [sharing]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: filter
+          in: query
+          schema: { type: string, enum: [all, mine], default: all }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Active, non-trashed media shared inside the fixed household; mine filters before pagination.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FamilyMediaPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/family/media/{media_id}:
+    get:
+      operationId: getFamilyMediaDetail
+      tags: [sharing]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/MediaId" }
+      responses:
+        "200":
+          description: Read-only metadata for an active fixed-household share; object keys are omitted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FamilyMediaDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /api/v1/family/media/{media_id}/access:
+    post:
+      operationId: createFamilyMediaAccess
+      tags: [sharing]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/MediaId" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FamilyMediaAccessRequest" }
+      responses:
+        "200":
+          description: A short-lived read-only view or stream grant. Family access never supports DOWNLOAD.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivateMediaAccessResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+  /api/v1/trash:
+    get:
+      operationId: listTrashMedia
+      tags: [trash]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Active logical-trash records owned by the authenticated member, ordered by first trash time.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrashMediaPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/trash/{media_id}/restore:
+    post:
+      operationId: restoreTrashMedia
+      tags: [trash]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/MediaId" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "200":
+          description: The media was restored to private state and remains unshared.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrashMediaRestoreResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/help/faq:
+    get:
+      operationId: getFAQ
+      tags: [feedback]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Versioned FAQ compatibility payload. The App retains an offline copy of the same subjects.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FAQDocument" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /api/v1/feedback:
+    post:
+      operationId: submitFeedback
+      tags: [feedback]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmitFeedbackRequest" }
+      responses:
+        "201":
+          description: Feedback was stored once; a repeated identical request returns the existing identifier.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmitFeedbackResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
   /api/v1/admin/login:
     post:
       operationId: adminSignIn
@@ -924,7 +1092,10 @@ components:
       required: [purpose]
       properties:
         purpose: { type: string, enum: [VIEW, STREAM, DOWNLOAD] }
-        variant: { type: string, enum: [THUMBNAIL, DETAIL] }
+        variant:
+          type: string
+          enum: [THUMBNAIL, DETAIL]
+          description: THUMBNAIL returns a display thumbnail. For VIEW, DETAIL returns the exact ORIGINAL resource for image media and a preview or cover resource for VIDEO.
     PrivateMediaAccessResource:
       type: object
       additionalProperties: false
@@ -967,6 +1138,139 @@ components:
         media_id: { type: string, format: uuid }
         outcome: { type: string, enum: [TRASHED, ALREADY_TRASHED] }
         trashed_at: { type: string, format: date-time }
+    SetPrivateMediaShareRequest:
+      type: object
+      additionalProperties: false
+      required: [shared]
+      properties:
+        shared: { type: boolean }
+    PrivateMediaShareResult:
+      type: object
+      additionalProperties: false
+      required: [media_id, state, outcome, effective_at]
+      properties:
+        media_id: { type: string, format: uuid }
+        state: { type: string, enum: [ACTIVE, INACTIVE] }
+        outcome: { type: string, enum: [SHARED, ALREADY_SHARED, UNSHARED, ALREADY_UNSHARED] }
+        effective_at: { type: string, format: date-time }
+    FamilyMediaOwner:
+      type: object
+      additionalProperties: false
+      required: [id, nickname]
+      properties:
+        id: { type: string, format: uuid }
+        nickname: { type: string, minLength: 2, maxLength: 20 }
+    FamilyMediaSummary:
+      type: object
+      additionalProperties: false
+      required: [id, owner, media_type, captured_at, created_at, original_total_size]
+      properties:
+        id: { type: string, format: uuid }
+        owner: { $ref: "#/components/schemas/FamilyMediaOwner" }
+        media_type: { $ref: "#/components/schemas/MediaType" }
+        captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        duration_ms: { type: integer, minimum: 0 }
+        original_total_size: { type: integer, minimum: 0 }
+    FamilyMediaPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/FamilyMediaSummary" }
+        next_cursor: { type: string, nullable: true }
+    FamilyMediaDetail:
+      type: object
+      additionalProperties: false
+      required: [id, owner, media_type, captured_at, created_at, original_total_size, resources]
+      properties:
+        id: { type: string, format: uuid }
+        owner: { $ref: "#/components/schemas/FamilyMediaOwner" }
+        media_type: { $ref: "#/components/schemas/MediaType" }
+        captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        duration_ms: { type: integer, minimum: 0 }
+        original_total_size: { type: integer, minimum: 0 }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/PrivateMediaResource" }
+    FamilyMediaAccessRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose]
+      properties:
+        purpose: { type: string, enum: [VIEW, STREAM] }
+        variant: { type: string, enum: [THUMBNAIL, DETAIL] }
+    TrashMediaSummary:
+      type: object
+      additionalProperties: false
+      required: [id, media_type, captured_at, created_at, original_total_size, trashed_at]
+      properties:
+        id: { type: string, format: uuid }
+        media_type: { $ref: "#/components/schemas/MediaType" }
+        captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        duration_ms: { type: integer, minimum: 0 }
+        original_total_size: { type: integer, minimum: 0 }
+        trashed_at: { type: string, format: date-time }
+    TrashMediaPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/TrashMediaSummary" }
+        next_cursor: { type: string, nullable: true }
+    TrashMediaRestoreResult:
+      type: object
+      additionalProperties: false
+      required: [media_id, outcome, restored_at]
+      properties:
+        media_id: { type: string, format: uuid }
+        outcome: { type: string, enum: [RESTORED, ALREADY_RESTORED] }
+        restored_at: { type: string, format: date-time }
+    FAQItem:
+      type: object
+      additionalProperties: false
+      required: [id, question, answer]
+      properties:
+        id: { type: string }
+        question: { type: string }
+        answer: { type: string }
+    FAQDocument:
+      type: object
+      additionalProperties: false
+      required: [version, items]
+      properties:
+        version: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/FAQItem" }
+    SubmitFeedbackRequest:
+      type: object
+      additionalProperties: false
+      required: [category, description, app_version, platform, os_version, device_installation_id]
+      properties:
+        category: { type: string, enum: [ACCOUNT, PERMISSION, BACKUP, BROWSE_PLAYBACK, SHARING, TRASH, OTHER] }
+        description: { type: string, minLength: 1, maxLength: 1000 }
+        contact: { type: string, minLength: 1, maxLength: 200 }
+        app_version: { type: string, minLength: 1, maxLength: 64 }
+        platform: { type: string, enum: [ANDROID, IOS, HARMONYOS] }
+        os_version: { type: string, minLength: 1, maxLength: 128 }
+        device_installation_id: { type: string, minLength: 8, maxLength: 128 }
+    SubmitFeedbackResult:
+      type: object
+      additionalProperties: false
+      required: [feedback_id, outcome, created_at]
+      properties:
+        feedback_id: { type: string, format: uuid }
+        outcome: { type: string, enum: [SUBMITTED, ALREADY_SUBMITTED] }
+        created_at: { type: string, format: date-time }
     AdminLoginRequest:
       type: object
       additionalProperties: false

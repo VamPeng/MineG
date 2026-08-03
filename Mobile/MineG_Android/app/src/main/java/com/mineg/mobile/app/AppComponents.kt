@@ -32,7 +32,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -164,25 +167,28 @@ fun MediaPlaceholder(
   bottomStartSyncState: LocalMediaSyncState? = null,
   onClick: (() -> Unit)? = null,
 ) {
+  var imageLoaded by remember(media.imageUrl) { mutableStateOf(false) }
   Box(
     modifier = modifier
       .clip(RoundedCornerShape(8.dp))
       .background(MaterialTheme.colorScheme.surfaceContainer)
       .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
   ) {
-    Text(
-      text = media.title.take(1),
-      modifier = Modifier.align(Alignment.Center),
-      color = Color.White.copy(alpha = 0.9f),
-      fontSize = 28.sp,
-      fontWeight = FontWeight.Bold,
-    )
-    if (media.imageUrl != null) {
-      PrototypeCroppedImage(
-        crop = MockVisualAssets.mediaCrops[Math.floorMod(media.colorSeed, MockVisualAssets.mediaCrops.size)],
-        contentDescription = media.title,
-        modifier = Modifier.matchParentSize(),
+    if (!imageLoaded) {
+      Text(
+        text = media.title.take(1),
+        modifier = Modifier.align(Alignment.Center),
+        color = Color.White.copy(alpha = 0.9f),
+        fontSize = 28.sp,
+        fontWeight = FontWeight.Bold,
       )
+      if (media.imageUrl != null) {
+        PrototypeCroppedImage(
+          crop = MockVisualAssets.mediaCrops[Math.floorMod(media.colorSeed, MockVisualAssets.mediaCrops.size)],
+          contentDescription = media.title,
+          modifier = Modifier.matchParentSize(),
+        )
+      }
     }
     media.imageUrl?.let {
       AsyncImage(
@@ -190,6 +196,8 @@ fun MediaPlaceholder(
         contentDescription = media.title,
         contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxWidth().matchParentSize(),
+        onSuccess = { imageLoaded = true },
+        onError = { imageLoaded = false },
       )
     }
     val kindLabel = when (media.kind) {
