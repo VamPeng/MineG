@@ -1091,7 +1091,7 @@ components:
       additionalProperties: false
       required: [purpose]
       properties:
-        purpose: { type: string, enum: [VIEW, STREAM, DOWNLOAD] }
+        purpose: { type: string, enum: [VIEW, STREAM] }
         variant:
           type: string
           enum: [THUMBNAIL, DETAIL]
@@ -1123,7 +1123,7 @@ components:
       required: [media_id, purpose, issued_at, expires_at, resources]
       properties:
         media_id: { type: string, format: uuid }
-        purpose: { type: string, enum: [VIEW, STREAM, DOWNLOAD] }
+        purpose: { type: string, enum: [VIEW, STREAM] }
         variant: { type: string, enum: [THUMBNAIL, DETAIL] }
         issued_at: { type: string, format: date-time }
         expires_at: { type: string, format: date-time }

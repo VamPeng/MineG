@@ -2,11 +2,13 @@ package media
 
 import (
 	"bytes"
+	"context"
+	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/vampeng/mineg/service/internal/platform/database/dbgen"
 	"github.com/vampeng/mineg/service/internal/platform/objectstore"
 )
@@ -74,13 +76,37 @@ func TestAccessSelectionUsesOriginalOnlyForEligibleImageThumbnail(t *testing.T) 
 	}
 }
 
-func TestDownloadOfLivePhotoRequiresTheCompanionOriginalResource(t *testing.T) {
-	resources := []dbgen.ListPrivateMediaAccessResourcesRow{{
-		ID: pgtype.UUID{Bytes: [16]byte(uuid.New()), Valid: true}, ResourceType: "ORIGINAL",
-		ObjectKey: "media/member/item.original", MimeType: "image/jpeg", ContentSize: 4, ContentSha256: bytes.Repeat([]byte{1}, 32),
-	}}
-	if _, err := selectAccessResources("LIVE_PHOTO", resources, AccessInput{Purpose: "DOWNLOAD"}); err == nil {
-		t.Fatal("live photo download without LIVE_PHOTO_VIDEO was accepted")
+func TestPrivateMediaAccessRejectsDownload(t *testing.T) {
+	service := New(nil, Config{})
+	approvedActor := Actor{
+		UserID: "member-1", RawUserID: toPGUUID(uuid.New()), Status: "APPROVED",
+	}
+	mediaID := uuid.NewString()
+
+	var result AccessResult
+	var err error
+	func() {
+		defer func() {
+			if panicValue := recover(); panicValue != nil {
+				t.Fatalf("DOWNLOAD advanced beyond input validation: %v", panicValue)
+			}
+		}()
+		result, err = service.Access(context.Background(), approvedActor, mediaID, AccessInput{Purpose: "DOWNLOAD"})
+	}()
+	if !reflect.DeepEqual(result, AccessResult{}) {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+	assertMediaError(t, err, "PRIVATE_MEDIA_ACCESS_INVALID", http.StatusUnprocessableEntity)
+}
+
+func assertMediaError(t *testing.T, err error, wantCode string, wantStatus int) {
+	t.Helper()
+	mediaErr, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("error = %T (%v), want *Error", err, err)
+	}
+	if mediaErr.Code != wantCode || mediaErr.Status != wantStatus {
+		t.Fatalf("error = %#v, want code %q and status %d", mediaErr, wantCode, wantStatus)
 	}
 }
 

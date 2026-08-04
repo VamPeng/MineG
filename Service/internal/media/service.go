@@ -467,21 +467,10 @@ func parseMediaID(value string) (pgtype.UUID, error) {
 }
 
 func validateAccessInput(input AccessInput) error {
-	switch input.Purpose {
-	case "VIEW":
-		if input.Variant == "THUMBNAIL" || input.Variant == "DETAIL" {
-			return nil
-		}
-	case "STREAM":
-		if input.Variant == "" {
-			return nil
-		}
-	case "DOWNLOAD":
-		if input.Variant == "" {
-			return nil
-		}
+	if input.Purpose != "VIEW" && input.Purpose != "STREAM" {
+		return validation("PRIVATE_MEDIA_ACCESS_INVALID", "Invalid media access", "The purpose and variant combination is invalid.")
 	}
-	return validation("PRIVATE_MEDIA_ACCESS_INVALID", "Invalid media access", "The purpose and variant combination is invalid.")
+	return nil
 }
 
 func selectAccessResources(mediaType string, resources []dbgen.ListPrivateMediaAccessResourcesRow, input AccessInput) ([]dbgen.ListPrivateMediaAccessResourcesRow, error) {
@@ -518,20 +507,6 @@ func selectAccessResources(mediaType string, resources []dbgen.ListPrivateMediaA
 		if resource, exists := first("PREVIEW", "DYNAMIC_PREVIEW"); exists {
 			return []dbgen.ListPrivateMediaAccessResourcesRow{resource}, nil
 		}
-	case "DOWNLOAD":
-		original, exists := first("ORIGINAL")
-		if !exists {
-			return nil, accessUnavailable()
-		}
-		selected := []dbgen.ListPrivateMediaAccessResourcesRow{original}
-		if mediaType == "LIVE_PHOTO" {
-			companion, exists := first("LIVE_PHOTO_VIDEO")
-			if !exists {
-				return nil, accessUnavailable()
-			}
-			selected = append(selected, companion)
-		}
-		return selected, nil
 	}
 	return nil, accessUnavailable()
 }
