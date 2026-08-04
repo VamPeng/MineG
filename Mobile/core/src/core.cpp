@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cctype>
 #include <cstdint>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -12,6 +13,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <limits>
 
@@ -608,7 +610,6 @@ struct Core::AccountOperation {
   std::string media_part_etag;
   std::string private_media_cursor;
   std::string private_media_id;
-  std::string private_media_captured_at;
   std::string private_media_view_variant;
   std::string private_media_view_handle;
   std::string family_media_filter;
@@ -625,11 +626,8 @@ struct Core::AccountOperation {
   std::vector<std::string> private_media_resource_urls;
   std::vector<std::string> private_media_resource_headers;
   std::vector<std::string> private_media_temp_paths;
-  std::vector<std::string> private_media_system_asset_refs;
   std::vector<int64_t> private_media_resource_sizes;
-  int64_t private_media_resource_index = 0;
   int64_t private_media_view_maximum_output_size = 0;
-  bool private_media_save_started = false;
   bool private_media_view_uses_oss_image_thumbnail = false;
   bool private_media_share_active = false;
   std::vector<int64_t> media_part_sizes;
@@ -687,7 +685,6 @@ struct Core::AccountOperation {
     wipe_string(media_part_etag);
     wipe_string(private_media_cursor);
     wipe_string(private_media_id);
-    wipe_string(private_media_captured_at);
     wipe_string(private_media_view_variant);
     wipe_string(private_media_view_handle);
     wipe_string(family_media_filter);
@@ -711,12 +708,8 @@ struct Core::AccountOperation {
     private_media_resource_headers.clear();
     for (auto &value : private_media_temp_paths) wipe_string(value);
     private_media_temp_paths.clear();
-    for (auto &value : private_media_system_asset_refs) wipe_string(value);
-    private_media_system_asset_refs.clear();
     private_media_resource_sizes.clear();
-    private_media_resource_index = 0;
     private_media_view_maximum_output_size = 0;
-    private_media_save_started = false;
     private_media_view_uses_oss_image_thumbnail = false;
     private_media_share_active = false;
     for (auto &digest : media_part_digests) wipe_string(digest);
@@ -1088,17 +1081,6 @@ void Core::open_and_migrate(const std::string &database_path) {
         content_size INTEGER NOT NULL CHECK(content_size>0),content_sha256_base64 TEXT NOT NULL,
         PRIMARY KEY(user_id,resource_id),UNIQUE(user_id,media_id,resource_type),
         FOREIGN KEY(user_id,media_id) REFERENCES private_media_items_v2(user_id,media_id) ON DELETE CASCADE);
-      CREATE TABLE private_media_save_operations(
-        operation_id TEXT PRIMARY KEY,user_id TEXT NOT NULL,media_id TEXT NOT NULL,
-        state TEXT NOT NULL CHECK(state IN ('IDLE','REQUESTING_ACCESS','DOWNLOADING','VERIFYING',
-          'WRITING_SYSTEM_ALBUM','COMPLETED','CANCELLED','RETRYABLE_FAILED','PERMANENT_FAILED')),
-        failure_code TEXT,retry_count INTEGER NOT NULL DEFAULT 0 CHECK(retry_count>=0),
-        created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(user_id,media_id),
-        FOREIGN KEY(user_id,media_id) REFERENCES private_media_items_v2(user_id,media_id) ON DELETE CASCADE);
-      CREATE TABLE private_media_save_resources(
-        operation_id TEXT NOT NULL REFERENCES private_media_save_operations(operation_id) ON DELETE CASCADE,
-        resource_id TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('PENDING','DOWNLOADING','VERIFIED','WRITTEN','FAILED')),
-        verified_path TEXT,PRIMARY KEY(operation_id,resource_id));
       INSERT OR IGNORE INTO private_media_items_v2(
         user_id,media_id,media_type,captured_at,created_at,original_total_size,content_revision,updated_at)
       SELECT user_id,media_id,media_type,captured_at,created_at,0,content_revision,created_at
@@ -1397,14 +1379,6 @@ mineg_error_code_t Core::issue_account_request_locked(AccountOperation &operatio
         json_escape(active_account_session_->access_token) +
         "\",\"Idempotency-Key\":\"" + json_escape(operation.idempotency_key) + "\"}";
     body = "{}";
-  } else if (purpose == "PRIVATE_MEDIA_SAVE_ACCESS") {
-    if (operation.private_media_id.empty()) return MINEG_INVALID_ARGUMENT;
-    if (!operation.private_media_save_started && !begin_private_media_save_locked(operation)) {
-      return MINEG_NOT_FOUND;
-    }
-    method = "POST";
-    path = "/api/v1/private/media/" + operation.private_media_id + "/access";
-    body = "{\"purpose\":\"DOWNLOAD\"}";
   } else if (purpose == "PRIVATE_MEDIA_VIEW_ACCESS") {
     if (operation.private_media_id.empty() ||
         (operation.private_media_view_variant != "THUMBNAIL" &&
@@ -2156,173 +2130,120 @@ bool Core::remove_private_media_v2_locked(const std::string &media_id) {
   return true;
 }
 
-bool Core::begin_private_media_save_locked(AccountOperation &operation) {
-  if (active_account_session_ == nullptr || operation.private_media_id.empty()) return false;
-  sqlite3_stmt *item = nullptr;
-  if (sqlite3_prepare_v2(database_, "SELECT captured_at FROM private_media_items_v2 WHERE user_id=? AND media_id=?",
-                         -1, &item, nullptr) != SQLITE_OK) {
+bool Core::record_private_media_system_save_locked(const std::string &media_id,
+                                                    const std::string &resource_id,
+                                                    const std::string &platform_asset_ref,
+                                                    std::string &error_code) {
+  error_code.clear();
+  static constexpr std::string_view kAndroidAssetPrefix = "android:media-store:";
+  const bool valid_asset_ref = platform_asset_ref.rfind(kAndroidAssetPrefix, 0) == 0 &&
+      platform_asset_ref.size() > kAndroidAssetPrefix.size() &&
+      platform_asset_ref[kAndroidAssetPrefix.size()] >= '1' &&
+      platform_asset_ref[kAndroidAssetPrefix.size()] <= '9' &&
+      std::all_of(platform_asset_ref.begin() + static_cast<std::ptrdiff_t>(kAndroidAssetPrefix.size()),
+                  platform_asset_ref.end(), [](unsigned char value) { return value >= '0' && value <= '9'; });
+  if (active_account_session_ == nullptr) {
+    error_code = "SESSION_INVALID";
     return false;
   }
-  int status = sqlite3_bind_text(item, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(item, 2, operation.private_media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(item);
-  if (status == SQLITE_ROW) {
-    const auto *captured_at = sqlite3_column_text(item, 0);
-    if (captured_at != nullptr) operation.private_media_captured_at = reinterpret_cast<const char *>(captured_at);
-  }
-  sqlite3_finalize(item);
-  if (status != SQLITE_ROW || operation.private_media_captured_at.empty()) return false;
-
-  if (sqlite3_exec(database_, "BEGIN IMMEDIATE", nullptr, nullptr, nullptr) != SQLITE_OK) return false;
-  const auto rollback = [this]() {
-    sqlite3_exec(database_, "ROLLBACK", nullptr, nullptr, nullptr);
-    return false;
-  };
-  sqlite3_stmt *clear = nullptr;
-  if (sqlite3_prepare_v2(database_, "DELETE FROM private_media_save_operations WHERE user_id=? AND media_id=?",
-                         -1, &clear, nullptr) != SQLITE_OK) return rollback();
-  status = sqlite3_bind_text(clear, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(clear, 2, operation.private_media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(clear);
-  sqlite3_finalize(clear);
-  if (status != SQLITE_DONE) return rollback();
-
-  sqlite3_stmt *insert = nullptr;
-  const char *sql =
-      "INSERT INTO private_media_save_operations(operation_id,user_id,media_id,state,created_at,updated_at) "
-      "VALUES(?,?,?,'REQUESTING_ACCESS',?,?)";
-  if (sqlite3_prepare_v2(database_, sql, -1, &insert, nullptr) != SQLITE_OK) return rollback();
-  const std::string operation_key = std::to_string(operation.operation_id);
-  const std::string now = now_rfc3339();
-  status = sqlite3_bind_text(insert, 1, operation_key.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(insert, 2, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(insert, 3, operation.private_media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(insert, 4, now.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(insert, 5, now.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(insert);
-  sqlite3_finalize(insert);
-  if (status != SQLITE_DONE || sqlite3_exec(database_, "COMMIT", nullptr, nullptr, nullptr) != SQLITE_OK) {
-    return rollback();
-  }
-  operation.private_media_save_started = true;
-  ++event_sequence_;
-  emit_locked("{\"contractVersion\":\"stage05-v1\",\"type\":\"PrivateMediaSaveChanged\",\"sequence\":" +
-              std::to_string(event_sequence_) + ",\"userId\":\"" +
-              json_escape(active_account_session_->user_id) + "\",\"mediaId\":\"" +
-              json_escape(operation.private_media_id) + "\",\"state\":\"REQUESTING_ACCESS\"}");
-  return true;
-}
-
-bool Core::prepare_private_media_save_resources_locked(AccountOperation &operation,
-                                                       const std::string &access_json) {
-  if (active_account_session_ == nullptr || !operation.private_media_save_started ||
-      sqlite_json_text(database_, access_json, "$.media_id") != operation.private_media_id ||
-      sqlite_json_text(database_, access_json, "$.purpose") != "DOWNLOAD") {
+  if (!valid_asset_ref) {
+    error_code = "PRIVATE_MEDIA_SYSTEM_ALBUM_WRITE_FAILED";
     return false;
   }
-  const int64_t count = json_array_length(database_, access_json, "$.resources");
-  if (count < 1 || count > 2) return false;
-  for (auto &value : operation.private_media_resource_ids) wipe_string(value);
-  operation.private_media_resource_ids.clear();
-  for (auto &value : operation.private_media_resource_types) wipe_string(value);
-  operation.private_media_resource_types.clear();
-  for (auto &value : operation.private_media_resource_mime_types) wipe_string(value);
-  operation.private_media_resource_mime_types.clear();
-  for (auto &value : operation.private_media_resource_digests) wipe_string(value);
-  operation.private_media_resource_digests.clear();
-  for (auto &value : operation.private_media_resource_urls) wipe_string(value);
-  operation.private_media_resource_urls.clear();
-  for (auto &value : operation.private_media_resource_headers) wipe_string(value);
-  operation.private_media_resource_headers.clear();
-  operation.private_media_resource_sizes.clear();
-  operation.private_media_resource_index = 0;
-  int originals = 0;
-  for (int64_t index = 0; index < count; ++index) {
-    const std::string prefix = "$.resources[" + std::to_string(index) + "]";
-    const std::string resource_id = sqlite_json_text(database_, access_json, prefix + ".resource_id");
-    const std::string resource_type = sqlite_json_text(database_, access_json, prefix + ".resource_type");
-    const std::string mime_type = sqlite_json_text(database_, access_json, prefix + ".mime_type");
-    const int64_t content_size = sqlite_json_integer(database_, access_json, prefix + ".content_size", -1);
-    const std::string digest = sqlite_json_text(database_, access_json, prefix + ".content_sha256");
-    const std::string method = sqlite_json_text(database_, access_json, prefix + ".grant.method");
-    const std::string url = sqlite_json_text(database_, access_json, prefix + ".grant.url");
-    const std::string headers = sqlite_json_text(database_, access_json, prefix + ".grant.headers");
-    std::string decoded_digest;
-    const bool digest_valid = base64_decode(digest, decoded_digest) &&
-        decoded_digest.size() == crypto_hash_sha256_BYTES;
-    wipe_string(decoded_digest);
-    if (resource_id.size() != 36U || resource_id.find_first_not_of("0123456789abcdefABCDEF-") != std::string::npos ||
-        (resource_type != "ORIGINAL" && resource_type != "LIVE_PHOTO_VIDEO") ||
-        mime_type.empty() || mime_type.size() > 128U || content_size < 1 ||
-        method != "GET" || url.empty() || url.size() > 8192U || !digest_valid ||
-        headers.empty() || !valid_json(database_, headers) || headers.front() != '{') {
+
+  sqlite3_stmt *resource = nullptr;
+  const char *resource_sql =
+      "SELECT item.content_revision,resource.resource_type FROM private_media_items_v2 item "
+      "JOIN private_media_resources resource ON resource.user_id=item.user_id AND resource.media_id=item.media_id "
+      "WHERE item.user_id=? AND item.media_id=? AND resource.resource_id=?";
+  if (sqlite3_prepare_v2(database_, resource_sql, -1, &resource, nullptr) != SQLITE_OK) {
+    error_code = "DATABASE_ERROR";
+    return false;
+  }
+  int status = sqlite3_bind_text(resource, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(resource, 2, media_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(resource, 3, resource_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(resource);
+  if (status != SQLITE_ROW) {
+    sqlite3_finalize(resource);
+    error_code = status == SQLITE_DONE ? "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE" : "DATABASE_ERROR";
+    return false;
+  }
+  const int64_t content_revision = sqlite3_column_int64(resource, 0);
+  const auto *resource_type = sqlite3_column_text(resource, 1);
+  const bool original = resource_type != nullptr &&
+      std::string_view(reinterpret_cast<const char *>(resource_type)) == "ORIGINAL";
+  sqlite3_finalize(resource);
+  if (!original) {
+    error_code = "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE";
+    return false;
+  }
+
+  sqlite3_stmt *resources = nullptr;
+  const char *resources_sql =
+      "SELECT resource_id,content_sha256_base64 FROM private_media_resources "
+      "WHERE user_id=? AND media_id=? ORDER BY resource_id";
+  if (sqlite3_prepare_v2(database_, resources_sql, -1, &resources, nullptr) != SQLITE_OK) {
+    error_code = "DATABASE_ERROR";
+    return false;
+  }
+  status = sqlite3_bind_text(resources, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(resources, 2, media_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status != SQLITE_OK) {
+    sqlite3_finalize(resources);
+    error_code = "DATABASE_ERROR";
+    return false;
+  }
+  std::string resource_set;
+  while ((status = sqlite3_step(resources)) == SQLITE_ROW) {
+    const auto *id = sqlite3_column_text(resources, 0);
+    const auto *digest = sqlite3_column_text(resources, 1);
+    if (id == nullptr || digest == nullptr) {
+      sqlite3_finalize(resources);
+      error_code = "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE";
       return false;
     }
-    if (resource_type == "ORIGINAL") ++originals;
-    if (std::find(operation.private_media_resource_ids.begin(), operation.private_media_resource_ids.end(), resource_id) !=
-        operation.private_media_resource_ids.end()) return false;
-    operation.private_media_resource_ids.push_back(resource_id);
-    operation.private_media_resource_types.push_back(resource_type);
-    operation.private_media_resource_mime_types.push_back(mime_type);
-    operation.private_media_resource_digests.push_back(digest);
-    operation.private_media_resource_urls.push_back(url);
-    operation.private_media_resource_headers.push_back(headers);
-    operation.private_media_resource_sizes.push_back(content_size);
+    resource_set += reinterpret_cast<const char *>(id);
+    resource_set += ':';
+    resource_set += reinterpret_cast<const char *>(digest);
+    resource_set += ';';
   }
-  if (originals != 1) return false;
-
-  if (sqlite3_exec(database_, "BEGIN IMMEDIATE", nullptr, nullptr, nullptr) != SQLITE_OK) return false;
-  const auto rollback = [this]() {
-    sqlite3_exec(database_, "ROLLBACK", nullptr, nullptr, nullptr);
+  sqlite3_finalize(resources);
+  if (status != SQLITE_DONE || resource_set.empty()) {
+    error_code = status == SQLITE_DONE ? "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE" : "DATABASE_ERROR";
     return false;
-  };
-  sqlite3_stmt *clear = nullptr;
-  if (sqlite3_prepare_v2(database_, "DELETE FROM private_media_save_resources WHERE operation_id=?", -1,
-                         &clear, nullptr) != SQLITE_OK) return rollback();
-  const std::string operation_key = std::to_string(operation.operation_id);
-  int status = sqlite3_bind_text(clear, 1, operation_key.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(clear);
-  sqlite3_finalize(clear);
-  if (status != SQLITE_DONE) return rollback();
-  sqlite3_stmt *clear_originals = nullptr;
-  if (sqlite3_prepare_v2(database_, "DELETE FROM private_media_resources WHERE user_id=? AND media_id=? "
-                         "AND resource_type IN ('ORIGINAL','LIVE_PHOTO_VIDEO')", -1,
-                         &clear_originals, nullptr) != SQLITE_OK) return rollback();
-  status = sqlite3_bind_text(clear_originals, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(clear_originals, 2, operation.private_media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(clear_originals);
-  sqlite3_finalize(clear_originals);
-  if (status != SQLITE_DONE) return rollback();
-  const char *resource_sql =
-      "INSERT INTO private_media_resources(user_id,media_id,resource_id,resource_type,mime_type,content_size,content_sha256_base64) "
-      "VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,resource_id) DO UPDATE SET "
-      "resource_type=excluded.resource_type,mime_type=excluded.mime_type,content_size=excluded.content_size,"
-      "content_sha256_base64=excluded.content_sha256_base64";
-  const char *save_resource_sql =
-      "INSERT INTO private_media_save_resources(operation_id,resource_id,state) VALUES(?,?,'PENDING')";
-  for (size_t index = 0; index < operation.private_media_resource_ids.size(); ++index) {
-    sqlite3_stmt *resource = nullptr;
-    if (sqlite3_prepare_v2(database_, resource_sql, -1, &resource, nullptr) != SQLITE_OK) return rollback();
-    status = sqlite3_bind_text(resource, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_bind_text(resource, 2, operation.private_media_id.c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_bind_text(resource, 3, operation.private_media_resource_ids[index].c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_bind_text(resource, 4, operation.private_media_resource_types[index].c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_bind_text(resource, 5, operation.private_media_resource_mime_types[index].c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_bind_int64(resource, 6, operation.private_media_resource_sizes[index]);
-    if (status == SQLITE_OK) status = sqlite3_bind_text(resource, 7, operation.private_media_resource_digests[index].c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_step(resource);
-    sqlite3_finalize(resource);
-    if (status != SQLITE_DONE) return rollback();
-    sqlite3_stmt *save_resource = nullptr;
-    if (sqlite3_prepare_v2(database_, save_resource_sql, -1, &save_resource, nullptr) != SQLITE_OK) return rollback();
-    status = sqlite3_bind_text(save_resource, 1, operation_key.c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_bind_text(save_resource, 2, operation.private_media_resource_ids[index].c_str(), -1, SQLITE_TRANSIENT);
-    if (status == SQLITE_OK) status = sqlite3_step(save_resource);
-    sqlite3_finalize(save_resource);
-    if (status != SQLITE_DONE) return rollback();
   }
-  if (sqlite3_exec(database_, "COMMIT", nullptr, nullptr, nullptr) != SQLITE_OK) return rollback();
-  return update_private_media_save_state_locked(operation, "DOWNLOADING");
+  const std::string resource_set_digest = command_digest(resource_set);
+  wipe_string(resource_set);
+
+  sqlite3_stmt *receipt = nullptr;
+  const char *receipt_sql =
+      "INSERT INTO download_receipts(user_id,cloud_media_id,platform_asset_ref,created_at,"
+      "content_revision,resource_set_digest,updated_at) VALUES(?,?,?,?,?,?,?) "
+      "ON CONFLICT(user_id,cloud_media_id) DO UPDATE SET "
+      "platform_asset_ref=excluded.platform_asset_ref,"
+      "content_revision=excluded.content_revision,"
+      "resource_set_digest=excluded.resource_set_digest,"
+      "updated_at=excluded.updated_at";
+  if (sqlite3_prepare_v2(database_, receipt_sql, -1, &receipt, nullptr) != SQLITE_OK) {
+    error_code = "DATABASE_ERROR";
+    return false;
+  }
+  const std::string now = now_rfc3339();
+  status = sqlite3_bind_text(receipt, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(receipt, 2, media_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(receipt, 3, platform_asset_ref.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(receipt, 4, now.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_int64(receipt, 5, content_revision);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(receipt, 6, resource_set_digest.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(receipt, 7, now.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(receipt);
+  sqlite3_finalize(receipt);
+  if (status != SQLITE_DONE) {
+    error_code = "DATABASE_ERROR";
+    return false;
+  }
+  return true;
 }
 
 bool Core::prepare_private_media_view_resource_locked(AccountOperation &operation,
@@ -2349,7 +2270,6 @@ bool Core::prepare_private_media_view_resource_locked(AccountOperation &operatio
   for (auto &value : operation.private_media_resource_headers) wipe_string(value);
   operation.private_media_resource_headers.clear();
   operation.private_media_resource_sizes.clear();
-  operation.private_media_resource_index = 0;
   operation.private_media_view_maximum_output_size = 0;
   operation.private_media_view_uses_oss_image_thumbnail = false;
 
@@ -2405,168 +2325,6 @@ bool Core::prepare_private_media_view_resource_locked(AccountOperation &operatio
   return true;
 }
 
-bool Core::update_private_media_save_state_locked(const AccountOperation &operation,
-                                                  const std::string &state,
-                                                  const std::string &failure_code) {
-  if (active_account_session_ == nullptr || operation.private_media_id.empty()) return false;
-  sqlite3_stmt *statement = nullptr;
-  const char *sql =
-      "UPDATE private_media_save_operations SET state=?,failure_code=?,updated_at=? "
-      "WHERE operation_id=? AND user_id=? AND media_id=?";
-  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return false;
-  const std::string now = now_rfc3339();
-  const std::string operation_key = std::to_string(operation.operation_id);
-  int status = sqlite3_bind_text(statement, 1, state.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) {
-    status = failure_code.empty() ? sqlite3_bind_null(statement, 2) :
-        sqlite3_bind_text(statement, 2, failure_code.c_str(), -1, SQLITE_TRANSIENT);
-  }
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 3, now.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 4, operation_key.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 5, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 6, operation.private_media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(statement);
-  sqlite3_finalize(statement);
-  if (status != SQLITE_DONE || sqlite3_changes(database_) != 1) return false;
-  ++event_sequence_;
-  emit_locked("{\"contractVersion\":\"stage05-v1\",\"type\":\"PrivateMediaSaveChanged\",\"sequence\":" +
-              std::to_string(event_sequence_) + ",\"userId\":\"" +
-              json_escape(active_account_session_->user_id) + "\",\"mediaId\":\"" +
-              json_escape(operation.private_media_id) + "\",\"state\":\"" +
-              json_escape(state) + "\"}");
-  return true;
-}
-
-bool Core::update_private_media_save_resource_locked(const AccountOperation &operation,
-                                                     const std::string &resource_id,
-                                                     const std::string &state,
-                                                     const std::string &verified_path) {
-  sqlite3_stmt *statement = nullptr;
-  const char *sql =
-      "UPDATE private_media_save_resources SET state=?,verified_path=CASE WHEN ?='' THEN verified_path ELSE ? END "
-      "WHERE operation_id=? AND resource_id=?";
-  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return false;
-  const std::string operation_key = std::to_string(operation.operation_id);
-  int status = sqlite3_bind_text(statement, 1, state.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, verified_path.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 3, verified_path.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 4, operation_key.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 5, resource_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(statement);
-  sqlite3_finalize(statement);
-  return status == SQLITE_DONE && sqlite3_changes(database_) == 1;
-}
-
-bool Core::persist_private_media_download_receipt_locked(const AccountOperation &operation) {
-  if (active_account_session_ == nullptr || operation.private_media_system_asset_refs.empty() ||
-      operation.private_media_resource_ids.size() != operation.private_media_resource_digests.size()) {
-    return false;
-  }
-  std::string resource_set;
-  for (size_t index = 0; index < operation.private_media_resource_ids.size(); ++index) {
-    resource_set += operation.private_media_resource_ids[index] + ':' + operation.private_media_resource_digests[index] + ';';
-  }
-  const std::string resource_set_digest = command_digest(resource_set);
-  wipe_string(resource_set);
-  const auto original = std::find(operation.private_media_resource_types.begin(),
-                                  operation.private_media_resource_types.end(), "ORIGINAL");
-  if (original == operation.private_media_resource_types.end()) return false;
-  const size_t original_index = static_cast<size_t>(std::distance(operation.private_media_resource_types.begin(), original));
-  if (original_index >= operation.private_media_system_asset_refs.size()) return false;
-  sqlite3_stmt *statement = nullptr;
-  const char *sql =
-      "INSERT INTO download_receipts(user_id,cloud_media_id,platform_asset_ref,created_at,content_revision,resource_set_digest,updated_at) "
-      "VALUES(?,?,?,?,1,?,?) ON CONFLICT(user_id,cloud_media_id) DO UPDATE SET "
-      "platform_asset_ref=excluded.platform_asset_ref,content_revision=excluded.content_revision,"
-      "resource_set_digest=excluded.resource_set_digest,updated_at=excluded.updated_at";
-  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return false;
-  const std::string now = now_rfc3339();
-  int status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, operation.private_media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 3, operation.private_media_system_asset_refs[original_index].c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 4, now.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 5, resource_set_digest.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 6, now.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(statement);
-  sqlite3_finalize(statement);
-  return status == SQLITE_DONE;
-}
-
-std::string Core::read_private_media_save_operation_locked(const std::string &media_id) {
-  if (media_id.empty()) return {};
-  const std::string user_id = active_account_session_ == nullptr
-      ? sqlite_json_text(database_, read_account_state_locked(), "$.state.userId")
-      : active_account_session_->user_id;
-  if (user_id.empty()) return {};
-  sqlite3_stmt *operation = nullptr;
-  const char *sql =
-      "SELECT operation_id,state,COALESCE(failure_code,''),retry_count,updated_at "
-      "FROM private_media_save_operations WHERE user_id=? AND media_id=?";
-  if (sqlite3_prepare_v2(database_, sql, -1, &operation, nullptr) != SQLITE_OK) return {};
-  int status = sqlite3_bind_text(operation, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(operation, 2, media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(operation);
-  if (status != SQLITE_ROW) {
-    sqlite3_finalize(operation);
-    return {};
-  }
-  const auto text_at = [operation](int column) -> std::string {
-    const auto *value = sqlite3_column_text(operation, column);
-    return value == nullptr ? std::string{} : reinterpret_cast<const char *>(value);
-  };
-  std::string result = "{\"operationId\":\"" + json_escape(text_at(0)) + "\",\"mediaId\":\"" +
-      json_escape(media_id) + "\",\"state\":\"" + json_escape(text_at(1)) +
-      "\",\"failureCode\":" + (text_at(2).empty() ? std::string("null") :
-      "\"" + json_escape(text_at(2)) + "\"") + ",\"retryCount\":" +
-      std::to_string(sqlite3_column_int(operation, 3)) + ",\"updatedAt\":\"" +
-      json_escape(text_at(4)) + "\",\"resources\":[";
-  const std::string operation_id = text_at(0);
-  sqlite3_finalize(operation);
-  sqlite3_stmt *resources = nullptr;
-  if (sqlite3_prepare_v2(database_, "SELECT resource_id,state FROM private_media_save_resources WHERE operation_id=? ORDER BY resource_id",
-                         -1, &resources, nullptr) != SQLITE_OK) return {};
-  status = sqlite3_bind_text(resources, 1, operation_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status != SQLITE_OK) {
-    sqlite3_finalize(resources);
-    return {};
-  }
-  bool first = true;
-  while ((status = sqlite3_step(resources)) == SQLITE_ROW) {
-    const auto *resource_id = sqlite3_column_text(resources, 0);
-    const auto *resource_state = sqlite3_column_text(resources, 1);
-    if (!first) result += ',';
-    first = false;
-    result += "{\"resourceId\":\"" + json_escape(resource_id == nullptr ? "" : reinterpret_cast<const char *>(resource_id)) +
-        "\",\"state\":\"" + json_escape(resource_state == nullptr ? "" : reinterpret_cast<const char *>(resource_state)) + "\"}";
-  }
-  sqlite3_finalize(resources);
-  return status == SQLITE_DONE ? result + "]}" : std::string{};
-}
-
-bool Core::cancel_private_media_save_locked(const std::string &media_id) {
-  if (active_account_session_ == nullptr || media_id.empty()) return false;
-  sqlite3_stmt *statement = nullptr;
-  const char *sql =
-      "UPDATE private_media_save_operations SET state='CANCELLED',failure_code=NULL,updated_at=? "
-      "WHERE user_id=? AND media_id=? AND state NOT IN ('COMPLETED','CANCELLED')";
-  if (sqlite3_prepare_v2(database_, sql, -1, &statement, nullptr) != SQLITE_OK) return false;
-  const std::string now = now_rfc3339();
-  int status = sqlite3_bind_text(statement, 1, now.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 3, media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_step(statement);
-  sqlite3_finalize(statement);
-  if (status != SQLITE_DONE) return false;
-  if (sqlite3_changes(database_) > 0) {
-    ++event_sequence_;
-    emit_locked("{\"contractVersion\":\"stage05-v1\",\"type\":\"PrivateMediaSaveChanged\",\"sequence\":" +
-                std::to_string(event_sequence_) + ",\"userId\":\"" +
-                json_escape(active_account_session_->user_id) + "\",\"mediaId\":\"" +
-                json_escape(media_id) + "\",\"state\":\"CANCELLED\"}");
-  }
-  return true;
-}
-
 void Core::clear_account_session_locked() {
   active_account_session_.reset();
   sqlite3_exec(database_, "DELETE FROM account_state WHERE singleton=1", nullptr, nullptr, nullptr);
@@ -2615,8 +2373,7 @@ mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
   const bool stage05_type = value->type == "RefreshPrivateMedia" ||
       value->type == "LoadMorePrivateMedia" || value->type == "GetPrivateMediaDetail" ||
       value->type == "OpenPrivateMedia" || value->type == "ClosePrivateMedia" ||
-      value->type == "TrashPrivateMedia" || value->type == "SavePrivateMediaToSystemAlbum" ||
-      value->type == "RetryPrivateMediaSave" || value->type == "CancelPrivateMediaSave";
+      value->type == "TrashPrivateMedia" || value->type == "RecordPrivateMediaSystemSave";
   const bool stage06_type = value->type == "SetPrivateMediaShare" ||
       value->type == "RefreshFamilyMedia" || value->type == "LoadMoreFamilyMedia" ||
       value->type == "GetFamilyMediaDetail" || value->type == "OpenFamilyMedia" ||
@@ -2706,9 +2463,25 @@ mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
       value->continuation = purpose;
       issue_session_read_locked(*value);
     }
+  } else if (value->type == "RecordPrivateMediaSystemSave") {
+    const std::string media_id = top_level_json_string(command, "mediaId");
+    const std::string resource_id = top_level_json_string(command, "resourceId");
+    const std::string platform_asset_ref = top_level_json_string(command, "platformAssetRef");
+    const auto valid_uuid = [](const std::string &id) {
+      return id.size() == 36U &&
+          id.find_first_not_of("0123456789abcdefABCDEF-") == std::string::npos;
+    };
+    if (!valid_uuid(media_id) || !valid_uuid(resource_id)) return fail("PRIVATE_MEDIA_INVALID");
+    std::string error_code;
+    if (!record_private_media_system_save_locked(media_id, resource_id, platform_asset_ref, error_code)) {
+      return fail(error_code.empty() ? "DATABASE_ERROR" : error_code);
+    }
+    value->status = "COMPLETED";
+    value->terminal_payload = "{\"mediaId\":\"" + json_escape(media_id) +
+        "\",\"state\":\"COMPLETED\",\"savedResourceCount\":1}";
+    value->clear_sensitive();
   } else if (value->type == "GetPrivateMediaDetail" || value->type == "OpenPrivateMedia" ||
-             value->type == "TrashPrivateMedia" ||
-             value->type == "SavePrivateMediaToSystemAlbum" || value->type == "RetryPrivateMediaSave") {
+             value->type == "TrashPrivateMedia") {
     value->private_media_id = top_level_json_string(command, "mediaId");
     if (value->private_media_id.size() != 36U ||
         value->private_media_id.find_first_not_of("0123456789abcdefABCDEF-") != std::string::npos) {
@@ -2732,8 +2505,6 @@ mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
         return fail("IDEMPOTENCY_KEY_INVALID");
       }
       purpose = "PRIVATE_MEDIA_TRASH";
-    } else if (value->type == "SavePrivateMediaToSystemAlbum" || value->type == "RetryPrivateMediaSave") {
-      purpose = "PRIVATE_MEDIA_SAVE_ACCESS";
     }
     if (active_account_session_ != nullptr) {
       const mineg_error_code_t code = issue_account_request_locked(*value, purpose);
@@ -2752,31 +2523,6 @@ mineg_error_code_t Core::start_account_operation_locked(uint64_t operation_id,
     set_account_effect_locked(*value, "MediaPlaybackEffect",
         "{\"action\":\"closeVerifiedMedia\",\"viewHandle\":\"" +
         json_escape(value->private_media_view_handle) + "\"}", "PRIVATE_MEDIA_VIEW_CLOSE");
-  } else if (value->type == "CancelPrivateMediaSave") {
-    value->private_media_id = top_level_json_string(command, "mediaId");
-    if (value->private_media_id.size() != 36U ||
-        value->private_media_id.find_first_not_of("0123456789abcdefABCDEF-") != std::string::npos) {
-      return fail("PRIVATE_MEDIA_INVALID");
-    }
-    if (active_account_session_ == nullptr) {
-      value->continuation = "PRIVATE_MEDIA_SAVE_CANCEL";
-      issue_session_read_locked(*value);
-    } else {
-      if (!cancel_private_media_save_locked(value->private_media_id)) return fail("DATABASE_ERROR");
-      for (auto &[id, candidate] : account_operations_) {
-        if (candidate.get() != value &&
-            (candidate->type == "SavePrivateMediaToSystemAlbum" || candidate->type == "RetryPrivateMediaSave") &&
-            candidate->private_media_id == value->private_media_id && candidate->status == "WAITING_FOR_EFFECT") {
-          ++candidate->sequence;
-          candidate->status = "CANCELLED";
-          candidate->clear_sensitive();
-        }
-      }
-      value->status = "COMPLETED";
-      value->terminal_payload = "{\"mediaId\":\"" + json_escape(value->private_media_id) +
-          "\",\"state\":\"CANCELLED\"}";
-      value->clear_sensitive();
-    }
   } else if (value->type == "SetPrivateMediaShare" ||
              value->type == "GetFamilyMediaDetail" || value->type == "OpenFamilyMedia" ||
              value->type == "RestoreTrashMedia") {
@@ -3085,15 +2831,6 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
         return account_operation_step_locked(operation, result);
       }
     }
-    if ((operation.type == "SavePrivateMediaToSystemAlbum" || operation.type == "RetryPrivateMediaSave") &&
-        operation.private_media_save_started) {
-      if (!update_private_media_save_state_locked(operation,
-                                                  retryable ? "RETRYABLE_FAILED" : "PERMANENT_FAILED",
-                                                  code)) {
-        finish_account_error_locked(operation, "DATABASE_ERROR", false, request_id);
-        return account_operation_step_locked(operation, result);
-      }
-    }
     if (operation.type == "RunBackupCycle") {
       if (!fail_backup_task_locked(operation, code, retryable, retry_after_seconds)) {
         finish_account_error_locked(operation, "DATABASE_ERROR", false, request_id);
@@ -3396,137 +3133,6 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
         "\",\"mimeType\":\"" + json_escape(operation.private_media_resource_mime_types.front()) +
         "\",\"viewHandle\":\"" + json_escape(view_handle) + "\",\"sourceUri\":\"" +
         json_escape(source_uri) + "\"}";
-    operation.clear_sensitive();
-    return account_operation_step_locked(operation, result);
-  }
-
-  if (operation.stage == "PRIVATE_MEDIA_SAVE_STORAGE") {
-    int64_t required_bytes = 0;
-    for (const int64_t size : operation.private_media_resource_sizes) {
-      if (size < 1 || required_bytes > std::numeric_limits<int64_t>::max() - size) {
-        return cached_profile_or_error("PRIVATE_MEDIA_RESOURCE_UNAVAILABLE", false);
-      }
-      required_bytes += size;
-    }
-    const int64_t available_bytes = sqlite_json_integer(database_, effect_result,
-                                                         "$.payload.availableBytes", -1);
-    if (available_bytes < required_bytes + 16LL * 1024LL * 1024LL) {
-      return cached_profile_or_error("PRIVATE_MEDIA_DEVICE_STORAGE_LOW", true);
-    }
-    set_account_effect_locked(operation, "FileEffect",
-        "{\"action\":\"createTaskTempFile\",\"name\":\"private-save-" +
-        std::to_string(operation.operation_id) + "-0\"}", "PRIVATE_MEDIA_SAVE_CREATE_TEMP");
-    return account_operation_step_locked(operation, result);
-  }
-
-  if (operation.stage == "PRIVATE_MEDIA_SAVE_CREATE_TEMP") {
-    const std::string path = sqlite_json_text(database_, effect_result, "$.payload.path");
-    if (path.empty() || path.size() > 4096U || operation.private_media_resource_index < 0 ||
-        operation.private_media_resource_index >=
-            static_cast<int64_t>(operation.private_media_resource_ids.size())) {
-      return cached_profile_or_error("PRIVATE_MEDIA_RESOURCE_UNAVAILABLE", false);
-    }
-    const size_t index = static_cast<size_t>(operation.private_media_resource_index);
-    if (operation.private_media_temp_paths.size() == index) {
-      operation.private_media_temp_paths.push_back(path);
-    } else if (operation.private_media_temp_paths.size() > index) {
-      wipe_string(operation.private_media_temp_paths[index]);
-      operation.private_media_temp_paths[index] = path;
-    } else {
-      return cached_profile_or_error("OPERATION_STATE_INVALID", false);
-    }
-    if (!update_private_media_save_resource_locked(operation, operation.private_media_resource_ids[index],
-                                                   "DOWNLOADING")) {
-      return cached_profile_or_error("DATABASE_ERROR", false);
-    }
-    set_account_effect_locked(operation, "TransportEffect",
-        "{\"action\":\"downloadObject\",\"url\":\"" +
-        json_escape(operation.private_media_resource_urls[index]) + "\",\"method\":\"GET\",\"headers\":" +
-        operation.private_media_resource_headers[index] + ",\"destinationPath\":\"" +
-        json_escape(path) + "\",\"expectedSize\":" +
-        std::to_string(operation.private_media_resource_sizes[index]) + "}",
-        "PRIVATE_MEDIA_SAVE_DOWNLOAD");
-    return account_operation_step_locked(operation, result);
-  }
-
-  if (operation.stage == "PRIVATE_MEDIA_SAVE_DOWNLOAD") {
-    if (operation.private_media_resource_index < 0 ||
-        operation.private_media_resource_index >= static_cast<int64_t>(operation.private_media_resource_ids.size())) {
-      return cached_profile_or_error("OPERATION_STATE_INVALID", false);
-    }
-    const size_t index = static_cast<size_t>(operation.private_media_resource_index);
-    const int64_t status = sqlite_json_integer(database_, effect_result, "$.payload.status", 0);
-    const int64_t bytes = sqlite_json_integer(database_, effect_result, "$.payload.bytesWritten", -1);
-    const std::string digest = sqlite_json_text(database_, effect_result, "$.payload.sha256Base64");
-    if (status < 200 || status >= 300 || bytes != operation.private_media_resource_sizes[index] ||
-        digest != operation.private_media_resource_digests[index] || index >= operation.private_media_temp_paths.size() ||
-        !update_private_media_save_resource_locked(operation, operation.private_media_resource_ids[index],
-                                                   "VERIFIED", operation.private_media_temp_paths[index]) ||
-        !update_private_media_save_state_locked(operation, "WRITING_SYSTEM_ALBUM")) {
-      return cached_profile_or_error("PRIVATE_MEDIA_DOWNLOAD_INTEGRITY_FAILED", false);
-    }
-    const auto extension_for_mime = [](const std::string &mime) {
-      if (mime == "image/jpeg") return std::string(".jpg");
-      if (mime == "image/png") return std::string(".png");
-      if (mime == "image/gif") return std::string(".gif");
-      if (mime == "image/heic" || mime == "image/heif") return std::string(".heic");
-      if (mime == "video/mp4") return std::string(".mp4");
-      if (mime == "video/quicktime") return std::string(".mov");
-      return std::string{};
-    };
-    const std::string display_name = "MineG-" + operation.private_media_id + "-" +
-        std::to_string(index + 1U) + extension_for_mime(operation.private_media_resource_mime_types[index]);
-    set_account_effect_locked(operation, "SystemAlbumEffect",
-        "{\"action\":\"writeVerifiedMedia\",\"verifiedFilePath\":\"" +
-        json_escape(operation.private_media_temp_paths[index]) + "\",\"displayName\":\"" +
-        json_escape(display_name) + "\",\"mimeType\":\"" +
-        json_escape(operation.private_media_resource_mime_types[index]) + "\",\"capturedAt\":\"" +
-        json_escape(operation.private_media_captured_at) + "\"}", "PRIVATE_MEDIA_SAVE_WRITE_SYSTEM_ALBUM");
-    return account_operation_step_locked(operation, result);
-  }
-
-  if (operation.stage == "PRIVATE_MEDIA_SAVE_WRITE_SYSTEM_ALBUM") {
-    if (operation.private_media_resource_index < 0 ||
-        operation.private_media_resource_index >= static_cast<int64_t>(operation.private_media_resource_ids.size())) {
-      return cached_profile_or_error("OPERATION_STATE_INVALID", false);
-    }
-    const std::string platform_asset_ref = sqlite_json_text(database_, effect_result, "$.payload.platformAssetRef");
-    const size_t index = static_cast<size_t>(operation.private_media_resource_index);
-    if (platform_asset_ref.empty() || platform_asset_ref.size() > 512U ||
-        !update_private_media_save_resource_locked(operation, operation.private_media_resource_ids[index], "WRITTEN")) {
-      return cached_profile_or_error("PRIVATE_MEDIA_SYSTEM_ALBUM_WRITE_FAILED", false);
-    }
-    operation.private_media_system_asset_refs.push_back(platform_asset_ref);
-    set_account_effect_locked(operation, "FileEffect",
-        "{\"action\":\"deleteTempFile\",\"path\":\"" +
-        json_escape(operation.private_media_temp_paths[index]) + "\"}", "PRIVATE_MEDIA_SAVE_DELETE_TEMP");
-    return account_operation_step_locked(operation, result);
-  }
-
-  if (operation.stage == "PRIVATE_MEDIA_SAVE_DELETE_TEMP") {
-    if (!sqlite_json_boolean(database_, effect_result, "$.payload.deleted", false)) {
-      return cached_profile_or_error("PRIVATE_MEDIA_RESOURCE_UNAVAILABLE", true);
-    }
-    ++operation.private_media_resource_index;
-    if (operation.private_media_resource_index < static_cast<int64_t>(operation.private_media_resource_ids.size())) {
-      if (!update_private_media_save_state_locked(operation, "DOWNLOADING")) {
-        return cached_profile_or_error("DATABASE_ERROR", false);
-      }
-      set_account_effect_locked(operation, "FileEffect",
-          "{\"action\":\"createTaskTempFile\",\"name\":\"private-save-" +
-          std::to_string(operation.operation_id) + "-" +
-          std::to_string(operation.private_media_resource_index) + "\"}",
-          "PRIVATE_MEDIA_SAVE_CREATE_TEMP");
-      return account_operation_step_locked(operation, result);
-    }
-    if (!persist_private_media_download_receipt_locked(operation) ||
-        !update_private_media_save_state_locked(operation, "COMPLETED")) {
-      return cached_profile_or_error("DATABASE_ERROR", false);
-    }
-    operation.status = "COMPLETED";
-    operation.terminal_payload = "{\"mediaId\":\"" + json_escape(operation.private_media_id) +
-        "\",\"state\":\"COMPLETED\",\"savedResourceCount\":" +
-        std::to_string(operation.private_media_system_asset_refs.size()) + "}";
     operation.clear_sensitive();
     return account_operation_step_locked(operation, result);
   }
@@ -3895,16 +3501,6 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
         !operation.user_id.empty() && rfc3339_is_after(operation.access_expires_at,
                                                        std::chrono::seconds(30)) &&
         activate_account_session_locked(operation)) {
-      if (operation.continuation == "PRIVATE_MEDIA_SAVE_CANCEL") {
-        if (!cancel_private_media_save_locked(operation.private_media_id)) {
-          return cached_profile_or_error("DATABASE_ERROR", false);
-        }
-        operation.status = "COMPLETED";
-        operation.terminal_payload = "{\"mediaId\":\"" + json_escape(operation.private_media_id) +
-            "\",\"state\":\"CANCELLED\"}";
-        operation.clear_sensitive();
-        return account_operation_step_locked(operation, result);
-      }
       if (operation.type == "AccountRestoreSession") {
         operation.status = "COMPLETED";
         operation.terminal_payload = "{\"userId\":\"" + json_escape(operation.user_id) +
@@ -4031,7 +3627,6 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_LOAD_MORE" ||
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_DETAIL" ||
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_TRASH" ||
-        operation.stage == "TRANSPORT_PRIVATE_MEDIA_SAVE_ACCESS" ||
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_VIEW_ACCESS" ||
         operation.stage == "TRANSPORT_PRIVATE_MEDIA_SHARE" ||
         operation.stage == "TRANSPORT_FAMILY_MEDIA_LIST" ||
@@ -4396,16 +3991,6 @@ mineg_error_code_t Core::resume_account_operation_locked(uint64_t operation_id,
         "\",\"outcome\":\"" + json_escape(outcome) + "\",\"createdAt\":\"" +
         json_escape(created_at) + "\"}";
     operation.clear_sensitive();
-    return account_operation_step_locked(operation, result);
-  }
-  if (operation.stage == "TRANSPORT_PRIVATE_MEDIA_SAVE_ACCESS") {
-    if (!prepare_private_media_save_resources_locked(operation, response_body)) {
-      wipe_string(response_body);
-      return cached_profile_or_error("PRIVATE_MEDIA_RESOURCE_UNAVAILABLE", false, request_id);
-    }
-    wipe_string(response_body);
-    set_account_effect_locked(operation, "FileEffect", "{\"action\":\"getAvailableSpace\"}",
-                              "PRIVATE_MEDIA_SAVE_STORAGE");
     return account_operation_step_locked(operation, result);
   }
   if (operation.stage == "TRANSPORT_PRIVATE_MEDIA_VIEW_ACCESS") {
@@ -6780,9 +6365,6 @@ mineg_error_code_t Core::query(const std::string &query, std::string &result) {
     if (type == "GetPrivateMediaDetail" && requested_contract != "stage05-v1") {
       return MINEG_INVALID_ARGUMENT;
     }
-    if (type == "GetPrivateMediaSaveOperation" && requested_contract != "stage05-v1") {
-      return MINEG_INVALID_ARGUMENT;
-    }
     if (type == "GetAccountState") {
       result = read_account_state_locked();
       return MINEG_OK;
@@ -6829,13 +6411,6 @@ mineg_error_code_t Core::query(const std::string &query, std::string &result) {
       const std::string detail = read_private_media_detail_v2_locked(media_id);
       result = "{\"contractVersion\":\"stage05-v1\",\"snapshot\":" +
           (detail.empty() ? "null" : detail) + "}";
-      return MINEG_OK;
-    }
-    if (type == "GetPrivateMediaSaveOperation") {
-      const std::string media_id = extract_json_string(query, "mediaId");
-      const std::string snapshot = read_private_media_save_operation_locked(media_id);
-      result = "{\"contractVersion\":\"stage05-v1\",\"snapshot\":" +
-          (snapshot.empty() ? "null" : snapshot) + "}";
       return MINEG_OK;
     }
     if (type == "GetBackupSettings") {
@@ -6900,11 +6475,6 @@ mineg_error_code_t Core::cancel(uint64_t operation_id) {
   const auto account = account_operations_.find(operation_id);
   if (account != account_operations_.end()) {
     if (account->second->status == "WAITING_FOR_EFFECT") {
-      if ((account->second->type == "SavePrivateMediaToSystemAlbum" ||
-           account->second->type == "RetryPrivateMediaSave") &&
-          account->second->private_media_save_started) {
-        cancel_private_media_save_locked(account->second->private_media_id);
-      }
       ++account->second->sequence;
       account->second->status = "CANCELLED";
       account->second->clear_sensitive();

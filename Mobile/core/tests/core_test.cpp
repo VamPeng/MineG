@@ -243,72 +243,100 @@ int main() {
   assert(as_string(result).find(second_media_id) != std::string::npos);
   mineg_buffer_free(&result);
 
-  const std::string save_command = "{\"contractVersion\":\"stage05-v1\",\"type\":\"SavePrivateMediaToSystemAlbum\",\"mediaId\":\"" +
-      saved_media_id + "\"}";
-  expect(mineg_core_start_operation(core, 13, reinterpret_cast<const uint8_t *>(save_command.data()),
-                                    save_command.size(), &result),
-         MINEG_OK, "start stage05 private media save");
-  assert(as_string(result).find("TransportEffect") != std::string::npos);
-  assert(as_string(result).find("/access") != std::string::npos);
-  mineg_buffer_free(&result);
   const std::string resource_id = "22222222-2222-4222-8222-222222222222";
   const std::string digest = "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0";
-  const std::string access_response_body =
-      "{\"media_id\":\"" + saved_media_id + "\",\"purpose\":\"DOWNLOAD\",\"resources\":[{"
-      "\"resource_id\":\"" + resource_id + "\",\"resource_type\":\"ORIGINAL\","
-      "\"mime_type\":\"image/jpeg\",\"content_size\":3,\"content_sha256\":\"" + digest + "\","
-      "\"supports_range\":false,\"grant\":{\"url\":\"https://object.example.test/private?grant=short\","
-      "\"method\":\"GET\",\"headers\":{\"X-MineG-Grant\":\"short\"},"
-      "\"expires_at\":\"2026-08-01T00:05:00Z\"}}]}";
-  const std::string access_response = successful_effect(13, 1, "TransportEffect",
-      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-access\","
-      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(access_response_body) + "\"}");
-  expect(mineg_core_resume_operation(core, 13, reinterpret_cast<const uint8_t *>(access_response.data()),
-                                     access_response.size(), &result),
-         MINEG_OK, "accept short-lived private media grant");
-  assert(as_string(result).find("getAvailableSpace") != std::string::npos);
-  mineg_buffer_free(&result);
-  const std::string storage_result = successful_effect(13, 2, "FileEffect", "{\"availableBytes\":67108864}");
-  expect(mineg_core_resume_operation(core, 13, reinterpret_cast<const uint8_t *>(storage_result.data()),
-                                     storage_result.size(), &result),
-         MINEG_OK, "check private media save storage");
-  assert(as_string(result).find("createTaskTempFile") != std::string::npos);
-  mineg_buffer_free(&result);
-  const std::string temp_result = successful_effect(13, 3, "FileEffect", "{\"path\":\"/safe/private-save-13-0.mineg-task\"}");
-  expect(mineg_core_resume_operation(core, 13, reinterpret_cast<const uint8_t *>(temp_result.data()),
-                                     temp_result.size(), &result),
-         MINEG_OK, "create private media save temp file");
-  assert(as_string(result).find("downloadObject") != std::string::npos);
-  mineg_buffer_free(&result);
-  const std::string download_result = successful_effect(13, 4, "TransportEffect",
-      "{\"status\":200,\"bytesWritten\":3,\"sha256Base64\":\"" + digest + "\"}");
-  expect(mineg_core_resume_operation(core, 13, reinterpret_cast<const uint8_t *>(download_result.data()),
-                                     download_result.size(), &result),
-         MINEG_OK, "verify private media object download");
-  assert(as_string(result).find("SystemAlbumEffect") != std::string::npos);
-  mineg_buffer_free(&result);
-  const std::string album_result = successful_effect(13, 5, "SystemAlbumEffect",
-      "{\"platformAssetRef\":\"android:media-store:123\"}");
-  expect(mineg_core_resume_operation(core, 13, reinterpret_cast<const uint8_t *>(album_result.data()),
-                                     album_result.size(), &result),
-         MINEG_OK, "write verified private media to system album");
-  assert(as_string(result).find("deleteTempFile") != std::string::npos);
-  mineg_buffer_free(&result);
-  const std::string cleanup_result = successful_effect(13, 6, "FileEffect", "{\"deleted\":true}");
-  expect(mineg_core_resume_operation(core, 13, reinterpret_cast<const uint8_t *>(cleanup_result.data()),
-                                     cleanup_result.size(), &result),
-         MINEG_OK, "finish private media save");
-  assert(as_string(result).find("\"state\":\"COMPLETED\"") != std::string::npos);
-  mineg_buffer_free(&result);
-  const std::string save_snapshot = "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaSaveOperation\",\"mediaId\":\"" +
+  const std::string thumbnail_resource_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const std::string cache_private_media_detail =
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaDetail\",\"mediaId\":\"" +
       saved_media_id + "\"}";
-  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(save_snapshot.data()),
-                          save_snapshot.size(), &result),
-         MINEG_OK, "query completed stage05 private media save");
-  assert(as_string(result).find("\"state\":\"COMPLETED\"") != std::string::npos);
-  assert(as_string(result).find("signed_url") == std::string::npos);
-  assert(as_string(result).find("object.example.test") == std::string::npos);
+  expect(mineg_core_start_operation(core, 121,
+                                    reinterpret_cast<const uint8_t *>(cache_private_media_detail.data()),
+                                    cache_private_media_detail.size(), &result),
+         MINEG_OK, "fetch persisted private media detail for local save receipt");
+  assert(as_string(result).find("TransportEffect") != std::string::npos);
   mineg_buffer_free(&result);
+  const std::string detail_response_body =
+      "{\"id\":\"" + saved_media_id + "\",\"media_type\":\"PHOTO\","
+      "\"captured_at\":\"2026-08-01T00:00:00Z\",\"created_at\":\"2026-08-01T00:00:00Z\","
+      "\"original_total_size\":3,\"resources\":[{\"resource_id\":\"" + resource_id +
+      "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/jpeg\","
+      "\"content_size\":3,\"content_sha256\":\"" + digest + "\"},{\"resource_id\":\"" +
+      thumbnail_resource_id + "\",\"resource_type\":\"THUMBNAIL\",\"mime_type\":\"image/jpeg\","
+      "\"content_size\":3,\"content_sha256\":\"" + digest + "\"}]}";
+  const std::string detail_response = successful_effect(121, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-detail\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(detail_response_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 121, reinterpret_cast<const uint8_t *>(detail_response.data()),
+                                     detail_response.size(), &result),
+         MINEG_OK, "persist private media detail for local save receipt");
+  assert(as_string(result).find("COMPLETED") != std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string other_resource_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const std::string cache_other_private_media_detail =
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaDetail\",\"mediaId\":\"" +
+      second_media_id + "\"}";
+  expect(mineg_core_start_operation(core, 122,
+                                    reinterpret_cast<const uint8_t *>(cache_other_private_media_detail.data()),
+                                    cache_other_private_media_detail.size(), &result),
+         MINEG_OK, "fetch other persisted private media detail");
+  mineg_buffer_free(&result);
+  const std::string other_detail_response_body =
+      "{\"id\":\"" + second_media_id + "\",\"media_type\":\"VIDEO\","
+      "\"captured_at\":\"2026-07-31T00:00:00Z\",\"created_at\":\"2026-07-31T00:00:00Z\","
+      "\"original_total_size\":4,\"resources\":[{\"resource_id\":\"" + other_resource_id +
+      "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"video/mp4\","
+      "\"content_size\":4,\"content_sha256\":\"" + digest + "\"}]}";
+  const std::string other_detail_response = successful_effect(122, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-other-detail\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(other_detail_response_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 122, reinterpret_cast<const uint8_t *>(other_detail_response.data()),
+                                     other_detail_response.size(), &result),
+         MINEG_OK, "persist other private media detail");
+  mineg_buffer_free(&result);
+
+  const std::string record_save = R"({"contractVersion":"stage05-v1",
+  "type":"RecordPrivateMediaSystemSave",
+  "mediaId":"11111111-1111-4111-8111-111111111111",
+  "resourceId":"22222222-2222-4222-8222-222222222222",
+  "platformAssetRef":"android:media-store:123"})";
+  expect(mineg_core_start_operation(core, 13, reinterpret_cast<const uint8_t *>(record_save.data()),
+                                    record_save.size(), &result),
+         MINEG_OK, "record local private media system save");
+  assert(as_string(result).find("\"state\":\"COMPLETED\"") != std::string::npos);
+  assert(as_string(result).find("\"savedResourceCount\":1") != std::string::npos);
+  assert(as_string(result).find("TransportEffect") == std::string::npos);
+  assert(as_string(result).find("FileEffect") == std::string::npos);
+  assert(as_string(result).find("SystemAlbumEffect") == std::string::npos);
+  mineg_buffer_free(&result);
+
+  const auto expect_record_save_rejected = [&core, &result](uint64_t operation_id,
+                                                              const std::string &command,
+                                                              const char *step) {
+    expect(mineg_core_start_operation(core, operation_id,
+                                      reinterpret_cast<const uint8_t *>(command.data()), command.size(), &result),
+           MINEG_OK, step);
+    assert(as_string(result).find("\"status\":\"FAILED\"") != std::string::npos);
+    assert(as_string(result).find("TransportEffect") == std::string::npos);
+    assert(as_string(result).find("FileEffect") == std::string::npos);
+    assert(as_string(result).find("SystemAlbumEffect") == std::string::npos);
+    mineg_buffer_free(&result);
+  };
+  expect_record_save_rejected(123,
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"RecordPrivateMediaSystemSave\",\"mediaId\":\"" +
+      saved_media_id + "\",\"resourceId\":\"" + thumbnail_resource_id +
+      "\",\"platformAssetRef\":\"android:media-store:124\"}",
+      "reject non-original private media save receipt");
+  expect_record_save_rejected(124,
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"RecordPrivateMediaSystemSave\",\"mediaId\":\"" +
+      saved_media_id + "\",\"resourceId\":\"" + other_resource_id +
+      "\",\"platformAssetRef\":\"android:media-store:125\"}",
+      "reject private media resource from another media row");
+  expect_record_save_rejected(125,
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"RecordPrivateMediaSystemSave\",\"mediaId\":\"" +
+      saved_media_id + "\",\"resourceId\":\"" + resource_id +
+      "\",\"platformAssetRef\":\"android:media-store:0\"}",
+      "reject malformed Android system asset reference");
 
   const std::string indexed_saved_media =
       "{\"version\":1,\"type\":\"ApplyLocalMediaBatch\",\"userId\":\"user-1\","

@@ -1,14 +1,14 @@
 {
   "contractVersion": "stage05-v1",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "FROZEN",
-  "scope": "M5_PRIVATE_MEDIA_BROWSING_ORIGINAL_SAVE_AND_LOGICAL_DELETE",
+  "scope": "M5_PRIVATE_MEDIA_BROWSING_LOCAL_SAVE_RECEIPTS_AND_LOGICAL_DELETE",
   "architecture": {
     "businessOrchestrator": "C++ Core",
     "businessTruth": "Core SQLite",
     "androidRole": "platform effects and Compose rendering only",
     "clientMediaEncryption": false,
-    "objectAuthorization": "short_lived_private_oss_get"
+    "objectAuthorization": "short_lived_private_oss_view"
   },
   "commands": [
     "RefreshPrivateMedia",
@@ -16,20 +16,16 @@
     "GetPrivateMediaDetail",
     "OpenPrivateMedia",
     "ClosePrivateMedia",
-    "SavePrivateMediaToSystemAlbum",
-    "CancelPrivateMediaSave",
-    "RetryPrivateMediaSave",
+    "RecordPrivateMediaSystemSave",
     "TrashPrivateMedia"
   ],
   "queries": [
     "GetPrivateMediaPage",
-    "GetPrivateMediaDetail",
-    "GetPrivateMediaSaveOperation"
+    "GetPrivateMediaDetail"
   ],
   "events": [
     "PrivateMediaPageChanged",
     "PrivateMediaDetailChanged",
-    "PrivateMediaSaveChanged",
     "PrivateMediaTrashed"
   ],
   "api": {
@@ -62,34 +58,22 @@
     "forbiddenPersistedFields": ["object_key", "signed_url", "grant_headers", "bucket", "long_lived_credential"]
   },
   "access": {
-    "purposes": ["VIEW", "STREAM", "DOWNLOAD"],
+    "purposes": ["VIEW", "STREAM"],
     "viewVariants": ["THUMBNAIL", "DETAIL"],
     "maxGrantLifetimeSeconds": 300,
     "rules": [
       "VIEW THUMBNAIL selects an available THUMBNAIL or VIDEO_COVER; PHOTO/GIF without one may select a supported raster ORIGINAL with delivery_mode OSS_IMAGE_THUMBNAIL, while a validated PHOTO image/svg+xml ORIGINAL up to 5 MiB may use ORIGINAL_RESOURCE",
       "VIEW DETAIL selects the exact image ORIGINAL for photo/GIF/static media and retains the preview/cover path for VIDEO",
       "STREAM selects only PREVIEW or DYNAMIC_PREVIEW",
-      "DOWNLOAD returns the complete ORIGINAL and LIVE_PHOTO_VIDEO resource set",
       "ORIGINAL_RESOURCE downloads are checked for final byte length and SHA-256 before use",
       "OSS_IMAGE_THUMBNAIL is a non-persisted transformed response: Core verifies the short-lived signed HTTPS grant, image MIME type and maximum_output_size (5 MiB); its bytes are not compared with the source object SHA-256"
     ],
     "localMapping": [
       "Core may enrich private-media list and detail snapshots with nullable localPlatformAssetRef and localSourceUri",
       "A local mapping is usable only when the active local-library generation still contains an AVAILABLE item",
-      "Photo/GIF/static detail rendering tries a readable MediaStore mapping, then an integrity-checked account-scoped app-private file named exactly mediaId, then downloads and stores the exact cloud original; video keeps its cover/preview path and the private grid remains thumbnail-only"
+      "Photo/GIF/static detail rendering tries a readable MediaStore mapping, then an integrity-checked account-scoped app-private file named exactly mediaId; if neither is usable the local mapping remains null, while video keeps its cover/preview path and the private grid remains thumbnail-only"
     ]
   },
-  "saveOperationStates": [
-    "IDLE",
-    "REQUESTING_ACCESS",
-    "DOWNLOADING",
-    "VERIFYING",
-    "WRITING_SYSTEM_ALBUM",
-    "COMPLETED",
-    "CANCELLED",
-    "RETRYABLE_FAILED",
-    "PERMANENT_FAILED"
-  ],
   "errorCodes": [
     "PRIVATE_MEDIA_ACCOUNT_MISMATCH",
     "PRIVATE_MEDIA_NOT_FOUND",
@@ -106,8 +90,7 @@
   "effectActions": {
     "TransportEffect": ["sendApiRequest", "downloadObject", "cancelTransfer"],
     "FileEffect": ["getAvailableSpace", "createTaskTempFile", "deleteTempFile", "getFileDigest"],
-    "MediaPlaybackEffect": ["openVerifiedMedia", "closeVerifiedMedia"],
-    "SystemAlbumEffect": ["findDownloadReceipt", "writeVerifiedMedia", "deleteSystemAlbumEntry"]
+    "MediaPlaybackEffect": ["openVerifiedMedia", "closeVerifiedMedia"]
   },
   "semanticIds": [
     "private-media.grid",
@@ -116,7 +99,6 @@
     "private-media.detail",
     "private-media.detail.save",
     "private-media.detail.delete",
-    "private-media.save.progress",
     "private-media.delete.confirm"
   ],
   "delete": {

@@ -106,21 +106,12 @@ class Core final {
 	std::string read_private_media_detail_v2_locked(const std::string &media_id);
 	bool persist_private_media_detail_v2_locked(const std::string &detail_json);
 	bool remove_private_media_v2_locked(const std::string &media_id);
-	bool begin_private_media_save_locked(AccountOperation &operation);
-	bool prepare_private_media_save_resources_locked(AccountOperation &operation,
-	                                                 const std::string &access_json);
+	bool record_private_media_system_save_locked(const std::string &media_id,
+	                                            const std::string &resource_id,
+	                                            const std::string &platform_asset_ref,
+	                                            std::string &error_code);
 	bool prepare_private_media_view_resource_locked(AccountOperation &operation,
 	                                                const std::string &access_json);
-	bool update_private_media_save_state_locked(const AccountOperation &operation,
-	                                           const std::string &state,
-	                                           const std::string &failure_code = {});
-	bool update_private_media_save_resource_locked(const AccountOperation &operation,
-	                                              const std::string &resource_id,
-	                                              const std::string &state,
-	                                              const std::string &verified_path = {});
-	bool persist_private_media_download_receipt_locked(const AccountOperation &operation);
-	std::string read_private_media_save_operation_locked(const std::string &media_id);
-	bool cancel_private_media_save_locked(const std::string &media_id);
 	void clear_account_session_locked();
 	bool execute_json_statement_locked(const char *sql, const std::string &json);
 	bool execute_json_update_locked(const char *sql, const std::string &json);
