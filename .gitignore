@@ -3,6 +3,7 @@
 .vscode/
 .history/
 .local/
+.worktrees/
 *.log
 
 # Local configuration and credentials
