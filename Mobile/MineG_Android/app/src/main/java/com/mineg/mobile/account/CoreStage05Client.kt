@@ -9,8 +9,6 @@ import com.mineg.mobile.contracts.PrivateMediaView
 import com.mineg.mobile.contracts.PrivateMediaResourceSummary
 import com.mineg.mobile.contracts.PrivateMediaSummary
 import com.mineg.mobile.contracts.PrivateMediaTrashResult
-import com.mineg.mobile.contracts.PrivateMediaSaveOperation
-import com.mineg.mobile.contracts.PrivateMediaSaveResource
 import com.mineg.mobile.contracts.PrivateMediaSaveResult
 import com.mineg.mobile.core.CoreClient
 import com.mineg.mobile.core.CoreOperationRunner
@@ -85,20 +83,6 @@ class CoreStage05Client(
       ),
     )
     return payload.optJSONObject("snapshot")?.toPrivateMediaPage()
-  }
-
-  fun getPrivateMediaSaveOperation(mediaId: String): PrivateMediaSaveOperation? {
-    require(mediaId.matches(UUID_PATTERN)) { "mediaId must be a UUID" }
-    val payload = JSONObject(
-      core.query(
-        JSONObject()
-          .put("contractVersion", CONTRACT_VERSION)
-          .put("type", "GetPrivateMediaSaveOperation")
-          .put("mediaId", mediaId)
-          .toString(),
-      ),
-    )
-    return payload.optJSONObject("snapshot")?.toPrivateMediaSaveOperation()
   }
 
   private suspend fun run(type: String, limit: Int, allowCached: Boolean): PrivateMediaPage {
@@ -227,20 +211,6 @@ class CoreStage05Client(
     mediaId = getString("mediaId"),
     state = getString("state"),
     savedResourceCount = optInt("savedResourceCount", 0),
-  )
-
-  private fun JSONObject.toPrivateMediaSaveOperation() = PrivateMediaSaveOperation(
-    operationId = getString("operationId"),
-    mediaId = getString("mediaId"),
-    state = getString("state"),
-    failureCode = optString("failureCode").takeIf(String::isNotBlank),
-    retryCount = getInt("retryCount"),
-    updatedAt = getString("updatedAt"),
-    resources = List(getJSONArray("resources").length()) { index ->
-      getJSONArray("resources").getJSONObject(index).run {
-        PrivateMediaSaveResource(getString("resourceId"), getString("state"))
-      }
-    },
   )
 
   private companion object {

@@ -18,8 +18,12 @@ internal class PrivateMediaLocalSaver(
   private val album: SystemAlbumWriterPort,
   private val receiptRecorder: PrivateMediaSaveReceiptRecorder,
 ) {
+  private val retainedPlatformAssetRefs = mutableMapOf<String, String>()
+
   suspend fun save(userId: String, detail: PrivateMediaDetail): PrivateMediaSaveResult {
-    detail.localPlatformAssetRef?.takeIf(album::isSystemAlbumEntryPresent)?.let {
+    val mappingKey = "$userId:${detail.id}"
+    (detail.localPlatformAssetRef ?: retainedPlatformAssetRefs[mappingKey])
+      ?.takeIf(album::isSystemAlbumEntryPresent)?.let {
       return completeAfterCacheRemoval(userId, detail.id)
     }
     val original = detail.resources.singleOrNull {
@@ -31,9 +35,20 @@ internal class PrivateMediaLocalSaver(
     try {
       receiptRecorder.record(detail.id, original.resourceId, saved.platformAssetRef)
     } catch (failure: Throwable) {
-      runCatching { album.deleteSystemAlbumEntry(saved.platformAssetRef) }
+      val rollback = runCatching { album.deleteSystemAlbumEntry(saved.platformAssetRef) }
+      val rollbackFailure = rollback.exceptionOrNull()
+      if (rollbackFailure != null) {
+        rollbackFailure.addSuppressed(failure)
+        throw rollbackFailure
+      }
+      if (!rollback.getOrThrow()) {
+        throw IllegalStateException("unable to roll back system-album entry").also {
+          it.addSuppressed(failure)
+        }
+      }
       throw failure
     }
+    retainedPlatformAssetRefs[mappingKey] = saved.platformAssetRef
     return completeAfterCacheRemoval(userId, detail.id)
   }
 

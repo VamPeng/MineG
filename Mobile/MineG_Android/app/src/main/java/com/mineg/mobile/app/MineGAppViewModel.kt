@@ -743,6 +743,18 @@ class MineGAppViewModel internal constructor(
             state
           }
         }
+      } catch (problem: AccountProblem) {
+        if (problem.code in SESSION_ERRORS) {
+          performLogout("登录状态已失效，请重新登录。")
+        } else {
+          mutableState.update { state ->
+            if (state.currentRoute == AppRoute.PrivateMediaDetail(mediaId)) {
+              state.copy(selectedMediaAction = MediaActionState.SAVE_FAILED)
+            } else {
+              state
+            }
+          }
+        }
       } catch (_: Throwable) {
         mutableState.update { state ->
           if (state.currentRoute == AppRoute.PrivateMediaDetail(mediaId)) {

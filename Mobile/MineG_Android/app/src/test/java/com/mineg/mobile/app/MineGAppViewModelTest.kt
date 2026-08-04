@@ -263,6 +263,37 @@ class MineGAppViewModelTest {
   }
 
   @Test
+  fun `private media save session failure logs out and clears the detail session`() = runTest {
+    Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+    try {
+      val media = PrivateMediaSummary(
+        "11111111-1111-4111-8111-111111111111",
+        "PHOTO",
+        "2026-08-03T00:00:00Z",
+        "2026-08-03T00:00:00Z",
+        null,
+        1_024L,
+        null,
+      )
+      val runtime = FakeRuntime(
+        restoredSession = approvedSession(),
+        access = LibraryAccess.FULL,
+        privateMedia = listOf(media),
+        saveFailure = AccountProblem("SESSION_INVALID", "session.invalid", false, "request-save-test"),
+      )
+      val viewModel = MineGAppViewModel(runtime)
+
+      viewModel.openPrivateMedia(media.id)
+      viewModel.downloadSelectedMedia()
+
+      assertEquals(AppRoute.Login, viewModel.state.value.currentRoute)
+      assertTrue(runtime.signOutCalled)
+    } finally {
+      Dispatchers.resetMain()
+    }
+  }
+
+  @Test
   fun `cloud media scroll positions survive detail and main page navigation`() = runTest {
     Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
     try {
@@ -816,6 +847,7 @@ class MineGAppViewModelTest {
     var openPrivateMediaFailuresRemaining: Int = 0,
     var openPrivateMediaDelayMs: Long = 0L,
     var loadMorePrivateMediaFailure: Boolean = false,
+    var saveFailure: Throwable? = null,
     var resolvedPrivateOriginalUri: String? = null,
     var familyMedia: List<FamilyMediaSummary> = emptyList(),
     var trashMedia: List<TrashMediaSummary> = emptyList(),
@@ -937,6 +969,7 @@ class MineGAppViewModelTest {
       val mediaId = detail.id
       savedMediaIds += mediaId
       savedMediaDetails += detail
+      saveFailure?.let { throw it }
       return PrivateMediaSaveResult(mediaId, "COMPLETED", 1)
     }
     override suspend fun trashPrivateMedia(mediaId: String): PrivateMediaTrashResult {

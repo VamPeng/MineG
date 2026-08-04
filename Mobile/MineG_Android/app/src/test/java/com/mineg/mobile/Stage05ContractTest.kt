@@ -40,7 +40,8 @@ class Stage05ContractTest {
       "getPrivateMediaDetail", "openPrivateMedia", "closePrivateMedia", "trashPrivateMedia", "record",
     )))
     assertTrue(publicMethods.none {
-      it == "savePrivateMediaToSystemAlbum" || it == "retryPrivateMediaSave" || it == "cancelPrivateMediaSave"
+      it == "savePrivateMediaToSystemAlbum" || it == "retryPrivateMediaSave" ||
+        it == "cancelPrivateMediaSave" || it == "getPrivateMediaSaveOperation"
     })
   }
 

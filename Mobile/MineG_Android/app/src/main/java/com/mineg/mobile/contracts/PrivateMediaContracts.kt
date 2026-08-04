@@ -68,21 +68,6 @@ data class PrivateMediaTrashResult(
   val trashedAt: String,
 )
 
-data class PrivateMediaSaveResource(
-  val resourceId: String,
-  val state: String,
-)
-
-data class PrivateMediaSaveOperation(
-  val operationId: String,
-  val mediaId: String,
-  val state: String,
-  val failureCode: String?,
-  val retryCount: Int,
-  val updatedAt: String,
-  val resources: List<PrivateMediaSaveResource>,
-)
-
 data class PrivateMediaSaveResult(
   val mediaId: String,
   val state: String,

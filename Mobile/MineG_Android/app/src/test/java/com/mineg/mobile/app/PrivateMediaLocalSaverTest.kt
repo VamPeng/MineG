@@ -87,6 +87,37 @@ class PrivateMediaLocalSaverTest {
     }
   }
 
+  @Test
+  fun newWriteReceiptThenCleanupFailureRetriesWithoutAnotherCopy() = runTest {
+    withCache { cache, root ->
+      val album = FakeAlbum()
+      val temporaryDirectory = File(requireNotNull(cache.fileForTesting(USER, MEDIA_ID)).parentFile, "$MEDIA_ID.tmp")
+      check(temporaryDirectory.mkdirs())
+      check(File(temporaryDirectory, "blocked").createNewFile())
+      val localSaver = saver(cache, album, FakeReceipts())
+
+      assertEquals("PRIVATE_MEDIA_CACHE_CLEANUP_FAILED", localSaver.save(USER, detail()).state)
+      temporaryDirectory.deleteRecursively()
+      assertEquals("COMPLETED", localSaver.save(USER, detail()).state)
+      assertEquals(1, album.writeCalls)
+    }
+  }
+
+  @Test
+  fun receiptFailureWithRollbackFailureIsObservableAndRetainsCache() = runTest {
+    withCache { cache, _ ->
+      val receiptFailure = IOException("receipt failed")
+      val album = FakeAlbum(deleteResult = false)
+      val failure = assertFailsWith<IllegalStateException> {
+        saver(cache, album, FakeReceipts(failure = receiptFailure)).save(USER, detail())
+      }
+
+      assertEquals(listOf(receiptFailure), failure.suppressed.toList())
+      assertEquals(listOf("android:media-store:77"), album.deletedRefs)
+      assertEquals(true, cache.get(USER, MEDIA_ID, CONTENT.size.toLong(), SHA256) != null)
+    }
+  }
+
   private fun saver(
     cache: PrivateOriginalDiskStore,
     album: FakeAlbum,
@@ -124,8 +155,9 @@ class PrivateMediaLocalSaverTest {
   }
 
   private class FakeAlbum(
-    private val mappingPresent: Boolean = false,
+    private var mappingPresent: Boolean = false,
     val events: MutableList<String> = mutableListOf(),
+    private val deleteResult: Boolean = true,
   ) : SystemAlbumWriterPort {
     var writeCalls = 0
     val deletedRefs = mutableListOf<String>()
@@ -133,6 +165,7 @@ class PrivateMediaLocalSaverTest {
     override fun writeVerifiedMedia(request: SystemAlbumWriteRequest): SystemAlbumWriteResult {
       writeCalls += 1
       events += "write"
+      mappingPresent = true
       return SystemAlbumWriteResult("android:media-store:77")
     }
 
@@ -140,7 +173,7 @@ class PrivateMediaLocalSaverTest {
 
     override fun deleteSystemAlbumEntry(platformAssetRef: String): Boolean {
       deletedRefs += platformAssetRef
-      return true
+      return deleteResult
     }
   }
 
