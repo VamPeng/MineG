@@ -326,7 +326,7 @@ func (s *Service) FamilyAccess(ctx context.Context, actor Actor, mediaID string,
 	if input.Purpose == "DOWNLOAD" || (input.Purpose != "VIEW" && input.Purpose != "STREAM") {
 		return AccessResult{}, validation("FAMILY_MEDIA_ACCESS_INVALID", "Invalid family access", "Family media only supports view or stream access.")
 	}
-	if err := validateAccessInput(input); err != nil {
+	if !validFamilyAccessInput(input) {
 		return AccessResult{}, validation("FAMILY_MEDIA_ACCESS_INVALID", "Invalid family access", "The family media purpose and variant combination is invalid.")
 	}
 	result := AccessResult{MediaID: mediaID, Purpose: input.Purpose, Resources: make([]AccessResource, 0)}
@@ -389,6 +389,17 @@ func (s *Service) FamilyAccess(ctx context.Context, actor Actor, mediaID string,
 		return AccessResult{}, internal()
 	}
 	return result, nil
+}
+
+func validFamilyAccessInput(input AccessInput) bool {
+	switch input.Purpose {
+	case "VIEW":
+		return input.Variant == "THUMBNAIL" || input.Variant == "DETAIL"
+	case "STREAM":
+		return input.Variant == ""
+	default:
+		return false
+	}
 }
 
 func (s *Service) ListTrash(ctx context.Context, actor Actor, cursor string, limit int32) (TrashPage, error) {

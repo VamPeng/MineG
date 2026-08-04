@@ -99,6 +99,37 @@ func TestPrivateMediaAccessRejectsDownload(t *testing.T) {
 	assertMediaError(t, err, "PRIVATE_MEDIA_ACCESS_INVALID", http.StatusUnprocessableEntity)
 }
 
+func TestFamilyMediaAccessRetainsVariantValidation(t *testing.T) {
+	service := New(nil, Config{})
+	approvedActor := Actor{
+		UserID: "member-1", RawUserID: toPGUUID(uuid.New()), Status: "APPROVED",
+	}
+	mediaID := uuid.NewString()
+
+	for _, input := range []AccessInput{
+		{Purpose: "VIEW"},
+		{Purpose: "VIEW", Variant: "FULL"},
+		{Purpose: "STREAM", Variant: "THUMBNAIL"},
+	} {
+		t.Run(input.Purpose+"/"+input.Variant, func(t *testing.T) {
+			var result AccessResult
+			var err error
+			func() {
+				defer func() {
+					if panicValue := recover(); panicValue != nil {
+						t.Fatalf("invalid family access advanced beyond input validation: %v", panicValue)
+					}
+				}()
+				result, err = service.FamilyAccess(context.Background(), approvedActor, mediaID, input)
+			}()
+			if !reflect.DeepEqual(result, AccessResult{}) {
+				t.Fatalf("unexpected result: %#v", result)
+			}
+			assertMediaError(t, err, "FAMILY_MEDIA_ACCESS_INVALID", http.StatusUnprocessableEntity)
+		})
+	}
+}
+
 func assertMediaError(t *testing.T, err error, wantCode string, wantStatus int) {
 	t.Helper()
 	mediaErr, ok := err.(*Error)
