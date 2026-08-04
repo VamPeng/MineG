@@ -395,6 +395,36 @@ int main() {
   assert(as_string(result).find("\"localPlatformAssetRef\":null") != std::string::npos);
   assert(as_string(result).find("\"localSourceUri\":null") != std::string::npos);
   mineg_buffer_free(&result);
+  const auto expect_invalid_private_media_revision =
+      [&core, &result, &successful_effect, &cache_private_media_detail, &saved_media_id, &resource_id, &digest](
+          uint64_t operation_id, const std::string &content_revision, const char *step) {
+    const std::string invalid_detail_response_body =
+        "{\"id\":\"" + saved_media_id + "\",\"media_type\":\"PHOTO\","
+        "\"captured_at\":\"2026-08-01T00:00:00Z\",\"created_at\":\"2026-08-01T00:00:00Z\","
+        "\"original_total_size\":3,\"content_revision\":" + content_revision +
+        ",\"resources\":[{\"resource_id\":\"" + resource_id +
+        "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/jpeg\","
+        "\"content_size\":3,\"content_sha256\":\"" + digest + "\"}]}";
+    const std::string invalid_detail_response = successful_effect(operation_id, 1, "TransportEffect",
+        "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-invalid-revision\","
+        "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(invalid_detail_response_body) + "\"}");
+    expect(mineg_core_start_operation(core, operation_id,
+                                      reinterpret_cast<const uint8_t *>(cache_private_media_detail.data()),
+                                      cache_private_media_detail.size(), &result),
+           MINEG_OK, step);
+    mineg_buffer_free(&result);
+    expect(mineg_core_resume_operation(core, operation_id,
+                                       reinterpret_cast<const uint8_t *>(invalid_detail_response.data()),
+                                       invalid_detail_response.size(), &result),
+           MINEG_OK, step);
+    assert(as_string(result).find("\"status\":\"FAILED\"") != std::string::npos);
+    assert(as_string(result).find("PRIVATE_MEDIA_RESPONSE_INVALID") != std::string::npos);
+    mineg_buffer_free(&result);
+  };
+  expect_invalid_private_media_revision(127, "\"bogus\"",
+                                        "reject string private media content revision");
+  expect_invalid_private_media_revision(128, "2.5",
+                                        "reject fractional private media content revision");
   const std::string indexed_without_saved_media =
       "{\"version\":1,\"type\":\"ApplyLocalMediaBatch\",\"userId\":\"user-1\","
       "\"scanGeneration\":\"saved-media-removed-generation\",\"updatedAt\":\"2026-08-02T00:04:00Z\","

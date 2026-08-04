@@ -1875,7 +1875,9 @@ bool Core::persist_private_media_page_v2_locked(const std::string &page_json, bo
       "length(coalesce(json_extract(item.value,'$.captured_at'),''))=0 OR "
       "length(coalesce(json_extract(item.value,'$.created_at'),''))=0 OR "
       "coalesce(json_extract(item.value,'$.original_total_size'),-1)<0 OR "
-      "coalesce(json_extract(item.value,'$.content_revision'),1)<1),-1)";
+      "(json_type(item.value,'$.content_revision') IS NOT NULL AND "
+      "(json_type(item.value,'$.content_revision')<>'integer' OR "
+      "json_extract(item.value,'$.content_revision')<1))),-1)";
   if (sqlite3_prepare_v2(database_, validation_sql, -1, &validation, nullptr) != SQLITE_OK) return false;
   int status = sqlite3_bind_text(validation, 1, page_json.c_str(), static_cast<int>(page_json.size()),
                                  SQLITE_TRANSIENT);
@@ -2037,7 +2039,9 @@ bool Core::persist_private_media_detail_v2_locked(const std::string &detail_json
       "length(coalesce(json_extract(?1,'$.captured_at'),'')),"
       "length(coalesce(json_extract(?1,'$.created_at'),'')),"
       "coalesce(json_extract(?1,'$.original_total_size'),-1),"
-      "coalesce(json_extract(?1,'$.content_revision'),1),"
+      "CASE WHEN json_type(?1,'$.content_revision') IS NULL THEN 1 "
+      "WHEN json_type(?1,'$.content_revision')='integer' THEN json_extract(?1,'$.content_revision') "
+      "ELSE 0 END,"
       "coalesce((SELECT count(*) FROM json_each(?1,'$.resources') resource WHERE "
       "length(coalesce(json_extract(resource.value,'$.resource_id'),''))=0 OR "
       "length(coalesce(json_extract(resource.value,'$.resource_type'),''))=0 OR "
