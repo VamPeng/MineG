@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import com.mineg.mobile.contracts.SystemAlbumSource
 import com.mineg.mobile.contracts.SystemAlbumWriteRequest
 import com.mineg.mobile.contracts.SystemAlbumWriteResult
 import com.mineg.mobile.contracts.SystemAlbumWriterPort
@@ -19,13 +20,21 @@ class AndroidSystemAlbumWriterPort(context: Context) : SystemAlbumWriterPort {
   private val resolver = applicationContext.contentResolver
   private val taskFilesDirectory: File
     get() = File(applicationContext.noBackupFilesDir, "mineg-task-files").canonicalFile
+  private val privateOriginalsDirectory: File
+    get() = File(applicationContext.noBackupFilesDir, "mineg-originals-v1").canonicalFile
 
   override fun writeVerifiedMedia(request: SystemAlbumWriteRequest): SystemAlbumWriteResult {
     require(request.displayName.length in 1..160 && request.displayName.none {
       it == '/' || it == '\\' || it.code < 0x20
     }) { "invalid media name" }
     val source = File(request.verifiedFilePath).canonicalFile
-    require(source.parentFile == taskFilesDirectory) { "system-album source must be a MineG task file" }
+    val allowedRoot = when (request.source) {
+      SystemAlbumSource.VERIFIED_TASK_FILE -> taskFilesDirectory
+      SystemAlbumSource.VERIFIED_PRIVATE_ORIGINAL -> privateOriginalsDirectory
+    }
+    require(source.toPath().startsWith(allowedRoot.toPath())) {
+      "system-album source is outside its verified root"
+    }
     require(source.isFile && source.length() > 0) { "verified task file is unavailable" }
     val collection = when {
       request.mimeType.startsWith("image/") -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI

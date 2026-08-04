@@ -11,6 +11,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class PrivateOriginalDiskStoreTest {
   @Test
@@ -46,6 +47,33 @@ class PrivateOriginalDiskStoreTest {
     store.clearAccount("account-a")
     assertFalse(first.exists())
     assertNotNull(store.get("account-b", MEDIA, bytes.size.toLong(), digest(bytes)))
+  }
+
+  @Test
+  fun `removal reports success after deleting the original and its temporary sibling`() = withStore { root, store ->
+    val bytes = ByteArray(16) { 7 }
+    val source = File(root, "source").also { it.writeBytes(bytes) }
+    val stored = assertNotNull(store.put(ACCOUNT, MEDIA, source, bytes.size.toLong(), digest(bytes)))
+    val temporary = File(stored.parentFile, "${stored.name}.tmp").also { it.writeBytes(bytes) }
+
+    assertTrue(store.remove(ACCOUNT, MEDIA))
+    assertFalse(stored.exists())
+    assertFalse(temporary.exists())
+  }
+
+  @Test
+  fun `removal reports failure when the temporary sibling cannot be deleted`() = withStore { root, store ->
+    val bytes = ByteArray(16) { 7 }
+    val source = File(root, "source").also { it.writeBytes(bytes) }
+    val stored = assertNotNull(store.put(ACCOUNT, MEDIA, source, bytes.size.toLong(), digest(bytes)))
+    val temporary = File(stored.parentFile, "${stored.name}.tmp").also { directory ->
+      check(directory.mkdirs())
+      File(directory, "retained").writeBytes(bytes)
+    }
+
+    assertFalse(store.remove(ACCOUNT, MEDIA))
+    assertFalse(stored.exists())
+    assertTrue(temporary.exists())
   }
 
   private fun withStore(block: (File, PrivateOriginalDiskStore) -> Unit) {

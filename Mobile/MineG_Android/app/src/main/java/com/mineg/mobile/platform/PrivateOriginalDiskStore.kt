@@ -68,11 +68,14 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
   }
 
   @Synchronized
-  fun remove(accountId: String, mediaId: String) {
-    val file = dataFileOrNull(accountId, mediaId) ?: return
+  fun remove(accountId: String, mediaId: String): Boolean {
+    val file = dataFileOrNull(accountId, mediaId) ?: return false
+    val temporary = File(file.parentFile, "${file.name}.tmp")
     file.delete()
-    File(file.parentFile, "${file.name}.tmp").delete()
-    if (file.parentFile?.listFiles().isNullOrEmpty()) file.parentFile?.delete()
+    temporary.delete()
+    val removed = !file.exists() && !temporary.exists()
+    if (removed && file.parentFile?.listFiles().isNullOrEmpty()) file.parentFile?.delete()
+    return removed
   }
 
   @Synchronized

@@ -158,18 +158,21 @@ interface MediaPlaybackPort {
   fun closeVerifiedMedia(viewHandle: String): Boolean
 }
 
+enum class SystemAlbumSource { VERIFIED_TASK_FILE, VERIFIED_PRIVATE_ORIGINAL }
+
 data class SystemAlbumWriteRequest(
   val verifiedFilePath: String,
   val displayName: String,
   val mimeType: String,
   val capturedAt: String?,
+  val source: SystemAlbumSource = SystemAlbumSource.VERIFIED_TASK_FILE,
 )
 
 data class SystemAlbumWriteResult(val platformAssetRef: String)
 
 /**
- * This port is deliberately limited to consuming a verified task file. It neither requests
- * object grants nor makes domain decisions; Core retains the durable save receipt.
+ * This port consumes only verified local sources. It neither requests object grants nor makes
+ * domain decisions; Core retains the durable save receipt.
  */
 interface SystemAlbumWriterPort {
   fun writeVerifiedMedia(request: SystemAlbumWriteRequest): SystemAlbumWriteResult
