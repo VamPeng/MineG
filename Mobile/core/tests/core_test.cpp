@@ -195,7 +195,7 @@ int main() {
   const std::string private_page_response =
       "{\"items\":[{\"id\":\"" + saved_media_id +
       "\",\"media_type\":\"PHOTO\",\"captured_at\":\"2026-08-01T00:00:00Z\","
-      "\"created_at\":\"2026-08-01T00:00:00Z\",\"original_total_size\":3}],"
+      "\"created_at\":\"2026-08-01T00:00:00Z\",\"original_total_size\":3,\"content_revision\":2}],"
       "\"next_cursor\":\"cursor-page-2\"}";
   const std::string refresh_response = successful_effect(12, 2, "TransportEffect",
       "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-refresh\","
@@ -258,7 +258,7 @@ int main() {
   const std::string detail_response_body =
       "{\"id\":\"" + saved_media_id + "\",\"media_type\":\"PHOTO\","
       "\"captured_at\":\"2026-08-01T00:00:00Z\",\"created_at\":\"2026-08-01T00:00:00Z\","
-      "\"original_total_size\":3,\"resources\":[{\"resource_id\":\"" + resource_id +
+      "\"original_total_size\":3,\"content_revision\":2,\"resources\":[{\"resource_id\":\"" + resource_id +
       "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/jpeg\","
       "\"content_size\":3,\"content_sha256\":\"" + digest + "\"},{\"resource_id\":\"" +
       thumbnail_resource_id + "\",\"resource_type\":\"THUMBNAIL\",\"mime_type\":\"image/jpeg\","
@@ -369,6 +369,31 @@ int main() {
          MINEG_OK, "map cloud media detail to an available local original");
   assert(as_string(result).find("\"localSourceUri\":\"content://media/external/file/123\"") !=
          std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string revision_three_detail_response_body =
+      "{\"id\":\"" + saved_media_id + "\",\"media_type\":\"PHOTO\","
+      "\"captured_at\":\"2026-08-01T00:00:00Z\",\"created_at\":\"2026-08-01T00:00:00Z\","
+      "\"original_total_size\":3,\"content_revision\":3,\"resources\":[{\"resource_id\":\"" + resource_id +
+      "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/jpeg\","
+      "\"content_size\":3,\"content_sha256\":\"" + digest + "\"}]}";
+  const std::string revision_three_detail_response = successful_effect(126, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-detail-revision-three\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(revision_three_detail_response_body) + "\"}");
+  expect(mineg_core_start_operation(core, 126,
+                                    reinterpret_cast<const uint8_t *>(cache_private_media_detail.data()),
+                                    cache_private_media_detail.size(), &result),
+         MINEG_OK, "refresh persisted private media detail at revision three");
+  mineg_buffer_free(&result);
+  expect(mineg_core_resume_operation(core, 126,
+                                     reinterpret_cast<const uint8_t *>(revision_three_detail_response.data()),
+                                     revision_three_detail_response.size(), &result),
+         MINEG_OK, "persist revision three private media detail");
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
+                          mapped_media_detail.size(), &result),
+         MINEG_OK, "invalidate revision-two save receipt after a revision-three detail refresh");
+  assert(as_string(result).find("\"localPlatformAssetRef\":null") != std::string::npos);
+  assert(as_string(result).find("\"localSourceUri\":null") != std::string::npos);
   mineg_buffer_free(&result);
   const std::string indexed_without_saved_media =
       "{\"version\":1,\"type\":\"ApplyLocalMediaBatch\",\"userId\":\"user-1\","

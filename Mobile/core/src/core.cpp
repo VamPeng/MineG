@@ -1874,7 +1874,8 @@ bool Core::persist_private_media_page_v2_locked(const std::string &page_json, bo
       "length(coalesce(json_extract(item.value,'$.media_type'),''))=0 OR "
       "length(coalesce(json_extract(item.value,'$.captured_at'),''))=0 OR "
       "length(coalesce(json_extract(item.value,'$.created_at'),''))=0 OR "
-      "coalesce(json_extract(item.value,'$.original_total_size'),-1)<0),-1)";
+      "coalesce(json_extract(item.value,'$.original_total_size'),-1)<0 OR "
+      "coalesce(json_extract(item.value,'$.content_revision'),1)<1),-1)";
   if (sqlite3_prepare_v2(database_, validation_sql, -1, &validation, nullptr) != SQLITE_OK) return false;
   int status = sqlite3_bind_text(validation, 1, page_json.c_str(), static_cast<int>(page_json.size()),
                                  SQLITE_TRANSIENT);
@@ -1914,11 +1915,11 @@ bool Core::persist_private_media_page_v2_locked(const std::string &page_json, bo
       "SELECT ?1,json_extract(item.value,'$.id'),json_extract(item.value,'$.media_type'),"
       "json_extract(item.value,'$.captured_at'),json_extract(item.value,'$.created_at'),"
       "json_extract(item.value,'$.duration_ms'),json_extract(item.value,'$.original_total_size'),"
-      "json_extract(item.value,'$.preview_resource.resource_id'),1,?3 FROM json_each(?2,'$.items') item WHERE 1 "
+      "json_extract(item.value,'$.preview_resource.resource_id'),coalesce(json_extract(item.value,'$.content_revision'),1),?3 FROM json_each(?2,'$.items') item WHERE 1 "
       "ON CONFLICT(user_id,media_id) DO UPDATE SET media_type=excluded.media_type,"
       "captured_at=excluded.captured_at,created_at=excluded.created_at,duration_ms=excluded.duration_ms,"
       "original_total_size=excluded.original_total_size,preview_resource_id=excluded.preview_resource_id,"
-      "updated_at=excluded.updated_at";
+      "content_revision=excluded.content_revision,updated_at=excluded.updated_at";
   if (sqlite3_prepare_v2(database_, insert_items, -1, &statement, nullptr) != SQLITE_OK) return rollback();
   const std::string refreshed_at = now_rfc3339();
   status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
@@ -2036,6 +2037,7 @@ bool Core::persist_private_media_detail_v2_locked(const std::string &detail_json
       "length(coalesce(json_extract(?1,'$.captured_at'),'')),"
       "length(coalesce(json_extract(?1,'$.created_at'),'')),"
       "coalesce(json_extract(?1,'$.original_total_size'),-1),"
+      "coalesce(json_extract(?1,'$.content_revision'),1),"
       "coalesce((SELECT count(*) FROM json_each(?1,'$.resources') resource WHERE "
       "length(coalesce(json_extract(resource.value,'$.resource_id'),''))=0 OR "
       "length(coalesce(json_extract(resource.value,'$.resource_type'),''))=0 OR "
@@ -2048,7 +2050,7 @@ bool Core::persist_private_media_detail_v2_locked(const std::string &detail_json
   const bool valid = status == SQLITE_ROW && sqlite3_column_int(validation, 0) > 0 &&
       sqlite3_column_int(validation, 1) > 0 && sqlite3_column_int(validation, 2) > 0 &&
       sqlite3_column_int(validation, 3) > 0 && sqlite3_column_int64(validation, 4) >= 0 &&
-      sqlite3_column_int(validation, 5) == 0;
+      sqlite3_column_int64(validation, 5) >= 1 && sqlite3_column_int(validation, 6) == 0;
   sqlite3_finalize(validation);
   if (!valid) return false;
   if (sqlite3_exec(database_, "BEGIN IMMEDIATE", nullptr, nullptr, nullptr) != SQLITE_OK) return false;
@@ -2063,10 +2065,11 @@ bool Core::persist_private_media_detail_v2_locked(const std::string &detail_json
       "duration_ms,original_total_size,content_revision,updated_at) VALUES(?1,json_extract(?2,'$.id'),"
       "json_extract(?2,'$.media_type'),json_extract(?2,'$.captured_at'),json_extract(?2,'$.created_at'),"
       "json_extract(?2,'$.width'),json_extract(?2,'$.height'),json_extract(?2,'$.duration_ms'),"
-      "json_extract(?2,'$.original_total_size'),1,?3) ON CONFLICT(user_id,media_id) DO UPDATE SET "
+      "json_extract(?2,'$.original_total_size'),coalesce(json_extract(?2,'$.content_revision'),1),?3) ON CONFLICT(user_id,media_id) DO UPDATE SET "
       "media_type=excluded.media_type,captured_at=excluded.captured_at,created_at=excluded.created_at,"
       "width=excluded.width,height=excluded.height,duration_ms=excluded.duration_ms,"
-      "original_total_size=excluded.original_total_size,updated_at=excluded.updated_at";
+      "original_total_size=excluded.original_total_size,content_revision=excluded.content_revision,"
+      "updated_at=excluded.updated_at";
   if (sqlite3_prepare_v2(database_, upsert_item, -1, &statement, nullptr) != SQLITE_OK) return rollback();
   status = sqlite3_bind_text(statement, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
   if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, detail_json.c_str(), static_cast<int>(detail_json.size()), SQLITE_TRANSIENT);
