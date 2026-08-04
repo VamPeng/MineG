@@ -1052,10 +1052,11 @@ components:
     PrivateMediaSummary:
       type: object
       additionalProperties: false
-      required: [id, media_type, captured_at, created_at, original_total_size]
+      required: [id, media_type, content_revision, captured_at, created_at, original_total_size]
       properties:
         id: { type: string, format: uuid }
         media_type: { $ref: "#/components/schemas/MediaType" }
+        content_revision: { type: integer, minimum: 1 }
         captured_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
         duration_ms: { type: integer, minimum: 0 }
@@ -1073,10 +1074,11 @@ components:
     PrivateMediaDetail:
       type: object
       additionalProperties: false
-      required: [id, media_type, captured_at, created_at, original_total_size, resources]
+      required: [id, media_type, content_revision, captured_at, created_at, original_total_size, resources]
       properties:
         id: { type: string, format: uuid }
         media_type: { $ref: "#/components/schemas/MediaType" }
+        content_revision: { type: integer, minimum: 1 }
         captured_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
         width: { type: integer, minimum: 1 }

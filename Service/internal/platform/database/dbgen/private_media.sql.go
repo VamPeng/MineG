@@ -418,6 +418,7 @@ func (q *Queries) FindFeedbackRequest(ctx context.Context, arg FindFeedbackReque
 const findPrivateMedia = `-- name: FindPrivateMedia :one
 SELECT media.id,
        media.media_type,
+       media.content_revision,
        media.captured_at,
        media.created_at,
        media.width,
@@ -450,6 +451,7 @@ type FindPrivateMediaParams struct {
 type FindPrivateMediaRow struct {
 	ID                pgtype.UUID        `json:"id"`
 	MediaType         string             `json:"media_type"`
+	ContentRevision   int32              `json:"content_revision"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	Width             pgtype.Int4        `json:"width"`
@@ -464,6 +466,7 @@ func (q *Queries) FindPrivateMedia(ctx context.Context, arg FindPrivateMediaPara
 	err := row.Scan(
 		&i.ID,
 		&i.MediaType,
+		&i.ContentRevision,
 		&i.CapturedAt,
 		&i.CreatedAt,
 		&i.Width,
@@ -880,6 +883,7 @@ func (q *Queries) ListFamilyMediaResources(ctx context.Context, arg ListFamilyMe
 const listPrivateMedia = `-- name: ListPrivateMedia :many
 SELECT media.id,
        media.media_type,
+       media.content_revision,
        media.captured_at,
        media.created_at,
        media.duration_ms,
@@ -911,6 +915,7 @@ type ListPrivateMediaParams struct {
 type ListPrivateMediaRow struct {
 	ID                pgtype.UUID        `json:"id"`
 	MediaType         string             `json:"media_type"`
+	ContentRevision   int32              `json:"content_revision"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	DurationMs        pgtype.Int8        `json:"duration_ms"`
@@ -929,6 +934,7 @@ func (q *Queries) ListPrivateMedia(ctx context.Context, arg ListPrivateMediaPara
 		if err := rows.Scan(
 			&i.ID,
 			&i.MediaType,
+			&i.ContentRevision,
 			&i.CapturedAt,
 			&i.CreatedAt,
 			&i.DurationMs,
@@ -998,6 +1004,7 @@ func (q *Queries) ListPrivateMediaAccessResources(ctx context.Context, mediaID p
 const listPrivateMediaAfter = `-- name: ListPrivateMediaAfter :many
 SELECT media.id,
        media.media_type,
+       media.content_revision,
        media.captured_at,
        media.created_at,
        media.duration_ms,
@@ -1032,6 +1039,7 @@ type ListPrivateMediaAfterParams struct {
 type ListPrivateMediaAfterRow struct {
 	ID                pgtype.UUID        `json:"id"`
 	MediaType         string             `json:"media_type"`
+	ContentRevision   int32              `json:"content_revision"`
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	DurationMs        pgtype.Int8        `json:"duration_ms"`
@@ -1055,6 +1063,7 @@ func (q *Queries) ListPrivateMediaAfter(ctx context.Context, arg ListPrivateMedi
 		if err := rows.Scan(
 			&i.ID,
 			&i.MediaType,
+			&i.ContentRevision,
 			&i.CapturedAt,
 			&i.CreatedAt,
 			&i.DurationMs,

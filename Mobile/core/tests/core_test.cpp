@@ -50,6 +50,14 @@ int main() {
   expect(mineg_core_create(database.c_str(), &core), MINEG_OK, "create");
   mineg_buffer_t result{};
 
+  int regression_failures = 0;
+  const auto check_regression = [&regression_failures](bool condition, const char *message) {
+    if (!condition) {
+      std::cerr << "regression: " << message << '\n';
+      ++regression_failures;
+    }
+  };
+
   const std::string backup_overview =
       R"({"contractVersion":"stage04-v1","type":"GetBackupOverview","userId":"user-1","deviceInstallationId":"device-1"})";
   expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(backup_overview.data()),
@@ -220,7 +228,7 @@ int main() {
       "{\"items\":[{\"id\":\"" + second_media_id +
       "\",\"media_type\":\"VIDEO\",\"captured_at\":\"2026-07-31T00:00:00Z\","
       "\"created_at\":\"2026-07-31T00:00:00Z\",\"duration_ms\":1000,"
-      "\"original_total_size\":4}],\"next_cursor\":null}";
+      "\"original_total_size\":4,\"content_revision\":4}],\"next_cursor\":null}";
   const std::string load_more_response = successful_effect(120, 1, "TransportEffect",
       "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-load-more\","
       "\"retryAfterSeconds\":null,\"bodyBase64\":\"" +
@@ -241,6 +249,8 @@ int main() {
          MINEG_OK, "read accumulated stage05 private media pages");
   assert(as_string(result).find(saved_media_id) != std::string::npos);
   assert(as_string(result).find(second_media_id) != std::string::npos);
+  assert(as_string(result).find("\"contentRevision\":2") != std::string::npos);
+  assert(as_string(result).find("\"contentRevision\":4") != std::string::npos);
   mineg_buffer_free(&result);
 
   const std::string resource_id = "22222222-2222-4222-8222-222222222222";
@@ -272,6 +282,13 @@ int main() {
   assert(as_string(result).find("COMPLETED") != std::string::npos);
   mineg_buffer_free(&result);
 
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(cache_private_media_detail.data()),
+                          cache_private_media_detail.size(), &result),
+         MINEG_OK, "read private media detail content revision");
+  check_regression(as_string(result).find("\"contentRevision\":2") != std::string::npos,
+                   "private detail omits authoritative contentRevision");
+  mineg_buffer_free(&result);
+
   const std::string other_resource_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
   const std::string cache_other_private_media_detail =
       "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaDetail\",\"mediaId\":\"" +
@@ -284,7 +301,7 @@ int main() {
   const std::string other_detail_response_body =
       "{\"id\":\"" + second_media_id + "\",\"media_type\":\"VIDEO\","
       "\"captured_at\":\"2026-07-31T00:00:00Z\",\"created_at\":\"2026-07-31T00:00:00Z\","
-      "\"original_total_size\":4,\"resources\":[{\"resource_id\":\"" + other_resource_id +
+      "\"original_total_size\":4,\"content_revision\":4,\"resources\":[{\"resource_id\":\"" + other_resource_id +
       "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"video/mp4\","
       "\"content_size\":4,\"content_sha256\":\"" + digest + "\"}]}";
   const std::string other_detail_response = successful_effect(122, 1, "TransportEffect",
@@ -309,6 +326,40 @@ int main() {
   assert(as_string(result).find("FileEffect") == std::string::npos);
   assert(as_string(result).find("SystemAlbumEffect") == std::string::npos);
   mineg_buffer_free(&result);
+
+  const std::string mapped_media_detail =
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaDetail\",\"mediaId\":\"" +
+      saved_media_id + "\"}";
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
+                          mapped_media_detail.size(), &result),
+         MINEG_OK, "read durable private media receipt before local scan");
+  check_regression(as_string(result).find("\"localPlatformAssetRef\":\"android:media-store:123\"") !=
+                       std::string::npos,
+                   "fresh Core detail cannot read a durable receipt before MediaStore scan");
+  mineg_buffer_free(&result);
+
+  mineg_core_t *reopened_core = nullptr;
+  expect(mineg_core_create(database.c_str(), &reopened_core), MINEG_OK, "reopen Core after local receipt");
+  expect(mineg_core_start_operation(reopened_core, 900,
+                                    reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
+                                    mapped_media_detail.size(), &result),
+         MINEG_OK, "restore session in reopened Core");
+  assert(as_string(result).find("SecureStoreEffect") != std::string::npos);
+  mineg_buffer_free(&result);
+  const std::string reopened_session_result = successful_effect(900, 1, "SecureStoreEffect", session_values);
+  expect(mineg_core_resume_operation(reopened_core, 900,
+                                     reinterpret_cast<const uint8_t *>(reopened_session_result.data()),
+                                     reopened_session_result.size(), &result),
+         MINEG_OK, "activate reopened Core session");
+  assert(as_string(result).find("TransportEffect") != std::string::npos);
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(reopened_core, reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
+                          mapped_media_detail.size(), &result),
+         MINEG_OK, "read durable receipt from reopened Core detail");
+  assert(as_string(result).find("\"localPlatformAssetRef\":\"android:media-store:123\"") !=
+         std::string::npos);
+  mineg_buffer_free(&result);
+  mineg_core_close(reopened_core);
 
   const auto expect_record_save_rejected = [&core, &result](uint64_t operation_id,
                                                               const std::string &command,
@@ -361,14 +412,57 @@ int main() {
   assert(as_string(result).find("\"localSourceUri\":\"content://media/external/file/123\"") !=
          std::string::npos);
   mineg_buffer_free(&result);
-  const std::string mapped_media_detail =
-      "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaDetail\",\"mediaId\":\"" +
-      saved_media_id + "\"}";
   expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
                           mapped_media_detail.size(), &result),
          MINEG_OK, "map cloud media detail to an available local original");
   assert(as_string(result).find("\"localSourceUri\":\"content://media/external/file/123\"") !=
          std::string::npos);
+  mineg_buffer_free(&result);
+
+  const std::string changed_digest = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+  const std::string changed_resource_detail_body =
+      "{\"id\":\"" + saved_media_id + "\",\"media_type\":\"PHOTO\","
+      "\"captured_at\":\"2026-08-01T00:00:00Z\",\"created_at\":\"2026-08-01T00:00:00Z\","
+      "\"original_total_size\":3,\"content_revision\":2,\"resources\":[{\"resource_id\":\"" + resource_id +
+      "\",\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/jpeg\","
+      "\"content_size\":3,\"content_sha256\":\"" + changed_digest + "\"}]}";
+  expect(mineg_core_start_operation(core, 132,
+                                    reinterpret_cast<const uint8_t *>(cache_private_media_detail.data()),
+                                    cache_private_media_detail.size(), &result),
+         MINEG_OK, "refresh private media resources without revision change");
+  mineg_buffer_free(&result);
+  const std::string changed_resource_detail_response = successful_effect(132, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-detail-resource-change\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(changed_resource_detail_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 132,
+                                     reinterpret_cast<const uint8_t *>(changed_resource_detail_response.data()),
+                                     changed_resource_detail_response.size(), &result),
+         MINEG_OK, "persist private media resource change at same revision");
+  mineg_buffer_free(&result);
+  expect(mineg_core_query(core, reinterpret_cast<const uint8_t *>(mapped_media_detail.data()),
+                          mapped_media_detail.size(), &result),
+         MINEG_OK, "invalidate receipt after resource set changes");
+  check_regression(as_string(result).find("\"localPlatformAssetRef\":null") != std::string::npos,
+                   "receipt ignores current resource-set digest");
+  mineg_buffer_free(&result);
+
+  expect(mineg_core_start_operation(core, 133,
+                                    reinterpret_cast<const uint8_t *>(cache_private_media_detail.data()),
+                                    cache_private_media_detail.size(), &result),
+         MINEG_OK, "restore original private media resource set");
+  mineg_buffer_free(&result);
+  const std::string restored_detail_response = successful_effect(133, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-detail-resource-restore\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(detail_response_body) + "\"}");
+  expect(mineg_core_resume_operation(core, 133,
+                                     reinterpret_cast<const uint8_t *>(restored_detail_response.data()),
+                                     restored_detail_response.size(), &result),
+         MINEG_OK, "persist restored private media resource set");
+  mineg_buffer_free(&result);
+  expect(mineg_core_start_operation(core, 134, reinterpret_cast<const uint8_t *>(record_save.data()),
+                                    record_save.size(), &result),
+         MINEG_OK, "record restored private media receipt");
+  assert(as_string(result).find("\"state\":\"COMPLETED\"") != std::string::npos);
   mineg_buffer_free(&result);
   const std::string revision_three_detail_response_body =
       "{\"id\":\"" + saved_media_id + "\",\"media_type\":\"PHOTO\","
@@ -425,6 +519,31 @@ int main() {
                                         "reject string private media content revision");
   expect_invalid_private_media_revision(128, "2.5",
                                         "reject fractional private media content revision");
+  const std::string missing_revision_media_id = "44444444-4444-4444-8444-444444444444";
+  const std::string missing_revision_command =
+      "{\"contractVersion\":\"stage05-v1\",\"type\":\"GetPrivateMediaDetail\",\"mediaId\":\"" +
+      missing_revision_media_id + "\"}";
+  expect(mineg_core_start_operation(core, 135,
+                                    reinterpret_cast<const uint8_t *>(missing_revision_command.data()),
+                                    missing_revision_command.size(), &result),
+         MINEG_OK, "fetch detail missing required content revision");
+  mineg_buffer_free(&result);
+  const std::string missing_revision_detail =
+      "{\"id\":\"" + missing_revision_media_id + "\",\"media_type\":\"PHOTO\","
+      "\"captured_at\":\"2026-08-01T00:00:00Z\",\"created_at\":\"2026-08-01T00:00:00Z\","
+      "\"original_total_size\":3,\"resources\":[{\"resource_id\":\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\","
+      "\"resource_type\":\"ORIGINAL\",\"mime_type\":\"image/jpeg\",\"content_size\":3,"
+      "\"content_sha256\":\"" + digest + "\"}]}";
+  const std::string missing_revision_response = successful_effect(135, 1, "TransportEffect",
+      "{\"status\":200,\"contentType\":\"application/json\",\"requestId\":\"request-detail-missing-revision\","
+      "\"retryAfterSeconds\":null,\"bodyBase64\":\"" + base64_encode(missing_revision_detail) + "\"}");
+  expect(mineg_core_resume_operation(core, 135,
+                                     reinterpret_cast<const uint8_t *>(missing_revision_response.data()),
+                                     missing_revision_response.size(), &result),
+         MINEG_OK, "reject detail missing required content revision");
+  check_regression(as_string(result).find("PRIVATE_MEDIA_RESPONSE_INVALID") != std::string::npos,
+                   "missing content_revision silently defaults to revision one");
+  mineg_buffer_free(&result);
   const std::string indexed_without_saved_media =
       "{\"version\":1,\"type\":\"ApplyLocalMediaBatch\",\"userId\":\"user-1\","
       "\"scanGeneration\":\"saved-media-removed-generation\",\"updatedAt\":\"2026-08-02T00:04:00Z\","
@@ -830,6 +949,10 @@ int main() {
 
   mineg_core_close(core);
   std::filesystem::remove_all(root);
+  if (regression_failures != 0) {
+    std::cerr << regression_failures << " private-media regressions detected\n";
+    return 1;
+  }
   std::cout << "MineG core active-path tests passed\n";
   return 0;
 }

@@ -497,35 +497,59 @@ struct LocalMediaMapping {
   std::string source_uri;
 };
 
+std::string private_media_resource_set_digest(sqlite3 *database, const std::string &user_id,
+                                              const std::string &media_id) {
+  sqlite3_stmt *resources = nullptr;
+  const char *sql =
+      "SELECT resource_id,content_sha256_base64 FROM private_media_resources "
+      "WHERE user_id=? AND media_id=? ORDER BY resource_id";
+  if (sqlite3_prepare_v2(database, sql, -1, &resources, nullptr) != SQLITE_OK) return {};
+  int status = sqlite3_bind_text(resources, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(resources, 2, media_id.c_str(), -1, SQLITE_TRANSIENT);
+  std::string resource_set;
+  if (status != SQLITE_OK) {
+    sqlite3_finalize(resources);
+    return {};
+  }
+  while ((status = sqlite3_step(resources)) == SQLITE_ROW) {
+    const auto *id = sqlite3_column_text(resources, 0);
+    const auto *digest = sqlite3_column_text(resources, 1);
+    if (id == nullptr || digest == nullptr) {
+      status = -1;
+      break;
+    }
+    resource_set += reinterpret_cast<const char *>(id);
+    resource_set += ':';
+    resource_set += reinterpret_cast<const char *>(digest);
+    resource_set += ';';
+  }
+  sqlite3_finalize(resources);
+  if (status != SQLITE_DONE || resource_set.empty()) {
+    wipe_string(resource_set);
+    return {};
+  }
+  const std::string digest = command_digest(resource_set);
+  wipe_string(resource_set);
+  return digest;
+}
+
 LocalMediaMapping find_local_media_mapping(sqlite3 *database, const std::string &user_id,
                                            const std::string &cloud_media_id) {
   if (database == nullptr || user_id.empty() || cloud_media_id.empty()) return {};
   sqlite3_stmt *statement = nullptr;
-  const char *sql = R"SQL(
-    WITH mapping(platform_asset_ref,content_version,priority,updated_at) AS (
-      SELECT task.platform_asset_ref,task.content_version,0,task.updated_at
-      FROM backup_tasks task
-      WHERE task.user_id=?1 AND task.server_media_id=?2 AND task.state='COMPLETED'
-      UNION ALL
-      SELECT receipt.platform_asset_ref,NULL,1,receipt.updated_at
-      FROM download_receipts receipt
-      JOIN private_media_items_v2 item ON item.user_id=receipt.user_id
-        AND item.media_id=receipt.cloud_media_id
-        AND item.content_revision=receipt.content_revision
-      WHERE receipt.user_id=?1 AND receipt.cloud_media_id=?2
-    )
+  const char *backup_sql = R"SQL(
     SELECT media.platform_asset_ref,media.thumbnail_uri
-    FROM mapping
+    FROM backup_tasks task
     JOIN local_library_active active ON active.user_id=?1
     JOIN local_media media ON media.user_id=?1
       AND media.generation_id=active.generation_id
-      AND media.platform_asset_ref=mapping.platform_asset_ref
-    WHERE media.availability='AVAILABLE'
-      AND (mapping.priority=1 OR mapping.content_version=media.content_version)
-    ORDER BY mapping.priority,mapping.updated_at DESC
+      AND media.platform_asset_ref=task.platform_asset_ref
+    WHERE task.user_id=?1 AND task.server_media_id=?2 AND task.state='COMPLETED'
+      AND media.availability='AVAILABLE' AND task.content_version=media.content_version
+    ORDER BY task.updated_at DESC
     LIMIT 1
   )SQL";
-  if (sqlite3_prepare_v2(database, sql, -1, &statement, nullptr) != SQLITE_OK) return {};
+  if (sqlite3_prepare_v2(database, backup_sql, -1, &statement, nullptr) != SQLITE_OK) return {};
   int status = sqlite3_bind_text(statement, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
   if (status == SQLITE_OK) {
     status = sqlite3_bind_text(statement, 2, cloud_media_id.c_str(), -1, SQLITE_TRANSIENT);
@@ -537,6 +561,49 @@ LocalMediaMapping find_local_media_mapping(sqlite3 *database, const std::string 
     const auto *source_uri = sqlite3_column_text(statement, 1);
     if (asset_ref != nullptr) mapping.platform_asset_ref = reinterpret_cast<const char *>(asset_ref);
     if (source_uri != nullptr) mapping.source_uri = reinterpret_cast<const char *>(source_uri);
+  }
+  sqlite3_finalize(statement);
+  if (!mapping.platform_asset_ref.empty()) return mapping;
+
+  const char *receipt_sql =
+      "SELECT receipt.platform_asset_ref,receipt.resource_set_digest "
+      "FROM download_receipts receipt "
+      "JOIN private_media_items_v2 item ON item.user_id=receipt.user_id "
+      "AND item.media_id=receipt.cloud_media_id AND item.content_revision=receipt.content_revision "
+      "WHERE receipt.user_id=? AND receipt.cloud_media_id=?";
+  if (sqlite3_prepare_v2(database, receipt_sql, -1, &statement, nullptr) != SQLITE_OK) return {};
+  status = sqlite3_bind_text(statement, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_bind_text(statement, 2, cloud_media_id.c_str(), -1, SQLITE_TRANSIENT);
+  if (status == SQLITE_OK) status = sqlite3_step(statement);
+  std::string expected_digest;
+  if (status == SQLITE_ROW) {
+    const auto *asset_ref = sqlite3_column_text(statement, 0);
+    const auto *digest = sqlite3_column_text(statement, 1);
+    if (asset_ref != nullptr) mapping.platform_asset_ref = reinterpret_cast<const char *>(asset_ref);
+    if (digest != nullptr) expected_digest = reinterpret_cast<const char *>(digest);
+  }
+  sqlite3_finalize(statement);
+  if (mapping.platform_asset_ref.empty() || expected_digest.empty() ||
+      private_media_resource_set_digest(database, user_id, cloud_media_id) != expected_digest) {
+    return {};
+  }
+
+  const char *source_sql = R"SQL(
+    SELECT media.thumbnail_uri
+    FROM local_library_active active
+    JOIN local_media media ON media.user_id=?1 AND media.generation_id=active.generation_id
+    WHERE active.user_id=?1 AND media.platform_asset_ref=?2 AND media.availability='AVAILABLE'
+    LIMIT 1
+  )SQL";
+  if (sqlite3_prepare_v2(database, source_sql, -1, &statement, nullptr) == SQLITE_OK) {
+    status = sqlite3_bind_text(statement, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+    if (status == SQLITE_OK) {
+      status = sqlite3_bind_text(statement, 2, mapping.platform_asset_ref.c_str(), -1, SQLITE_TRANSIENT);
+    }
+    if (status == SQLITE_OK && sqlite3_step(statement) == SQLITE_ROW) {
+      const auto *source_uri = sqlite3_column_text(statement, 0);
+      if (source_uri != nullptr) mapping.source_uri = reinterpret_cast<const char *>(source_uri);
+    }
   }
   sqlite3_finalize(statement);
   return mapping;
@@ -1771,7 +1838,7 @@ std::string Core::read_private_media_page_v2_locked(int limit,
   const char *cached_page_sql =
       "SELECT item.media_id,item.media_type,item.captured_at,item.created_at,item.duration_ms,"
       "item.original_total_size,resource.resource_id,resource.resource_type,resource.mime_type,"
-      "resource.content_size,resource.content_sha256_base64 "
+      "resource.content_size,resource.content_sha256_base64,item.content_revision "
       "FROM private_media_items_v2 item "
       "LEFT JOIN private_media_resources resource ON resource.user_id=item.user_id "
       "AND resource.resource_id=item.preview_resource_id "
@@ -1779,7 +1846,7 @@ std::string Core::read_private_media_page_v2_locked(int limit,
   const char *response_page_sql =
       "SELECT item.media_id,item.media_type,item.captured_at,item.created_at,item.duration_ms,"
       "item.original_total_size,resource.resource_id,resource.resource_type,resource.mime_type,"
-      "resource.content_size,resource.content_sha256_base64 "
+      "resource.content_size,resource.content_sha256_base64,item.content_revision "
       "FROM json_each(?2,'$.items') page "
       "JOIN private_media_items_v2 item ON item.user_id=?1 "
       "AND item.media_id=json_extract(page.value,'$.id') "
@@ -1812,7 +1879,8 @@ std::string Core::read_private_media_page_v2_locked(int limit,
     };
     if (count++ > 0) result += ',';
     result += "{\"id\":\"" + json_escape(text_at(0)) + "\",\"mediaType\":\"" +
-        json_escape(text_at(1)) + "\",\"capturedAt\":\"" + json_escape(text_at(2)) +
+        json_escape(text_at(1)) + "\",\"contentRevision\":" +
+        std::to_string(sqlite3_column_int64(statement, 11)) + ",\"capturedAt\":\"" + json_escape(text_at(2)) +
         "\",\"createdAt\":\"" + json_escape(text_at(3)) + "\",\"durationMs\":" +
         (sqlite3_column_type(statement, 4) == SQLITE_NULL ? std::string("null") :
          std::to_string(sqlite3_column_int64(statement, 4))) +
@@ -1875,9 +1943,9 @@ bool Core::persist_private_media_page_v2_locked(const std::string &page_json, bo
       "length(coalesce(json_extract(item.value,'$.captured_at'),''))=0 OR "
       "length(coalesce(json_extract(item.value,'$.created_at'),''))=0 OR "
       "coalesce(json_extract(item.value,'$.original_total_size'),-1)<0 OR "
-      "(json_type(item.value,'$.content_revision') IS NOT NULL AND "
-      "(json_type(item.value,'$.content_revision')<>'integer' OR "
-      "json_extract(item.value,'$.content_revision')<1))),-1)";
+      "(json_type(item.value,'$.content_revision') IS NULL OR "
+      "json_type(item.value,'$.content_revision')<>'integer' OR "
+      "json_extract(item.value,'$.content_revision')<1)),-1)";
   if (sqlite3_prepare_v2(database_, validation_sql, -1, &validation, nullptr) != SQLITE_OK) return false;
   int status = sqlite3_bind_text(validation, 1, page_json.c_str(), static_cast<int>(page_json.size()),
                                  SQLITE_TRANSIENT);
@@ -1917,7 +1985,7 @@ bool Core::persist_private_media_page_v2_locked(const std::string &page_json, bo
       "SELECT ?1,json_extract(item.value,'$.id'),json_extract(item.value,'$.media_type'),"
       "json_extract(item.value,'$.captured_at'),json_extract(item.value,'$.created_at'),"
       "json_extract(item.value,'$.duration_ms'),json_extract(item.value,'$.original_total_size'),"
-      "json_extract(item.value,'$.preview_resource.resource_id'),coalesce(json_extract(item.value,'$.content_revision'),1),?3 FROM json_each(?2,'$.items') item WHERE 1 "
+      "json_extract(item.value,'$.preview_resource.resource_id'),json_extract(item.value,'$.content_revision'),?3 FROM json_each(?2,'$.items') item WHERE 1 "
       "ON CONFLICT(user_id,media_id) DO UPDATE SET media_type=excluded.media_type,"
       "captured_at=excluded.captured_at,created_at=excluded.created_at,duration_ms=excluded.duration_ms,"
       "original_total_size=excluded.original_total_size,preview_resource_id=excluded.preview_resource_id,"
@@ -1967,7 +2035,7 @@ std::string Core::read_private_media_detail_v2_locked(const std::string &media_i
   if (active_account_session_ == nullptr || media_id.empty()) return {};
   sqlite3_stmt *item = nullptr;
   const char *item_sql =
-      "SELECT media_id,media_type,captured_at,created_at,width,height,duration_ms,original_total_size "
+      "SELECT media_id,media_type,captured_at,created_at,width,height,duration_ms,original_total_size,content_revision "
       "FROM private_media_items_v2 WHERE user_id=? AND media_id=?";
   if (sqlite3_prepare_v2(database_, item_sql, -1, &item, nullptr) != SQLITE_OK) return {};
   int status = sqlite3_bind_text(item, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
@@ -1982,7 +2050,8 @@ std::string Core::read_private_media_detail_v2_locked(const std::string &media_i
     return value == nullptr ? std::string{} : reinterpret_cast<const char *>(value);
   };
   std::string result = "{\"id\":\"" + json_escape(text_at(0)) + "\",\"mediaType\":\"" +
-      json_escape(text_at(1)) + "\",\"capturedAt\":\"" + json_escape(text_at(2)) +
+      json_escape(text_at(1)) + "\",\"contentRevision\":" + std::to_string(sqlite3_column_int64(item, 8)) +
+      ",\"capturedAt\":\"" + json_escape(text_at(2)) +
       "\",\"createdAt\":\"" + json_escape(text_at(3)) + "\",\"width\":" +
       (sqlite3_column_type(item, 4) == SQLITE_NULL ? std::string("null") : std::to_string(sqlite3_column_int(item, 4))) +
       ",\"height\":" +
@@ -2039,8 +2108,7 @@ bool Core::persist_private_media_detail_v2_locked(const std::string &detail_json
       "length(coalesce(json_extract(?1,'$.captured_at'),'')),"
       "length(coalesce(json_extract(?1,'$.created_at'),'')),"
       "coalesce(json_extract(?1,'$.original_total_size'),-1),"
-      "CASE WHEN json_type(?1,'$.content_revision') IS NULL THEN 1 "
-      "WHEN json_type(?1,'$.content_revision')='integer' THEN json_extract(?1,'$.content_revision') "
+      "CASE WHEN json_type(?1,'$.content_revision')='integer' THEN json_extract(?1,'$.content_revision') "
       "ELSE 0 END,"
       "coalesce((SELECT count(*) FROM json_each(?1,'$.resources') resource WHERE "
       "length(coalesce(json_extract(resource.value,'$.resource_id'),''))=0 OR "
@@ -2069,7 +2137,7 @@ bool Core::persist_private_media_detail_v2_locked(const std::string &detail_json
       "duration_ms,original_total_size,content_revision,updated_at) VALUES(?1,json_extract(?2,'$.id'),"
       "json_extract(?2,'$.media_type'),json_extract(?2,'$.captured_at'),json_extract(?2,'$.created_at'),"
       "json_extract(?2,'$.width'),json_extract(?2,'$.height'),json_extract(?2,'$.duration_ms'),"
-      "json_extract(?2,'$.original_total_size'),coalesce(json_extract(?2,'$.content_revision'),1),?3) ON CONFLICT(user_id,media_id) DO UPDATE SET "
+      "json_extract(?2,'$.original_total_size'),json_extract(?2,'$.content_revision'),?3) ON CONFLICT(user_id,media_id) DO UPDATE SET "
       "media_type=excluded.media_type,captured_at=excluded.captured_at,created_at=excluded.created_at,"
       "width=excluded.width,height=excluded.height,duration_ms=excluded.duration_ms,"
       "original_total_size=excluded.original_total_size,content_revision=excluded.content_revision,"
@@ -2186,42 +2254,12 @@ bool Core::record_private_media_system_save_locked(const std::string &media_id,
     return false;
   }
 
-  sqlite3_stmt *resources = nullptr;
-  const char *resources_sql =
-      "SELECT resource_id,content_sha256_base64 FROM private_media_resources "
-      "WHERE user_id=? AND media_id=? ORDER BY resource_id";
-  if (sqlite3_prepare_v2(database_, resources_sql, -1, &resources, nullptr) != SQLITE_OK) {
-    error_code = "DATABASE_ERROR";
+  const std::string resource_set_digest = private_media_resource_set_digest(
+      database_, active_account_session_->user_id, media_id);
+  if (resource_set_digest.empty()) {
+    error_code = "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE";
     return false;
   }
-  status = sqlite3_bind_text(resources, 1, active_account_session_->user_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status == SQLITE_OK) status = sqlite3_bind_text(resources, 2, media_id.c_str(), -1, SQLITE_TRANSIENT);
-  if (status != SQLITE_OK) {
-    sqlite3_finalize(resources);
-    error_code = "DATABASE_ERROR";
-    return false;
-  }
-  std::string resource_set;
-  while ((status = sqlite3_step(resources)) == SQLITE_ROW) {
-    const auto *id = sqlite3_column_text(resources, 0);
-    const auto *digest = sqlite3_column_text(resources, 1);
-    if (id == nullptr || digest == nullptr) {
-      sqlite3_finalize(resources);
-      error_code = "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE";
-      return false;
-    }
-    resource_set += reinterpret_cast<const char *>(id);
-    resource_set += ':';
-    resource_set += reinterpret_cast<const char *>(digest);
-    resource_set += ';';
-  }
-  sqlite3_finalize(resources);
-  if (status != SQLITE_DONE || resource_set.empty()) {
-    error_code = status == SQLITE_DONE ? "PRIVATE_MEDIA_RESOURCE_UNAVAILABLE" : "DATABASE_ERROR";
-    return false;
-  }
-  const std::string resource_set_digest = command_digest(resource_set);
-  wipe_string(resource_set);
 
   sqlite3_stmt *receipt = nullptr;
   const char *receipt_sql =

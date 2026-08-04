@@ -70,7 +70,7 @@
     ],
     "localMapping": [
       "Core may enrich private-media list and detail snapshots with nullable localPlatformAssetRef and localSourceUri",
-      "A local mapping is usable only when the active local-library generation still contains an AVAILABLE item",
+      "A private-media save receipt is usable only when its content revision and resource-set digest match current private metadata; Android validates its MediaStore entry before completion",
       "Photo/GIF/static detail rendering tries a readable MediaStore mapping, then an integrity-checked account-scoped app-private file named exactly mediaId; if neither is usable the local mapping remains null, while video keeps its cover/preview path and the private grid remains thumbnail-only"
     ]
   },

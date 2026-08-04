@@ -14,8 +14,9 @@ class Stage05ContractTest {
     listOf(
       "stage05-v1", "FROZEN", "C++ Core", "RefreshPrivateMedia",
       "OpenPrivateMedia", "ClosePrivateMedia", "RecordPrivateMediaSystemSave", "TrashPrivateMedia", "VIEW",
-      "maxGrantLifetimeSeconds", "PRIVATE_MEDIA_DOWNLOAD_INTEGRITY_FAILED",
+      "maxGrantLifetimeSeconds",
     ).forEach { assertContains(contract, "\"$it\"") }
+    assertContains(contract, "ORIGINAL_RESOURCE downloads are checked")
     assertFalse(contract.contains("Media Key"))
   }
 
@@ -24,7 +25,7 @@ class Stage05ContractTest {
     val migration = resource("013_private_media_stage05.sql")
     listOf(
       "private_media_items_v2", "private_media_page_state_v2", "private_media_resources",
-      "private_media_save_operations", "content_revision", "PRAGMA user_version=13",
+      "download_receipts", "content_revision", "resource_set_digest", "PRAGMA user_version=13",
     ).forEach { assertContains(migration, it) }
     assertTrue(!migration.contains("signed_url") && !migration.contains("object_key"))
   }

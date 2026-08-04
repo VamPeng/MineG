@@ -40,6 +40,9 @@ CREATE TABLE private_media_resources(
     FOREIGN KEY(user_id,media_id) REFERENCES private_media_items_v2(user_id,media_id) ON DELETE CASCADE
 );
 
+-- Historical compatibility only: versions already migrated through v13 may contain these two
+-- retired save-state tables. Runtime code does not read or write them; a future compatible
+-- migration may remove them after deployed databases no longer need rollback compatibility.
 CREATE TABLE private_media_save_operations(
     operation_id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,

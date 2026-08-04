@@ -18,13 +18,8 @@ internal class PrivateMediaLocalSaver(
   private val album: SystemAlbumWriterPort,
   private val receiptRecorder: PrivateMediaSaveReceiptRecorder,
 ) {
-  private val retainedPlatformAssetRefs = mutableMapOf<String, String>()
-
   suspend fun save(userId: String, detail: PrivateMediaDetail): PrivateMediaSaveResult {
-    val mappingKey = "$userId:${detail.id}"
-    listOfNotNull(retainedPlatformAssetRefs[mappingKey], detail.localPlatformAssetRef)
-      .distinct()
-      .firstOrNull(album::isSystemAlbumEntryPresent)?.let {
+    detail.localPlatformAssetRef?.takeIf(album::isSystemAlbumEntryPresent)?.let {
       return completeAfterCacheRemoval(userId, detail.id)
     }
     val original = detail.resources.singleOrNull {
@@ -49,7 +44,6 @@ internal class PrivateMediaLocalSaver(
       }
       throw failure
     }
-    retainedPlatformAssetRefs[mappingKey] = saved.platformAssetRef
     return completeAfterCacheRemoval(userId, detail.id)
   }
 

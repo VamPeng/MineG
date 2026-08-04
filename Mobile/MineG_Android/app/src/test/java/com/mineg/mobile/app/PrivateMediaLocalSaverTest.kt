@@ -3,6 +3,7 @@ package com.mineg.mobile.app
 import com.mineg.mobile.contracts.PrivateMediaDetail
 import com.mineg.mobile.contracts.PrivateMediaResourceSummary
 import com.mineg.mobile.contracts.PrivateMediaSaveResult
+import com.mineg.mobile.contracts.SystemAlbumSource
 import com.mineg.mobile.contracts.SystemAlbumWriteRequest
 import com.mineg.mobile.contracts.SystemAlbumWriteResult
 import com.mineg.mobile.contracts.SystemAlbumWriterPort
@@ -44,6 +45,19 @@ class PrivateMediaLocalSaverTest {
   }
 
   @Test
+  fun corruptCacheReturnsOriginalNotReadyWithoutAlbumOrReceiptCall() = runTest {
+    withCache { cache, _ ->
+      requireNotNull(cache.fileForTesting(USER, MEDIA_ID)).writeBytes("corrupt".toByteArray())
+      val album = FakeAlbum()
+      val receipts = FakeReceipts()
+
+      assertEquals("PRIVATE_MEDIA_ORIGINAL_NOT_READY", saver(cache, album, receipts).save(USER, detail()).state)
+      assertEquals(0, album.writeCalls)
+      assertEquals(0, receipts.calls)
+    }
+  }
+
+  @Test
   fun validCacheWritesAlbumThenReceiptThenDeletesCache() = runTest {
     withCache { cache, _ ->
       val events = mutableListOf<String>()
@@ -56,6 +70,12 @@ class PrivateMediaLocalSaverTest {
       assertEquals(null, cache.get(USER, MEDIA_ID, CONTENT.size.toLong(), SHA256))
       assertEquals("android:media-store:77", receipts.platformAssetRef)
       assertEquals(listOf("write", "receipt"), album.events)
+      val request = album.requests.single()
+      assertEquals(SystemAlbumSource.VERIFIED_PRIVATE_ORIGINAL, request.source)
+      assertEquals("MineG-$MEDIA_ID.jpg", request.displayName)
+      assertEquals("image/jpeg", request.mimeType)
+      assertEquals("2026-08-04T00:00:00Z", request.capturedAt)
+      assertEquals(requireNotNull(cache.fileForTesting(USER, MEDIA_ID)).absolutePath, request.verifiedFilePath)
     }
   }
 
@@ -98,8 +118,43 @@ class PrivateMediaLocalSaverTest {
 
       assertEquals("PRIVATE_MEDIA_CACHE_CLEANUP_FAILED", localSaver.save(USER, detail()).state)
       temporaryDirectory.deleteRecursively()
-      assertEquals("COMPLETED", localSaver.save(USER, detail()).state)
+      assertEquals("COMPLETED", localSaver.save(USER, detail(LOCAL_MAPPING)).state)
       assertEquals(1, album.writeCalls)
+    }
+  }
+
+  @Test
+  fun cleanupRetryAfterProcessRecreationUsesDurableDetailMapping() = runTest {
+    withCache { cache, _ ->
+      val album = FakeAlbum()
+      val temporaryDirectory = File(requireNotNull(cache.fileForTesting(USER, MEDIA_ID)).parentFile, "$MEDIA_ID.tmp")
+      check(temporaryDirectory.mkdirs())
+      check(File(temporaryDirectory, "blocked").createNewFile())
+
+      assertEquals("PRIVATE_MEDIA_CACHE_CLEANUP_FAILED", saver(cache, album, FakeReceipts()).save(USER, detail()).state)
+      temporaryDirectory.deleteRecursively()
+      assertEquals("COMPLETED", saver(cache, album, FakeReceipts()).save(USER, detail(LOCAL_MAPPING)).state)
+      assertEquals(1, album.writeCalls)
+    }
+  }
+
+  @Test
+  fun newerResourceMetadataDoesNotReuseEarlierRetainedMapping() = runTest {
+    withCache { cache, root ->
+      val album = FakeAlbum()
+      val localSaver = saver(cache, album, FakeReceipts())
+      assertEquals("COMPLETED", localSaver.save(USER, detail()).state)
+
+      val newerContent = "new-image".toByteArray()
+      val newerDigest = digest(newerContent)
+      val newerSource = File(root, "new-source.jpg").apply { writeBytes(newerContent) }
+      check(cache.put(USER, MEDIA_ID, newerSource, newerContent.size.toLong(), newerDigest) != null)
+
+      assertEquals(
+        "COMPLETED",
+        localSaver.save(USER, detail(resourceId = NEW_RESOURCE_ID, content = newerContent)).state,
+      )
+      assertEquals(2, album.writeCalls)
     }
   }
 
@@ -114,7 +169,7 @@ class PrivateMediaLocalSaverTest {
 
       assertEquals("PRIVATE_MEDIA_CACHE_CLEANUP_FAILED", localSaver.save(USER, detail(STALE_MAPPING)).state)
       temporaryDirectory.deleteRecursively()
-      assertEquals("COMPLETED", localSaver.save(USER, detail(STALE_MAPPING)).state)
+      assertEquals("COMPLETED", localSaver.save(USER, detail(LOCAL_MAPPING)).state)
       assertEquals(1, album.writeCalls)
     }
   }
@@ -140,7 +195,11 @@ class PrivateMediaLocalSaverTest {
     receipts: FakeReceipts,
   ) = PrivateMediaLocalSaver(cache, album, receipts)
 
-  private fun detail(localPlatformAssetRef: String? = null) = PrivateMediaDetail(
+  private fun detail(
+    localPlatformAssetRef: String? = null,
+    resourceId: String = RESOURCE_ID,
+    content: ByteArray = CONTENT,
+  ) = PrivateMediaDetail(
     id = MEDIA_ID,
     mediaType = "PHOTO",
     capturedAt = "2026-08-04T00:00:00Z",
@@ -148,10 +207,11 @@ class PrivateMediaLocalSaverTest {
     width = 2,
     height = 2,
     durationMs = null,
-    originalTotalSize = CONTENT.size.toLong(),
+    originalTotalSize = content.size.toLong(),
     resources = listOf(
-      PrivateMediaResourceSummary(RESOURCE_ID, "ORIGINAL", "image/jpeg", CONTENT.size.toLong(), SHA256),
+      PrivateMediaResourceSummary(resourceId, "ORIGINAL", "image/jpeg", content.size.toLong(), digest(content)),
     ),
+    contentRevision = if (resourceId == RESOURCE_ID) 1 else 2,
     localPlatformAssetRef = localPlatformAssetRef,
   )
 
@@ -176,6 +236,7 @@ class PrivateMediaLocalSaverTest {
     private val deleteResult: Boolean = true,
   ) : SystemAlbumWriterPort {
     var writeCalls = 0
+    val requests = mutableListOf<SystemAlbumWriteRequest>()
     val deletedRefs = mutableListOf<String>()
     private val presentRefs = mutableSetOf<String>().apply {
       if (mappingPresent) add(LOCAL_MAPPING)
@@ -183,6 +244,7 @@ class PrivateMediaLocalSaverTest {
 
     override fun writeVerifiedMedia(request: SystemAlbumWriteRequest): SystemAlbumWriteResult {
       writeCalls += 1
+      requests += request
       events += "write"
       presentRefs += "android:media-store:77"
       return SystemAlbumWriteResult("android:media-store:77")
@@ -220,9 +282,13 @@ class PrivateMediaLocalSaverTest {
     const val USER = "user-1"
     const val MEDIA_ID = "11111111-1111-4111-8111-111111111111"
     const val RESOURCE_ID = "22222222-2222-4222-8222-222222222222"
+    const val NEW_RESOURCE_ID = "33333333-3333-4333-8333-333333333333"
     const val LOCAL_MAPPING = "android:media-store:77"
     const val STALE_MAPPING = "android:media-store:66"
     val CONTENT = "image".toByteArray()
-    val SHA256 = Base64.getEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(CONTENT))
+    val SHA256 = digest(CONTENT)
+
+    fun digest(content: ByteArray): String =
+      Base64.getEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(content))
   }
 }

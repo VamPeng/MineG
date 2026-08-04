@@ -79,7 +79,7 @@ class MineGAppViewModelTest {
         privateMedia = listOf(
           PrivateMediaSummary(
             "media-1", "PHOTO", "2026-07-30T08:00:00Z", "2026-07-30T08:01:00Z",
-            null, 1_024L, null,
+            null, 1_024L, null, 1,
           ),
         ),
       )
@@ -204,6 +204,7 @@ class MineGAppViewModelTest {
         null,
         1_024L,
         null,
+        1,
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -244,6 +245,7 @@ class MineGAppViewModelTest {
         null,
         1_024L,
         null,
+        1,
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -274,6 +276,7 @@ class MineGAppViewModelTest {
         null,
         1_024L,
         null,
+        1,
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -305,6 +308,7 @@ class MineGAppViewModelTest {
         null,
         1_024L,
         null,
+        1,
       )
       val viewModel = MineGAppViewModel(FakeRuntime(
         restoredSession = approvedSession(),
@@ -342,6 +346,7 @@ class MineGAppViewModelTest {
         null,
         1_024L,
         null,
+        1,
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -373,6 +378,7 @@ class MineGAppViewModelTest {
         null,
         4_096L,
         null,
+        1,
       )
       val original = "file:///app-private/${media.id}"
       val runtime = FakeRuntime(
@@ -410,6 +416,7 @@ class MineGAppViewModelTest {
         null,
         2_048L,
         null,
+        contentRevision = 1,
         localPlatformAssetRef = "android:external:123",
         localSourceUri = "content://media/external/file/123",
       )
@@ -435,8 +442,8 @@ class MineGAppViewModelTest {
     Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
     try {
       val media = listOf(
-        PrivateMediaSummary("media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null),
-        PrivateMediaSummary("media-2", "VIDEO", "2026-08-02T00:00:00Z", "2026-08-02T00:00:00Z", 30_000L, 2_048L, null),
+        PrivateMediaSummary("media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null, 1),
+        PrivateMediaSummary("media-2", "VIDEO", "2026-08-02T00:00:00Z", "2026-08-02T00:00:00Z", 30_000L, 2_048L, null, 1),
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -464,8 +471,8 @@ class MineGAppViewModelTest {
     Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
     try {
       val media = listOf(
-        PrivateMediaSummary("media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null),
-        PrivateMediaSummary("media-2", "VIDEO", "2026-08-02T00:00:00Z", "2026-08-02T00:00:00Z", 30_000L, 2_048L, null),
+        PrivateMediaSummary("media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null, 1),
+        PrivateMediaSummary("media-2", "VIDEO", "2026-08-02T00:00:00Z", "2026-08-02T00:00:00Z", 30_000L, 2_048L, null, 1),
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -498,7 +505,7 @@ class MineGAppViewModelTest {
     Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
     try {
       val media = PrivateMediaSummary(
-        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null,
+        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null, 1,
       )
       val runtime = FakeRuntime(restoredSession = approvedSession(), access = LibraryAccess.FULL, privateMedia = listOf(media))
       val viewModel = MineGAppViewModel(runtime)
@@ -521,7 +528,7 @@ class MineGAppViewModelTest {
     Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
     try {
       val media = PrivateMediaSummary(
-        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null,
+        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null, 1,
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -549,7 +556,7 @@ class MineGAppViewModelTest {
       val media = List(12) { index ->
         PrivateMediaSummary(
           "media-$index", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z",
-          null, 1_024L, null,
+          null, 1_024L, null, 1,
         )
       }
       val runtime = FakeRuntime(
@@ -581,7 +588,7 @@ class MineGAppViewModelTest {
     Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
     try {
       val media = PrivateMediaSummary(
-        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null,
+        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null, 1,
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -611,7 +618,7 @@ class MineGAppViewModelTest {
     Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
     try {
       val media = PrivateMediaSummary(
-        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null,
+        "media-1", "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null, 1,
       )
       val runtime = FakeRuntime(
         restoredSession = approvedSession(),
@@ -784,7 +791,7 @@ class MineGAppViewModelTest {
     try {
       val mediaId = "11111111-1111-4111-8111-111111111111"
       val media = PrivateMediaSummary(
-        mediaId, "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null,
+        mediaId, "PHOTO", "2026-08-03T00:00:00Z", "2026-08-03T00:00:00Z", null, 1_024L, null, 1,
       )
       val owner = FamilyMediaOwner("user-1", "测试用户")
       val runtime = FakeRuntime(
@@ -921,6 +928,7 @@ class MineGAppViewModelTest {
         durationMs = media.durationMs,
         originalTotalSize = media.originalTotalSize,
         resources = emptyList(),
+        contentRevision = media.contentRevision,
         localPlatformAssetRef = media.localPlatformAssetRef,
         localSourceUri = media.localSourceUri,
       )
@@ -1034,6 +1042,7 @@ class MineGAppViewModelTest {
             restored.durationMs,
             restored.originalTotalSize,
             null,
+            1,
           ),
         ) + privateMedia
       }

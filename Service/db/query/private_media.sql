@@ -1,6 +1,7 @@
 -- name: ListPrivateMedia :many
 SELECT media.id,
        media.media_type,
+       media.content_revision,
        media.captured_at,
        media.created_at,
        media.duration_ms,
@@ -26,6 +27,7 @@ LIMIT $2;
 -- name: ListPrivateMediaAfter :many
 SELECT media.id,
        media.media_type,
+       media.content_revision,
        media.captured_at,
        media.created_at,
        media.duration_ms,
@@ -52,6 +54,7 @@ LIMIT $4;
 -- name: FindPrivateMedia :one
 SELECT media.id,
        media.media_type,
+       media.content_revision,
        media.captured_at,
        media.created_at,
        media.width,

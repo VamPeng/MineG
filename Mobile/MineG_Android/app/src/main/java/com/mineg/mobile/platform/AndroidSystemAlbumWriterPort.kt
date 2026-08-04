@@ -14,7 +14,7 @@ import java.io.FileInputStream
 import java.io.IOException
 import java.time.Instant
 
-/** Writes only Core-verified task files into the user's system media collection. */
+/** Writes only Core-verified task files or verified private originals into the system collection. */
 class AndroidSystemAlbumWriterPort(context: Context) : SystemAlbumWriterPort {
   private val applicationContext = context.applicationContext
   private val resolver = applicationContext.contentResolver

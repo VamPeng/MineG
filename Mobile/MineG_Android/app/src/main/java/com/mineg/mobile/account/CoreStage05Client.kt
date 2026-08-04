@@ -176,6 +176,7 @@ class CoreStage05Client(
         contentSha256 = getString("contentSha256"),
       )
     },
+    contentRevision = getInt("contentRevision"),
     localPlatformAssetRef = nullableString("localPlatformAssetRef"),
     localSourceUri = nullableString("localSourceUri"),
   )
@@ -200,6 +201,7 @@ class CoreStage05Client(
         )
       }
     },
+    contentRevision = getInt("contentRevision"),
     localPlatformAssetRef = nullableString("localPlatformAssetRef"),
     localSourceUri = nullableString("localSourceUri"),
   )

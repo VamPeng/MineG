@@ -82,6 +82,7 @@ type Resource struct {
 type Summary struct {
 	ID                string    `json:"id"`
 	MediaType         string    `json:"media_type"`
+	ContentRevision   int32     `json:"content_revision"`
 	CapturedAt        time.Time `json:"captured_at"`
 	CreatedAt         time.Time `json:"created_at"`
 	DurationMS        *int64    `json:"duration_ms,omitempty"`
@@ -97,6 +98,7 @@ type Page struct {
 type Detail struct {
 	ID                string     `json:"id"`
 	MediaType         string     `json:"media_type"`
+	ContentRevision   int32      `json:"content_revision"`
 	CapturedAt        time.Time  `json:"captured_at"`
 	CreatedAt         time.Time  `json:"created_at"`
 	Width             *int32     `json:"width,omitempty"`
@@ -161,7 +163,7 @@ func (s *Service) List(ctx context.Context, actor Actor, cursor string, limit in
 			return Page{}, internal()
 		}
 		for _, row := range rows {
-			page.Items = append(page.Items, summaryFromValues(row.ID, row.MediaType, row.CapturedAt, row.CreatedAt, row.DurationMs, row.OriginalTotalSize))
+			page.Items = append(page.Items, summaryFromValues(row.ID, row.MediaType, row.ContentRevision, row.CapturedAt, row.CreatedAt, row.DurationMs, row.OriginalTotalSize))
 		}
 	} else {
 		payload, decodeErr := s.decodeCursor(cursor)
@@ -175,7 +177,7 @@ func (s *Service) List(ctx context.Context, actor Actor, cursor string, limit in
 			return Page{}, internal()
 		}
 		for _, row := range rows {
-			page.Items = append(page.Items, summaryFromValues(row.ID, row.MediaType, row.CapturedAt, row.CreatedAt, row.DurationMs, row.OriginalTotalSize))
+			page.Items = append(page.Items, summaryFromValues(row.ID, row.MediaType, row.ContentRevision, row.CapturedAt, row.CreatedAt, row.DurationMs, row.OriginalTotalSize))
 		}
 	}
 	if len(page.Items) > int(limit) {
@@ -207,7 +209,8 @@ func (s *Service) Detail(ctx context.Context, actor Actor, mediaID string) (Deta
 		return Detail{}, internal()
 	}
 	result := Detail{
-		ID: uuidString(row.ID), MediaType: row.MediaType, CapturedAt: row.CapturedAt.Time, CreatedAt: row.CreatedAt.Time,
+		ID: uuidString(row.ID), MediaType: row.MediaType, ContentRevision: row.ContentRevision,
+		CapturedAt: row.CapturedAt.Time, CreatedAt: row.CreatedAt.Time,
 		Width: optionalInt32(row.Width), Height: optionalInt32(row.Height), DurationMS: optionalInt64(row.DurationMs),
 		OriginalTotalSize: row.OriginalTotalSize, Resources: make([]Resource, 0, len(resources)),
 	}
@@ -376,9 +379,10 @@ func (s *Service) Trash(ctx context.Context, actor Actor, mediaID, idempotencyKe
 	return result, nil
 }
 
-func summaryFromValues(id pgtype.UUID, mediaType string, capturedAt, createdAt pgtype.Timestamptz, duration pgtype.Int8, originalTotalSize int64) Summary {
+func summaryFromValues(id pgtype.UUID, mediaType string, contentRevision int32, capturedAt, createdAt pgtype.Timestamptz, duration pgtype.Int8, originalTotalSize int64) Summary {
 	return Summary{
-		ID: uuidString(id), MediaType: mediaType, CapturedAt: capturedAt.Time, CreatedAt: createdAt.Time,
+		ID: uuidString(id), MediaType: mediaType, ContentRevision: contentRevision,
+		CapturedAt: capturedAt.Time, CreatedAt: createdAt.Time,
 		DurationMS: optionalInt64(duration), OriginalTotalSize: originalTotalSize,
 	}
 }
@@ -467,7 +471,9 @@ func parseMediaID(value string) (pgtype.UUID, error) {
 }
 
 func validateAccessInput(input AccessInput) error {
-	if input.Purpose != "VIEW" && input.Purpose != "STREAM" {
+	valid := (input.Purpose == "VIEW" && (input.Variant == "THUMBNAIL" || input.Variant == "DETAIL")) ||
+		(input.Purpose == "STREAM" && input.Variant == "")
+	if !valid {
 		return validation("PRIVATE_MEDIA_ACCESS_INVALID", "Invalid media access", "The purpose and variant combination is invalid.")
 	}
 	return nil

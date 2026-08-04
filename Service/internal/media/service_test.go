@@ -3,15 +3,45 @@ package media
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/vampeng/mineg/service/internal/platform/database/dbgen"
 	"github.com/vampeng/mineg/service/internal/platform/objectstore"
 )
+
+func TestPrivateMediaResponsesPreserveAuthoritativeContentRevision(t *testing.T) {
+	for name, target := range map[string]any{
+		"summary": &Summary{},
+		"detail":  &Detail{},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := json.Unmarshal([]byte(`{"content_revision":7}`), target); err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := json.Marshal(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var response map[string]any
+			if err := json.Unmarshal(encoded, &response); err != nil {
+				t.Fatal(err)
+			}
+			if response["content_revision"] != float64(7) {
+				t.Fatalf("content_revision = %#v in %s", response["content_revision"], encoded)
+			}
+		})
+	}
+	summary := summaryFromValues(pgtype.UUID{}, "PHOTO", 7, pgtype.Timestamptz{}, pgtype.Timestamptz{}, pgtype.Int8{}, 0)
+	if summary.ContentRevision != 7 {
+		t.Fatalf("summary content revision = %d, want 7", summary.ContentRevision)
+	}
+}
 
 func TestPrivateMediaCursorIsOwnerBoundAndTamperEvident(t *testing.T) {
 	service := New(nil, Config{CursorKey: bytes.Repeat([]byte{0x6b}, 32)})
@@ -97,6 +127,30 @@ func TestPrivateMediaAccessRejectsDownload(t *testing.T) {
 		t.Fatalf("unexpected result: %#v", result)
 	}
 	assertMediaError(t, err, "PRIVATE_MEDIA_ACCESS_INVALID", http.StatusUnprocessableEntity)
+}
+
+func TestPrivateMediaAccessEnforcesPurposeVariantMatrix(t *testing.T) {
+	for _, input := range []AccessInput{
+		{Purpose: "VIEW"},
+		{Purpose: "VIEW", Variant: "FULL"},
+		{Purpose: "STREAM", Variant: "THUMBNAIL"},
+		{Purpose: "STREAM", Variant: "DETAIL"},
+	} {
+		t.Run(input.Purpose+"/"+input.Variant, func(t *testing.T) {
+			assertMediaError(t, validateAccessInput(input), "PRIVATE_MEDIA_ACCESS_INVALID", http.StatusUnprocessableEntity)
+		})
+	}
+	for _, input := range []AccessInput{
+		{Purpose: "VIEW", Variant: "THUMBNAIL"},
+		{Purpose: "VIEW", Variant: "DETAIL"},
+		{Purpose: "STREAM"},
+	} {
+		t.Run("valid/"+input.Purpose+"/"+input.Variant, func(t *testing.T) {
+			if err := validateAccessInput(input); err != nil {
+				t.Fatalf("valid input rejected: %#v: %v", input, err)
+			}
+		})
+	}
 }
 
 func TestFamilyMediaAccessRetainsVariantValidation(t *testing.T) {

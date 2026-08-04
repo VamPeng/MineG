@@ -171,8 +171,8 @@ data class SystemAlbumWriteRequest(
 data class SystemAlbumWriteResult(val platformAssetRef: String)
 
 /**
- * This port consumes only verified local sources. It neither requests object grants nor makes
- * domain decisions; Core retains the durable save receipt.
+ * This port consumes only Core-verified task files or integrity-checked private originals. It
+ * neither requests object grants nor makes domain decisions; Core retains the durable save receipt.
  */
 interface SystemAlbumWriterPort {
   fun writeVerifiedMedia(request: SystemAlbumWriteRequest): SystemAlbumWriteResult

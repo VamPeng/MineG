@@ -28,6 +28,7 @@ data class PrivateMediaSummary(
   val durationMs: Long?,
   val originalTotalSize: Long,
   val previewResource: PrivateMediaResourceSummary?,
+  val contentRevision: Int,
   val localPlatformAssetRef: String? = null,
   val localSourceUri: String? = null,
 )
@@ -49,6 +50,7 @@ data class PrivateMediaDetail(
   val durationMs: Long?,
   val originalTotalSize: Long,
   val resources: List<PrivateMediaResourceSummary>,
+  val contentRevision: Int,
   val localPlatformAssetRef: String? = null,
   val localSourceUri: String? = null,
 )
