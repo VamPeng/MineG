@@ -218,6 +218,7 @@ class MineGAppViewModelTest {
       viewModel.downloadSelectedMedia()
       assertEquals(MediaActionState.SAVED, viewModel.state.value.selectedMediaAction)
       assertEquals(listOf(media.id), runtime.savedMediaIds)
+      assertEquals(media.id, runtime.savedMediaDetails.single().id)
 
       viewModel.requestDelete(media.id)
       assertEquals(listOf(media.id), viewModel.state.value.privateSpace.items.map(MediaItem::id))
@@ -226,6 +227,36 @@ class MineGAppViewModelTest {
       assertTrue(viewModel.state.value.privateSpace.items.isEmpty())
       assertEquals(listOf(media.id), runtime.trashedMediaIds)
       assertEquals(listOf("view-handle-${media.id}"), runtime.closedViewHandles)
+    } finally {
+      Dispatchers.resetMain()
+    }
+  }
+
+  @Test
+  fun `private media save fails locally when detail metadata was not opened`() = runTest {
+    Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+    try {
+      val media = PrivateMediaSummary(
+        "11111111-1111-4111-8111-111111111111",
+        "PHOTO",
+        "2026-08-03T00:00:00Z",
+        "2026-08-03T00:00:00Z",
+        null,
+        1_024L,
+        null,
+      )
+      val runtime = FakeRuntime(
+        restoredSession = approvedSession(),
+        access = LibraryAccess.FULL,
+        privateMedia = listOf(media),
+      )
+      val viewModel = MineGAppViewModel(runtime)
+
+      viewModel.navigate(AppRoute.PrivateMediaDetail(media.id))
+      viewModel.downloadSelectedMedia()
+
+      assertEquals(MediaActionState.SAVE_FAILED, viewModel.state.value.selectedMediaAction)
+      assertTrue(runtime.savedMediaIds.isEmpty())
     } finally {
       Dispatchers.resetMain()
     }
@@ -794,6 +825,7 @@ class MineGAppViewModelTest {
     var signOutCalled = false
     val enqueuedAssetRefs = mutableListOf<String>()
     val savedMediaIds = mutableListOf<String>()
+    val savedMediaDetails = mutableListOf<PrivateMediaDetail>()
     val trashedMediaIds = mutableListOf<String>()
     val detailedMediaIds = mutableListOf<String>()
     val resolvedPrivateOriginalIds = mutableListOf<String>()
@@ -898,8 +930,13 @@ class MineGAppViewModelTest {
     }
 
     override suspend fun invalidatePrivateMediaThumbnail(userId: String, mediaId: String) = Unit
-    override suspend fun savePrivateMediaToSystemAlbum(mediaId: String): PrivateMediaSaveResult {
+    override suspend fun savePrivateMediaToSystemAlbum(
+      userId: String,
+      detail: PrivateMediaDetail,
+    ): PrivateMediaSaveResult {
+      val mediaId = detail.id
       savedMediaIds += mediaId
+      savedMediaDetails += detail
       return PrivateMediaSaveResult(mediaId, "COMPLETED", 1)
     }
     override suspend fun trashPrivateMedia(mediaId: String): PrivateMediaTrashResult {

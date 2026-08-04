@@ -44,6 +44,7 @@ class MineGAppViewModel internal constructor(
   private var currentUserId: String? = null
   private var reviewPollingJob: Job? = null
   private var backupOverviewJob: Job? = null
+  private val privateMediaDetails = mutableMapOf<String, PrivateMediaDetail>()
   private var privatePreviewVisibleIds: Set<String> = emptySet()
   private val privatePreviewPending = ArrayDeque<String>()
   private val privatePreviewPendingIds = mutableSetOf<String>()
@@ -63,6 +64,7 @@ class MineGAppViewModel internal constructor(
   fun restoreAuthentication() {
     stopReviewPolling()
     currentUserId = null
+    privateMediaDetails.clear()
     mutableState.value = MineGAppState(currentRoute = AppRoute.Restoring)
     viewModelScope.launch {
       try {
@@ -391,6 +393,8 @@ class MineGAppViewModel internal constructor(
     viewModelScope.launch {
       try {
         val detail = runtime.getPrivateMediaDetail(mediaId)
+        if (currentUserId != userId) return@launch
+        privateMediaDetails[mediaId] = detail
         val owner = mutableState.value.privateSpace.items.firstOrNull { it.id == mediaId }?.owner ?: return@launch
         val detailItem = detail.toMediaItem(owner)
         mutableState.update { state ->
@@ -712,10 +716,22 @@ class MineGAppViewModel internal constructor(
 
   fun downloadSelectedMedia() {
     val mediaId = (mutableState.value.currentRoute as? AppRoute.PrivateMediaDetail)?.mediaId ?: return
+    val userId = currentUserId ?: mutableState.value.profile?.id
+    val detail = privateMediaDetails[mediaId]
+    if (userId == null || detail == null) {
+      mutableState.update { state ->
+        if (state.currentRoute == AppRoute.PrivateMediaDetail(mediaId)) {
+          state.copy(selectedMediaAction = MediaActionState.SAVE_FAILED)
+        } else {
+          state
+        }
+      }
+      return
+    }
     viewModelScope.launch {
       mutableState.update { it.copy(selectedMediaAction = MediaActionState.DOWNLOADING) }
       try {
-        val result = runtime.savePrivateMediaToSystemAlbum(mediaId)
+        val result = runtime.savePrivateMediaToSystemAlbum(userId, detail)
         mutableState.update { state ->
           if (state.currentRoute == AppRoute.PrivateMediaDetail(mediaId)) {
             state.copy(selectedMediaAction = if (result.state == "COMPLETED") {
@@ -815,6 +831,7 @@ class MineGAppViewModel internal constructor(
         viewModelScope.launch {
           try {
             runtime.trashPrivateMedia(dialog.mediaId)
+            privateMediaDetails.remove(dialog.mediaId)
             privatePreviewHandles.remove(dialog.mediaId)?.let { handle ->
               runtime.closePrivateMedia(handle)
             }
@@ -1885,6 +1902,7 @@ class MineGAppViewModel internal constructor(
     mutablePrivateMediaPreviewSources.clear()
     familyPreviewHandles.clear()
     mutableFamilyMediaPreviewSources.clear()
+    privateMediaDetails.clear()
     mutableState.update { it.copy(currentRoute = AppRoute.Restoring, backStack = emptyList(), dialog = null) }
     viewModelScope.launch {
       previewHandles.forEach { handle -> runCatching { runtime.closePrivateMedia(handle) } }
@@ -1907,6 +1925,7 @@ class MineGAppViewModel internal constructor(
     mutablePrivateMediaPreviewSources.clear()
     familyPreviewHandles.clear()
     mutableFamilyMediaPreviewSources.clear()
+    privateMediaDetails.clear()
     if (previewHandles.isNotEmpty() || familyHandles.isNotEmpty()) {
       viewModelScope.launch {
         previewHandles.forEach { handle -> runCatching { runtime.closePrivateMedia(handle) } }

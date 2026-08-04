@@ -1,5 +1,6 @@
 package com.mineg.mobile.account
 
+import com.mineg.mobile.app.PrivateMediaSaveReceiptRecorder
 import com.mineg.mobile.contracts.AccountProblem
 import com.mineg.mobile.contracts.CoreOperationStatus
 import com.mineg.mobile.contracts.PrivateMediaPage
@@ -20,7 +21,7 @@ import org.json.JSONObject
 class CoreStage05Client(
   private val core: CoreClient,
   private val runner: CoreOperationRunner,
-) {
+) : PrivateMediaSaveReceiptRecorder {
   private val operationIds = AtomicLong(5_000_000_000L)
 
   suspend fun refreshPrivateMedia(limit: Int = 50, allowCached: Boolean = true): PrivateMediaPage =
@@ -64,14 +65,14 @@ class CoreStage05Client(
         )
       }
 
-  suspend fun savePrivateMediaToSystemAlbum(mediaId: String): PrivateMediaSaveResult =
-    runDetailCommand("SavePrivateMediaToSystemAlbum", mediaId).toPrivateMediaSaveResult()
-
-  suspend fun retryPrivateMediaSave(mediaId: String): PrivateMediaSaveResult =
-    runDetailCommand("RetryPrivateMediaSave", mediaId).toPrivateMediaSaveResult()
-
-  suspend fun cancelPrivateMediaSave(mediaId: String): PrivateMediaSaveResult =
-    runDetailCommand("CancelPrivateMediaSave", mediaId).toPrivateMediaSaveResult()
+  override suspend fun record(
+    mediaId: String,
+    resourceId: String,
+    platformAssetRef: String,
+  ): PrivateMediaSaveResult = runDetailCommand("RecordPrivateMediaSystemSave", mediaId) {
+    put("resourceId", resourceId)
+    put("platformAssetRef", platformAssetRef)
+  }.toPrivateMediaSaveResult()
 
   fun getPrivateMediaPage(limit: Int = 50): PrivateMediaPage? {
     val payload = JSONObject(

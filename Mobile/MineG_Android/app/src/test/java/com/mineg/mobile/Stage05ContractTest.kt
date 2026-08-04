@@ -13,7 +13,7 @@ class Stage05ContractTest {
     val contract = resource("stage05-v1.json")
     listOf(
       "stage05-v1", "FROZEN", "C++ Core", "RefreshPrivateMedia",
-      "OpenPrivateMedia", "ClosePrivateMedia", "SavePrivateMediaToSystemAlbum", "TrashPrivateMedia", "DOWNLOAD",
+      "OpenPrivateMedia", "ClosePrivateMedia", "RecordPrivateMediaSystemSave", "TrashPrivateMedia", "VIEW",
       "maxGrantLifetimeSeconds", "PRIVATE_MEDIA_DOWNLOAD_INTEGRITY_FAILED",
     ).forEach { assertContains(contract, "\"$it\"") }
     assertFalse(contract.contains("Media Key"))
@@ -37,8 +37,11 @@ class Stage05ContractTest {
       .toSet()
     assertTrue(publicMethods.containsAll(setOf(
       "refreshPrivateMedia", "loadMorePrivateMedia", "getPrivateMediaPage",
-      "getPrivateMediaDetail", "openPrivateMedia", "closePrivateMedia", "trashPrivateMedia",
+      "getPrivateMediaDetail", "openPrivateMedia", "closePrivateMedia", "trashPrivateMedia", "record",
     )))
+    assertTrue(publicMethods.none {
+      it == "savePrivateMediaToSystemAlbum" || it == "retryPrivateMediaSave" || it == "cancelPrivateMediaSave"
+    })
   }
 
   private fun resource(name: String): String =

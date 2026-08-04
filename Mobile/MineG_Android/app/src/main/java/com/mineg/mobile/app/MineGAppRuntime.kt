@@ -84,7 +84,7 @@ internal interface MineGAppRuntime : AutoCloseable {
   suspend fun openPrivateMedia(userId: String, mediaId: String): PrivateMediaView
   suspend fun closePrivateMedia(viewHandle: String): Boolean
   suspend fun invalidatePrivateMediaThumbnail(userId: String, mediaId: String)
-  suspend fun savePrivateMediaToSystemAlbum(mediaId: String): PrivateMediaSaveResult
+  suspend fun savePrivateMediaToSystemAlbum(userId: String, detail: PrivateMediaDetail): PrivateMediaSaveResult
   suspend fun trashPrivateMedia(mediaId: String): PrivateMediaTrashResult
   suspend fun setPrivateMediaShare(mediaId: String, shared: Boolean): PrivateMediaShareResult
   suspend fun refreshFamilyMedia(filter: String = "all", cursor: String? = null, limit: Int = 50): FamilyMediaPage
@@ -166,6 +166,7 @@ internal class AndroidMineGAppRuntime(context: Context) : MineGAppRuntime {
   private val coreStage04 = CoreStage04Client(core, CoreOperationRunner(core, dispatcher))
   private val coreStage05 = CoreStage05Client(core, CoreOperationRunner(core, dispatcher))
   private val coreStage06 = CoreStage06Client(core, CoreOperationRunner(core, dispatcher))
+  private val privateMediaLocalSaver = PrivateMediaLocalSaver(privateOriginals, systemAlbum, coreStage05)
 
   override suspend fun restoreSession(): AccountRouteSnapshot? = coreAccount.restoreSession().also {
     activeAccountId = it?.userId
@@ -338,8 +339,12 @@ internal class AndroidMineGAppRuntime(context: Context) : MineGAppRuntime {
     }
   }
 
-  override suspend fun savePrivateMediaToSystemAlbum(mediaId: String): PrivateMediaSaveResult = withContext(stage05Dispatcher) {
-    coreStage05.savePrivateMediaToSystemAlbum(mediaId)
+  override suspend fun savePrivateMediaToSystemAlbum(
+    userId: String,
+    detail: PrivateMediaDetail,
+  ): PrivateMediaSaveResult = withContext(stage05Dispatcher) {
+    require(activeAccountId == userId) { "private-media save account does not match the active session" }
+    privateMediaLocalSaver.save(userId, detail)
   }
 
   override suspend fun trashPrivateMedia(mediaId: String): PrivateMediaTrashResult = withContext(stage05Dispatcher) {
