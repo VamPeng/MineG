@@ -22,8 +22,9 @@ internal class PrivateMediaLocalSaver(
 
   suspend fun save(userId: String, detail: PrivateMediaDetail): PrivateMediaSaveResult {
     val mappingKey = "$userId:${detail.id}"
-    (detail.localPlatformAssetRef ?: retainedPlatformAssetRefs[mappingKey])
-      ?.takeIf(album::isSystemAlbumEntryPresent)?.let {
+    listOfNotNull(retainedPlatformAssetRefs[mappingKey], detail.localPlatformAssetRef)
+      .distinct()
+      .firstOrNull(album::isSystemAlbumEntryPresent)?.let {
       return completeAfterCacheRemoval(userId, detail.id)
     }
     val original = detail.resources.singleOrNull {

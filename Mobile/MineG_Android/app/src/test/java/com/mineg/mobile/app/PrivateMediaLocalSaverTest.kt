@@ -104,6 +104,22 @@ class PrivateMediaLocalSaverTest {
   }
 
   @Test
+  fun staleDetailMappingYieldsToReceiptConfirmedMappingOnCleanupRetry() = runTest {
+    withCache { cache, _ ->
+      val album = FakeAlbum()
+      val localSaver = saver(cache, album, FakeReceipts())
+      val temporaryDirectory = File(requireNotNull(cache.fileForTesting(USER, MEDIA_ID)).parentFile, "$MEDIA_ID.tmp")
+      check(temporaryDirectory.mkdirs())
+      check(File(temporaryDirectory, "blocked").createNewFile())
+
+      assertEquals("PRIVATE_MEDIA_CACHE_CLEANUP_FAILED", localSaver.save(USER, detail(STALE_MAPPING)).state)
+      temporaryDirectory.deleteRecursively()
+      assertEquals("COMPLETED", localSaver.save(USER, detail(STALE_MAPPING)).state)
+      assertEquals(1, album.writeCalls)
+    }
+  }
+
+  @Test
   fun receiptFailureWithRollbackFailureIsObservableAndRetainsCache() = runTest {
     withCache { cache, _ ->
       val receiptFailure = IOException("receipt failed")
@@ -155,21 +171,24 @@ class PrivateMediaLocalSaverTest {
   }
 
   private class FakeAlbum(
-    private var mappingPresent: Boolean = false,
+    mappingPresent: Boolean = false,
     val events: MutableList<String> = mutableListOf(),
     private val deleteResult: Boolean = true,
   ) : SystemAlbumWriterPort {
     var writeCalls = 0
     val deletedRefs = mutableListOf<String>()
+    private val presentRefs = mutableSetOf<String>().apply {
+      if (mappingPresent) add(LOCAL_MAPPING)
+    }
 
     override fun writeVerifiedMedia(request: SystemAlbumWriteRequest): SystemAlbumWriteResult {
       writeCalls += 1
       events += "write"
-      mappingPresent = true
+      presentRefs += "android:media-store:77"
       return SystemAlbumWriteResult("android:media-store:77")
     }
 
-    override fun isSystemAlbumEntryPresent(platformAssetRef: String): Boolean = mappingPresent
+    override fun isSystemAlbumEntryPresent(platformAssetRef: String): Boolean = platformAssetRef in presentRefs
 
     override fun deleteSystemAlbumEntry(platformAssetRef: String): Boolean {
       deletedRefs += platformAssetRef
@@ -202,6 +221,7 @@ class PrivateMediaLocalSaverTest {
     const val MEDIA_ID = "11111111-1111-4111-8111-111111111111"
     const val RESOURCE_ID = "22222222-2222-4222-8222-222222222222"
     const val LOCAL_MAPPING = "android:media-store:77"
+    const val STALE_MAPPING = "android:media-store:66"
     val CONTENT = "image".toByteArray()
     val SHA256 = Base64.getEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(CONTENT))
   }
