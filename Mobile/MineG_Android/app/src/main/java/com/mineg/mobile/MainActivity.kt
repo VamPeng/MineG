@@ -1,3 +1,4 @@
+/** Android entry Activity responsible only for permissions, lifecycle forwarding and Compose. */
 package com.mineg.mobile
 
 import android.Manifest
@@ -20,14 +21,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.mineg.mobile.app.LibraryAccess
-import com.mineg.mobile.app.MineGApp
-import com.mineg.mobile.app.MineGAppViewModel
+import com.mineg.mobile.presentation.LibraryAccess
+import com.mineg.mobile.presentation.MineGApp
+import com.mineg.mobile.presentation.MineGAppViewModel
 import com.mineg.mobile.ui.theme.MineGTheme
 
+/** Hosts the root Compose tree and bridges Android permission/lifecycle callbacks to ViewModel. */
 class MainActivity : ComponentActivity() {
   private val viewModel by viewModels<MineGAppViewModel> { MineGAppViewModel.factory(this) }
 
+  /** Creates the root UI and registers the platform library-permission launcher. */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContent {

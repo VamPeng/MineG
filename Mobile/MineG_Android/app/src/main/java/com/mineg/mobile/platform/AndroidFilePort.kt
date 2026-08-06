@@ -1,9 +1,11 @@
+/** App-private temporary-file implementation used by Core effects. */
 package com.mineg.mobile.platform
 
 import android.content.Context
-import com.mineg.mobile.contracts.FilePort
+import com.mineg.mobile.platform.port.FilePort
 import java.io.File
 
+/** Constrains all Core task files to one `noBackupFilesDir` child. */
 class AndroidFilePort(private val context: Context) : FilePort {
   private val taskFilesDirectory: File
     get() = File(context.noBackupFilesDir, "mineg-task-files").also { check(it.isDirectory || it.mkdirs()) }
@@ -22,6 +24,7 @@ class AndroidFilePort(private val context: Context) : FilePort {
     return !target.exists() || target.delete()
   }
 
+  /** Removes abandoned verified-view files left by an interrupted prior process. */
   fun deleteOrphanedPrivateViewFiles(): Int {
     val candidates = taskFilesDirectory.listFiles().orEmpty().filter { file ->
       file.isFile && file.name.matches(Regex("private-view-[0-9]{1,19}\\.mineg-task"))

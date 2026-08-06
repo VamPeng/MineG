@@ -1,3 +1,4 @@
+/** Process-level Coil configuration for bounded in-memory media caching. */
 package com.mineg.mobile
 
 import android.app.Application
@@ -7,7 +8,9 @@ import coil3.SingletonImageLoader
 import coil3.memory.MemoryCache
 import kotlinx.coroutines.Dispatchers
 
+/** Provides the process-wide image loader with a bounded memory cache. */
 class MineGApplication : Application(), SingletonImageLoader.Factory {
+  /** Builds Coil's singleton loader using IO work and a 20% memory-cache ceiling. */
   override fun newImageLoader(context: Context): ImageLoader = ImageLoader.Builder(context)
     .memoryCache {
       MemoryCache.Builder()

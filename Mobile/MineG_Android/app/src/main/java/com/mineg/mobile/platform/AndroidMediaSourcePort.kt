@@ -1,3 +1,4 @@
+/** Android MediaStore implementation of the device-library source port. */
 package com.mineg.mobile.platform
 
 import android.Manifest
@@ -12,18 +13,19 @@ import android.database.ContentObserver
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
-import com.mineg.mobile.contracts.LibraryPermissionState
-import com.mineg.mobile.contracts.LocalMediaAvailability
-import com.mineg.mobile.contracts.LocalMediaType
-import com.mineg.mobile.contracts.MediaScanCursor
-import com.mineg.mobile.contracts.MediaSourcePort
-import com.mineg.mobile.contracts.OpenedMediaResource
-import com.mineg.mobile.contracts.PermissionSnapshot
-import com.mineg.mobile.contracts.PlatformAlbum
-import com.mineg.mobile.contracts.PlatformMedia
-import com.mineg.mobile.contracts.PlatformMediaPage
+import com.mineg.mobile.platform.port.LibraryPermissionState
+import com.mineg.mobile.bridge.library.model.LocalMediaAvailability
+import com.mineg.mobile.bridge.library.model.LocalMediaType
+import com.mineg.mobile.platform.port.MediaScanCursor
+import com.mineg.mobile.platform.port.MediaSourcePort
+import com.mineg.mobile.platform.port.OpenedMediaResource
+import com.mineg.mobile.platform.port.PermissionSnapshot
+import com.mineg.mobile.platform.port.PlatformAlbum
+import com.mineg.mobile.platform.port.PlatformMedia
+import com.mineg.mobile.platform.port.PlatformMediaPage
 import java.time.Instant
 
+/** Maps permission, album, media and descriptor APIs into stable platform-port models. */
 class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
   private val preferences = context.getSharedPreferences("mineg_media_permission", Context.MODE_PRIVATE)
 
@@ -50,10 +52,12 @@ class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
     return getPermissionSnapshot()
   }
 
+  /** Persists that the app has already attempted a permission request. */
   fun markPermissionRequested() {
     preferences.edit().putBoolean(PERMISSION_REQUESTED, true).apply()
   }
 
+  /** Observes MediaStore changes until the returned handle is closed. */
   fun observeLibraryChanges(listener: () -> Unit): AutoCloseable {
     val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
       override fun onChange(selfChange: Boolean) = listener()
@@ -198,7 +202,7 @@ class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
     )
   }
 
-  /** Resolves a current MediaStore item and proves that it can still be opened for reading. */
+  /** Resolves an available MediaStore item and proves it can still be opened for reading. */
   internal fun resolveAvailableMediaUri(platformAssetRef: String): String? {
     if (getPermissionSnapshot().library != LibraryPermissionState.FULL) return null
     val id = assetId(platformAssetRef)
@@ -209,17 +213,23 @@ class AndroidMediaSourcePort(private val context: Context) : MediaSourcePort {
     }.getOrNull()
   }
 
+  /** Reads a required string column from the current cursor row. */
   private fun android.database.Cursor.string(column: String): String =
     getString(getColumnIndexOrThrow(column)).orEmpty()
 
+  /** Reads a required long column from the current cursor row. */
   private fun android.database.Cursor.long(column: String): Long =
     getLong(getColumnIndexOrThrow(column))
 
+  /** Reads a required integer column from the current cursor row. */
   private fun android.database.Cursor.int(column: String): Int =
     getInt(getColumnIndexOrThrow(column))
 
+  /** Builds the stable Android asset reference consumed by Core. */
   private fun assetRef(id: Long) = "android:external:$id"
+  /** Builds the stable Android album reference consumed by Core. */
   private fun albumRef(id: String) = "android:bucket:$id"
+  /** Extracts the MediaStore row identifier from a validated asset reference. */
   private fun assetId(ref: String): Long = ref.substringAfterLast(':').toLongOrNull() ?: 0
 
   private companion object {

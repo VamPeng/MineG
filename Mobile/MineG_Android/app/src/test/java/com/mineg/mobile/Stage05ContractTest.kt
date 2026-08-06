@@ -1,6 +1,6 @@
 package com.mineg.mobile
 
-import com.mineg.mobile.account.CoreStage05Client
+import com.mineg.mobile.bridge.media.PrivateMediaCoreGateway
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
@@ -32,7 +32,7 @@ class Stage05ContractTest {
 
   @Test
   fun androidExposesOnlyCoreOwnedPageOperations() {
-    val publicMethods = CoreStage05Client::class.java.declaredMethods
+    val publicMethods = PrivateMediaCoreGateway::class.java.declaredMethods
       .filter { Modifier.isPublic(it.modifiers) }
       .map { it.name }
       .toSet()

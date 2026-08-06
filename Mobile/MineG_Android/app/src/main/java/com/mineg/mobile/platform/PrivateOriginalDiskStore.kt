@@ -1,3 +1,4 @@
+/** Integrity-checked, account-isolated persistence for downloaded private originals. */
 package com.mineg.mobile.platform
 
 import java.io.File
@@ -20,6 +21,7 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
     cleanupIncompleteFiles()
   }
 
+  /** Returns an original only when both its size and SHA-256 still match Core's manifest. */
   @Synchronized
   fun get(
     accountId: String,
@@ -35,6 +37,7 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
     return file
   }
 
+  /** Copies and verifies one original before atomically publishing it to the cache. */
   @Synchronized
   fun put(
     accountId: String,
@@ -67,6 +70,7 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
     }
   }
 
+  /** Removes one cached original and any interrupted temporary copy. */
   @Synchronized
   fun remove(accountId: String, mediaId: String): Boolean {
     val file = dataFileOrNull(accountId, mediaId) ?: return false
@@ -78,6 +82,7 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
     return removed
   }
 
+  /** Clears every original scoped to one account. */
   @Synchronized
   fun clearAccount(accountId: String) {
     val directory = accountDirectory(accountId)
@@ -85,20 +90,25 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
     if (directory.listFiles().isNullOrEmpty()) directory.delete()
   }
 
+  /** Exposes the resolved cache path to storage tests. */
   internal fun fileForTesting(accountId: String, mediaId: String): File? =
     dataFileOrNull(accountId, mediaId)
 
+  /** Validates the media identifier before constructing its data path. */
   private fun dataFileOrNull(accountId: String, mediaId: String): File? {
     if (!mediaId.matches(MEDIA_ID_PATTERN)) return null
     return File(accountDirectory(accountId), mediaId)
   }
 
+  /** Derives an account directory without persisting the raw account identifier. */
   private fun accountDirectory(accountId: String): File =
     File(rootDirectory, PrivateThumbnailCacheKeys.accountScope(accountId))
 
+  /** Verifies the manifest size and digest for one file. */
   private fun isExpected(file: File, expectedSize: Long, expectedDigest: String): Boolean =
     file.isFile && file.length() == expectedSize && sha256Base64(file) == expectedDigest
 
+  /** Streams one file through SHA-256 and returns unpadded Base64. */
   private fun sha256Base64(file: File): String {
     val digest = MessageDigest.getInstance("SHA-256")
     FileInputStream(file).use { input ->
@@ -112,6 +122,7 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
     return Base64.getEncoder().withoutPadding().encodeToString(digest.digest())
   }
 
+  /** Publishes a verified file atomically, with a same-volume replacement fallback. */
   private fun replaceAtomically(source: File, target: File) {
     runCatching {
       Files.move(
@@ -125,6 +136,7 @@ internal class PrivateOriginalDiskStore(private val rootDirectory: File) {
     }
   }
 
+  /** Removes temporary files left by interrupted writes. */
   private fun cleanupIncompleteFiles() {
     rootDirectory.walkTopDown()
       .filter { it.isFile && it.name.endsWith(".tmp") }

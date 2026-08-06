@@ -1,6 +1,8 @@
 package com.mineg.mobile
 
-import com.mineg.mobile.account.CoreStage06Client
+import com.mineg.mobile.bridge.feedback.FeedbackCoreGateway
+import com.mineg.mobile.bridge.shared.SharedMediaCoreGateway
+import com.mineg.mobile.bridge.trash.TrashCoreGateway
 import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -9,13 +11,13 @@ import kotlin.test.assertTrue
 
 class Stage06ContractTest {
   @Test
-  fun baselineKeepsFamilyTrashAndFeedbackAuthorityInCore() {
+  fun baselineKeepsSharedTrashAndFeedbackAuthorityInCore() {
     val contract = resource("stage06-v1.json")
     listOf(
       "stage06-v1",
       "C++ Core",
       "SetPrivateMediaShare",
-      "RefreshFamilyMedia",
+      "RefreshSharedMedia",
       "RefreshTrashMedia",
       "RestoreTrashMedia",
       "SubmitFeedback",
@@ -24,21 +26,28 @@ class Stage06ContractTest {
       "DOWNLOAD",
     ).forEach { assertContains(contract, "\"$it\"") }
     assertContains(contract, "\"usesMediaKeyOrEnvelope\": false")
+    assertContains(contract, "\"sharedSpaceModel\": \"ALL_APPROVED_USERS\"")
+    assertFalse(contract.contains("membershipRequired"))
     assertFalse(contract.contains("Media Key"))
   }
 
   @Test
-  fun androidStage06ClientExposesOnlyTypedCoreOperations() {
-    val publicMethods = CoreStage06Client::class.java.declaredMethods
-      .filter { Modifier.isPublic(it.modifiers) }
-      .map { it.name }
-      .toSet()
+  fun androidResponsibilityGatewaysExposeOnlyTypedCoreOperations() {
+    val publicMethods = listOf(
+      SharedMediaCoreGateway::class.java,
+      TrashCoreGateway::class.java,
+      FeedbackCoreGateway::class.java,
+    ).flatMap { type ->
+      type.declaredMethods
+        .filter { Modifier.isPublic(it.modifiers) }
+        .map { it.name }
+    }.toSet()
     assertTrue(publicMethods.containsAll(setOf(
       "setPrivateMediaShare",
-      "refreshFamilyMedia",
-      "getFamilyMediaDetail",
-      "openFamilyMedia",
-      "closeFamilyMedia",
+      "refreshSharedMedia",
+      "getSharedMediaDetail",
+      "openSharedMedia",
+      "closeSharedMedia",
       "refreshTrash",
       "restoreTrash",
       "sendFeedback",

@@ -1,3 +1,4 @@
+/** Material theme composition backed by the MineG design-token mapping. */
 package com.mineg.mobile.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -156,10 +157,12 @@ private val MineGShapes = Shapes(
 val MaterialTheme.mineGColors: MineGExtendedColors
   @Composable @ReadOnlyComposable get() = LocalMineGExtendedColors.current
 
+/** Returns the navigation selection color for the active theme. */
 @Composable
 fun mineGNavigationSelectionColor(): Color =
   MaterialTheme.colorScheme.primary.copy(alpha = MaterialTheme.mineGColors.brandSelectionAlpha)
 
+/** Applies MineG colors, typography and shapes to [content]. */
 @Composable
 fun MineGTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
   CompositionLocalProvider(LocalMineGExtendedColors provides if (darkTheme) DarkExtendedColors else LightExtendedColors) {

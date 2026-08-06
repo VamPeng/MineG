@@ -1,10 +1,11 @@
+/** Verified-file playback adapter and temporary URI lifecycle owner. */
 package com.mineg.mobile.platform
 
 import android.content.Context
 import android.net.Uri
-import com.mineg.mobile.contracts.MediaPlaybackPort
-import com.mineg.mobile.contracts.VerifiedMediaOpenRequest
-import com.mineg.mobile.contracts.VerifiedMediaOpenResult
+import com.mineg.mobile.platform.port.MediaPlaybackPort
+import com.mineg.mobile.platform.port.VerifiedMediaOpenRequest
+import com.mineg.mobile.platform.port.VerifiedMediaOpenResult
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -36,6 +37,7 @@ class AndroidMediaPlaybackPort(context: Context) : MediaPlaybackPort {
     return open(file, deleteOnClose = true)
   }
 
+  /** Opens a persistent cache entry without deleting it when the view closes. */
   internal fun openCachedThumbnail(
     entry: PrivateThumbnailDiskCache.Entry,
   ): VerifiedMediaOpenResult {
@@ -54,6 +56,7 @@ class AndroidMediaPlaybackPort(context: Context) : MediaPlaybackPort {
     return !opened.deleteOnClose || !opened.file.exists() || opened.file.delete()
   }
 
+  /** Creates an opaque view handle and tracks whether the underlying file is disposable. */
   private fun open(file: File, deleteOnClose: Boolean): VerifiedMediaOpenResult {
     val handle = "view-${UUID.randomUUID()}"
     check(openedFiles.putIfAbsent(handle, OpenedFile(file, deleteOnClose)) == null)

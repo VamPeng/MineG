@@ -1,6 +1,6 @@
 package com.mineg.mobile
 
-import com.mineg.mobile.account.CoreAccountClient
+import com.mineg.mobile.bridge.account.AccountCoreGateway
 import java.lang.reflect.Modifier
 import org.json.JSONObject
 import kotlin.test.Test
@@ -46,7 +46,7 @@ class AccountV3ContractTest {
 
   @Test
   fun AndroidAccountBridgeOnlyPublishesFrozenBusinessMethods() {
-    val methods = CoreAccountClient::class.java.declaredMethods
+    val methods = AccountCoreGateway::class.java.declaredMethods
       .filter { Modifier.isPublic(it.modifiers) }
       .map { it.name }
       .toSet()

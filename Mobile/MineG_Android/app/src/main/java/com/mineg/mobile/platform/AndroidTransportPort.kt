@@ -1,14 +1,15 @@
+/** HTTP and object-transfer implementation of the Core transport port. */
 package com.mineg.mobile.platform
 
-import com.mineg.mobile.contracts.ApiRequest
-import com.mineg.mobile.contracts.ApiResponse
-import com.mineg.mobile.contracts.DownloadObjectRequest
-import com.mineg.mobile.contracts.DownloadObjectResult
-import com.mineg.mobile.contracts.TransportPort
-import com.mineg.mobile.contracts.UploadPartRequest
-import com.mineg.mobile.contracts.UploadPartResult
-import com.mineg.mobile.contracts.UploadObjectRequest
-import com.mineg.mobile.contracts.UploadObjectResult
+import com.mineg.mobile.platform.port.ApiRequest
+import com.mineg.mobile.platform.port.ApiResponse
+import com.mineg.mobile.platform.port.DownloadObjectRequest
+import com.mineg.mobile.platform.port.DownloadObjectResult
+import com.mineg.mobile.platform.port.TransportPort
+import com.mineg.mobile.platform.port.UploadPartRequest
+import com.mineg.mobile.platform.port.UploadPartResult
+import com.mineg.mobile.platform.port.UploadObjectRequest
+import com.mineg.mobile.platform.port.UploadObjectResult
 import java.io.RandomAccessFile
 import java.io.File
 import java.io.FileInputStream
@@ -22,6 +23,7 @@ import java.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Enforces base-host, redirect and size constraints before performing network I/O. */
 class AndroidTransportPort(
   private val apiBaseUrl: String,
   allowPrivateHttp: Boolean = false,
@@ -112,6 +114,7 @@ class AndroidTransportPort(
     }
   }
 
+  /** Copies exactly one requested file or descriptor range into an upload connection. */
   private fun copyPart(
     read: (ByteArray, Int, Int) -> Int,
     output: java.io.OutputStream,
@@ -226,6 +229,7 @@ class AndroidTransportPort(
     }
   }
 
+  /** Identifies loopback/private hosts permitted only by the explicit debug option. */
   private fun isPrivateDevelopmentHost(host: String): Boolean {
     if (host == "localhost" || host == "::1" || host == "[::1]") return true
     val octets = host.split('.').map { it.toIntOrNull() ?: return false }

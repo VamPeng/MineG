@@ -1,10 +1,11 @@
+/** Android Keystore-backed implementation of Core's secure-store port. */
 package com.mineg.mobile.platform
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import com.mineg.mobile.contracts.SecureStorePort
+import com.mineg.mobile.platform.port.SecureStorePort
 import java.nio.ByteBuffer
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -12,6 +13,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+/** Encrypts each preference value with an app-owned AES-GCM key. */
 class AndroidSecureStorePort(context: Context) : SecureStorePort {
   private val preferences = context.getSharedPreferences("mineg_secure_values", Context.MODE_PRIVATE)
   private val keyAlias = "mineg.foundation.wrap.v1"
@@ -53,6 +55,7 @@ class AndroidSecureStorePort(context: Context) : SecureStorePort {
     preferences.edit().also { editor -> names.forEach(editor::remove) }.apply()
   }
 
+  /** Encrypts a secret into a versioned Base64 preference payload. */
   private fun encrypt(value: ByteArray): String {
     val cipher = Cipher.getInstance("AES/GCM/NoPadding")
     cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
@@ -72,6 +75,7 @@ class AndroidSecureStorePort(context: Context) : SecureStorePort {
     preferences.edit().remove(name).apply()
   }
 
+  /** Loads or creates the non-exportable Android Keystore key. */
   private fun getOrCreateKey(): SecretKey {
     val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
     (keyStore.getKey(keyAlias, null) as? SecretKey)?.let { return it }

@@ -1,7 +1,7 @@
 package com.mineg.mobile
 
-import com.mineg.mobile.account.AccountValidation
-import com.mineg.mobile.contracts.AccountClient
+import com.mineg.mobile.feature.auth.validation.AccountInputValidator
+import com.mineg.mobile.bridge.account.AccountClient
 import com.mineg.mobile.core.CoreClient
 import java.lang.reflect.Modifier
 import kotlin.test.Test
@@ -56,13 +56,13 @@ class AccountContractTest {
 
   @Test
   fun mainlandPhoneAndPasswordRulesMatchTheContract() {
-    assertEquals("+8613800138000", AccountValidation.normalizePhone("13800138000"))
-    assertEquals("+8613800138000", AccountValidation.normalizePhone("+8613800138000"))
-    assertEquals("138****8000", AccountValidation.maskedPhone("13800138000"))
-    assertNull(AccountValidation.normalizePhone("12800138000"))
-    assertNull(AccountValidation.passwordError("family2026"))
-    assertTrue(AccountValidation.passwordError("onlyletters") != null)
-    assertTrue(AccountValidation.passwordError("12345678") != null)
+    assertEquals("+8613800138000", AccountInputValidator.normalizePhone("13800138000"))
+    assertEquals("+8613800138000", AccountInputValidator.normalizePhone("+8613800138000"))
+    assertEquals("138****8000", AccountInputValidator.maskedPhone("13800138000"))
+    assertNull(AccountInputValidator.normalizePhone("12800138000"))
+    assertNull(AccountInputValidator.passwordError("family2026"))
+    assertTrue(AccountInputValidator.passwordError("onlyletters") != null)
+    assertTrue(AccountInputValidator.passwordError("12345678") != null)
   }
 
   private fun resource(name: String): String =

@@ -1,3 +1,4 @@
+/** Verified private-file writer for Android MediaStore. */
 package com.mineg.mobile.platform
 
 import android.content.ContentUris
@@ -5,16 +6,16 @@ import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import com.mineg.mobile.contracts.SystemAlbumSource
-import com.mineg.mobile.contracts.SystemAlbumWriteRequest
-import com.mineg.mobile.contracts.SystemAlbumWriteResult
-import com.mineg.mobile.contracts.SystemAlbumWriterPort
+import com.mineg.mobile.platform.port.SystemAlbumSource
+import com.mineg.mobile.platform.port.SystemAlbumWriteRequest
+import com.mineg.mobile.platform.port.SystemAlbumWriteResult
+import com.mineg.mobile.platform.port.SystemAlbumWriterPort
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.time.Instant
 
-/** Writes only Core-verified task files or verified private originals into the system collection. */
+/** Copies only Core-approved sources to MediaStore and finalizes pending rows atomically. */
 class AndroidSystemAlbumWriterPort(context: Context) : SystemAlbumWriterPort {
   private val applicationContext = context.applicationContext
   private val resolver = applicationContext.contentResolver
@@ -77,15 +78,18 @@ class AndroidSystemAlbumWriterPort(context: Context) : SystemAlbumWriterPort {
     return resolver.delete(uri, null, null) > 0
   }
 
+  /** Converts a MediaStore URI into Core's stable Android asset reference. */
   private fun platformAssetRef(uri: Uri): String =
     "android:media-store:${checkNotNull(uri.lastPathSegment).toLong()}"
 
+  /** Validates and extracts a MediaStore identifier from a platform asset reference. */
   private fun parsePlatformAssetRef(value: String): Long? = value
     .removePrefix("android:media-store:")
     .takeIf { value.startsWith("android:media-store:") }
     ?.toLongOrNull()
     ?.takeIf { it > 0 }
 
+  /** Parses an ISO timestamp for MediaStore's epoch-second fields. */
   private fun parseCapturedAtMillis(value: String): Long? = try {
     Instant.parse(value).toEpochMilli()
   } catch (_: Exception) {

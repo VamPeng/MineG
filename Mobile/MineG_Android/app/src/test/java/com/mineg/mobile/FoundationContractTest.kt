@@ -1,13 +1,13 @@
 package com.mineg.mobile
 
-import com.mineg.mobile.contracts.BackgroundSchedulerPort
-import com.mineg.mobile.contracts.ConnectivityPort
-import com.mineg.mobile.contracts.FilePort
-import com.mineg.mobile.contracts.MediaPlaybackPort
-import com.mineg.mobile.contracts.MediaSourcePort
-import com.mineg.mobile.contracts.SecureStorePort
-import com.mineg.mobile.contracts.SystemAlbumWriterPort
-import com.mineg.mobile.contracts.TransportPort
+import com.mineg.mobile.platform.port.BackgroundSchedulerPort
+import com.mineg.mobile.platform.port.ConnectivityPort
+import com.mineg.mobile.platform.port.FilePort
+import com.mineg.mobile.platform.port.MediaPlaybackPort
+import com.mineg.mobile.platform.port.MediaSourcePort
+import com.mineg.mobile.platform.port.SecureStorePort
+import com.mineg.mobile.platform.port.SystemAlbumWriterPort
+import com.mineg.mobile.platform.port.TransportPort
 import com.mineg.mobile.core.CoreClient
 import com.mineg.mobile.platform.AndroidTransportPort
 import java.lang.reflect.Modifier

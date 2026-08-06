@@ -31,7 +31,7 @@ Debug 验收包默认视为“登录、审核和授权均已完成”，启动�
 | 路由 | 父级 |
 |---|---|
 | `PrivateMediaDetail(mediaId)` | 私人空间 |
-| `FamilyMediaDetail(mediaId)` | 首页共享 Tab 或我分享的 |
+| `SharedMediaDetail(mediaId)` | 首页共享 Tab 或我分享的 |
 | `SharedByMe` | 我的 |
 | `LocalAlbum(albumId)` | 备份 |
 | `BackupSettings` | 备份或我的 |
@@ -66,7 +66,7 @@ Debug 验收包默认视为“登录、审核和授权均已完成”，启动�
 
 ### 私人媒体操作状态
 
-`MediaActionState` 覆盖空闲、下载中、保存成功、保存失败和共享反馈。删除确认由 `AppDialog.DeleteMedia` 表达。家庭媒体详情不包含保存、导出或二次分享状态。
+`MediaActionState` 覆盖空闲、下载中、保存成功、保存失败和共享反馈。删除确认由 `AppDialog.DeleteMedia` 表达。共享媒体详情不包含保存、导出或二次分享状态。
 
 ### 表单状态
 

@@ -1,3 +1,4 @@
+/** Rebuildable verified-thumbnail cache and its privacy-preserving key derivation. */
 package com.mineg.mobile.platform
 
 import java.io.File
@@ -12,13 +13,17 @@ import java.util.Properties
 internal object PrivateThumbnailCacheKeys {
   private const val NAMESPACE = "private-thumbnail-v1"
 
+  /** Builds the Coil memory key without exposing raw account or media identifiers. */
   fun memoryKey(accountId: String, mediaId: String): String =
     "$NAMESPACE:${accountScope(accountId)}:${digestHex(mediaId)}"
 
+  /** Builds the prefix used to evict all in-memory entries for one account. */
   fun accountPrefix(accountId: String): String = "$NAMESPACE:${accountScope(accountId)}:"
 
+  /** Derives the stable opaque account directory name. */
   fun accountScope(accountId: String): String = digestHex(accountId)
 
+  /** Produces a lowercase SHA-256 identifier for cache-key material. */
   private fun digestHex(value: String): String = MessageDigest.getInstance("SHA-256")
     .digest(value.toByteArray(Charsets.UTF_8))
     .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
@@ -62,6 +67,7 @@ internal class PrivateThumbnailDiskCache(
     trimIfNeeded()
   }
 
+  /** Returns a thumbnail only after metadata, size and digest validation. */
   @Synchronized
   fun get(accountId: String, mediaId: String): Entry? {
     val cacheKey = PrivateThumbnailCacheKeys.memoryKey(accountId, mediaId)
@@ -91,6 +97,7 @@ internal class PrivateThumbnailDiskCache(
     )
   }
 
+  /** Copies a verified source and atomically commits its adjacent integrity metadata. */
   @Synchronized
   fun put(
     accountId: String,
@@ -135,11 +142,13 @@ internal class PrivateThumbnailDiskCache(
     }
   }
 
+  /** Retains an entry while an active playback handle references it. */
   @Synchronized
   fun retain(cacheKey: String) {
     retainedKeys[cacheKey] = (retainedKeys[cacheKey] ?: 0) + 1
   }
 
+  /** Releases a playback reference and completes any deferred removal. */
   @Synchronized
   fun release(cacheKey: String) {
     val remaining = (retainedKeys[cacheKey] ?: return) - 1
@@ -151,6 +160,7 @@ internal class PrivateThumbnailDiskCache(
     if (pendingRemovalKeys.remove(cacheKey)) deleteEntryByKey(cacheKey)
   }
 
+  /** Removes one entry immediately or defers deletion until active handles close. */
   @Synchronized
   fun remove(accountId: String, mediaId: String) {
     val cacheKey = PrivateThumbnailCacheKeys.memoryKey(accountId, mediaId)
@@ -162,6 +172,7 @@ internal class PrivateThumbnailDiskCache(
     deleteEntry(cacheKey, dataFile(accountId, mediaId), metadataFile(dataFile(accountId, mediaId)))
   }
 
+  /** Clears every entry for one account without invalidating active file handles. */
   @Synchronized
   fun clearAccount(accountId: String) {
     val accountScope = PrivateThumbnailCacheKeys.accountScope(accountId)
@@ -183,20 +194,25 @@ internal class PrivateThumbnailDiskCache(
     if (directory.listFiles().isNullOrEmpty()) directory.delete()
   }
 
+  /** Returns current data-file bytes for cache policy tests. */
   @Synchronized
   internal fun currentSizeBytes(): Long = dataFiles().sumOf(File::length)
 
+  /** Resolves the data path from opaque account and media hashes. */
   private fun dataFile(accountId: String, mediaId: String): File {
     val accountScope = PrivateThumbnailCacheKeys.accountScope(accountId)
     val mediaHash = PrivateThumbnailCacheKeys.memoryKey(accountId, mediaId).substringAfterLast(':')
     return File(File(rootDirectory, accountScope), "$mediaHash.$DATA_EXTENSION")
   }
 
+  /** Resolves the integrity-metadata path adjacent to a data file. */
   private fun metadataFile(dataFile: File): File = File(dataFile.parentFile, dataFile.nameWithoutExtension + ".$METADATA_EXTENSION")
 
+  /** Resolves the data file represented by a metadata path. */
   private fun dataFileForMetadata(metadataFile: File): File =
     File(metadataFile.parentFile, metadataFile.nameWithoutExtension + ".$DATA_EXTENSION")
 
+  /** Parses and validates a persisted integrity record. */
   private fun readMetadata(file: File): Metadata? = runCatching {
     if (!file.isFile) return null
     val properties = Properties().also { values -> FileInputStream(file).use(values::load) }
@@ -207,6 +223,7 @@ internal class PrivateThumbnailDiskCache(
     Metadata(resourceType, mimeType, byteLength, digest)
   }.getOrNull()
 
+  /** Durably writes one integrity record before the data file becomes visible. */
   private fun writeMetadata(file: File, metadata: Metadata) {
     val properties = Properties().apply {
       setProperty("resourceType", metadata.resourceType)
@@ -220,6 +237,7 @@ internal class PrivateThumbnailDiskCache(
     }
   }
 
+  /** Publishes a cache file atomically, with a same-volume replacement fallback. */
   private fun replaceAtomically(source: File, target: File) {
     runCatching {
       Files.move(
@@ -233,6 +251,7 @@ internal class PrivateThumbnailDiskCache(
     }
   }
 
+  /** Streams a cache file through SHA-256 and returns unpadded Base64. */
   private fun sha256Base64(file: File): String {
     val digest = MessageDigest.getInstance("SHA-256")
     FileInputStream(file).use { input ->
@@ -246,6 +265,7 @@ internal class PrivateThumbnailDiskCache(
     return Base64.getEncoder().withoutPadding().encodeToString(digest.digest())
   }
 
+  /** Removes interrupted pairs and orphaned data or metadata files. */
   private fun cleanupIncompleteFiles() {
     rootDirectory.walkTopDown()
       .filter { it.isFile && (it.name.endsWith(".tmp") || it.extension == METADATA_EXTENSION && !dataFileForMetadata(it).exists()) }
@@ -253,6 +273,7 @@ internal class PrivateThumbnailDiskCache(
     dataFiles().filter { !metadataFile(it).exists() }.forEach(File::delete)
   }
 
+  /** Evicts least-recently-used, unretained entries down to the target watermark. */
   private fun trimIfNeeded() {
     val files = dataFiles().sortedBy(File::lastModified)
     var total = files.sumOf(File::length)
@@ -268,10 +289,12 @@ internal class PrivateThumbnailDiskCache(
     }
   }
 
+  /** Lists committed thumbnail data files. */
   private fun dataFiles(): List<File> = rootDirectory.walkTopDown()
     .filter { it.isFile && it.extension == DATA_EXTENSION }
     .toList()
 
+  /** Resolves and removes one entry from its opaque cache key. */
   private fun deleteEntryByKey(cacheKey: String) {
     val parts = cacheKey.split(':')
     if (parts.size != 3 || parts[0] != "private-thumbnail-v1") return
@@ -279,6 +302,7 @@ internal class PrivateThumbnailDiskCache(
     deleteEntry(cacheKey, file, metadataFile(file))
   }
 
+  /** Deletes an entry pair and clears its in-memory bookkeeping. */
   private fun deleteEntry(cacheKey: String, dataFile: File, metadataFile: File) {
     verifiedKeys -= cacheKey
     pendingRemovalKeys -= cacheKey
@@ -288,6 +312,7 @@ internal class PrivateThumbnailDiskCache(
     if (directory?.listFiles().isNullOrEmpty()) directory?.delete()
   }
 
+  /** Reconstructs the canonical key from already-hashed path components. */
   private fun cacheKey(accountScope: String, mediaHash: String): String =
     "private-thumbnail-v1:$accountScope:$mediaHash"
 

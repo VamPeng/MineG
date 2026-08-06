@@ -1,6 +1,9 @@
 package com.mineg.mobile
 
-import com.mineg.mobile.account.CoreStage02Client
+import com.mineg.mobile.bridge.backup.BackupSettingsCoreGateway
+import com.mineg.mobile.bridge.library.LocalLibraryCoreGateway
+import com.mineg.mobile.bridge.media.PrivateMediaCoreGateway
+import com.mineg.mobile.bridge.profile.ProfileCoreGateway
 import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -29,17 +32,23 @@ class Stage02V2ContractTest {
   }
 
   @Test
-  fun bridgeExposesOnlySnapshotAndOperationMethods() {
-    val methods = CoreStage02Client::class.java.declaredMethods
-      .filter { Modifier.isPublic(it.modifiers) }
-      .map { it.name }
-      .toSet()
+  fun responsibilityGatewaysExposeOnlySnapshotAndOperationMethods() {
+    val methods = listOf(
+      ProfileCoreGateway::class.java,
+      PrivateMediaCoreGateway::class.java,
+      LocalLibraryCoreGateway::class.java,
+      BackupSettingsCoreGateway::class.java,
+    ).flatMap { type ->
+      type.declaredMethods
+        .filter { Modifier.isPublic(it.modifiers) }
+        .map { it.name }
+    }.toSet()
     assertTrue(
       methods.containsAll(
         setOf(
-          "updateAvatar", "listPrivateMedia",
-          "startForegroundLocalScan", "getLocalLibrarySummary", "getBackupSettings",
-          "updateBackupSettings", "listLocalAlbums", "listLocalMedia",
+          "updateAvatar", "refreshPrivateMedia",
+          "startForegroundScan", "getSummary", "getSettings",
+          "updateSettings", "listAlbums", "listMedia",
         ),
       ),
     )

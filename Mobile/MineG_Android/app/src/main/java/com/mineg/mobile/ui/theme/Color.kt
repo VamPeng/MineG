@@ -1,3 +1,4 @@
+/** Authoritative light/dark color tokens consumed by [MineGTheme]. */
 package com.mineg.mobile.ui.theme
 
 import androidx.compose.runtime.Immutable
